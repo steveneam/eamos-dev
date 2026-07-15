@@ -174,3 +174,14 @@ Commits and PRs carry no AI attribution: no `Co-Authored-By` trailers and no
 "Generated with" footer. The tracked `.claude/settings.json` attribution block
 is the harness-side enforcement; strip any attribution that still appears
 before merge.
+
+## Verified-slice git completion
+
+Normal user-directed work ends at a verified, committed, pushed boundary without
+asking Steven to repeat a commit/push approval. This standing approval is
+agent-agnostic and matches Thalon and Swordfish: inspect `git status`, stage only
+the acting agent's explicit owned paths, commit without AI attribution, push the
+branch, open/update the PR when the branch workflow applies, and watch CI. Pause
+for the existing explicit approval before merge. Destructive Git, cleanup
+deletion, secret output, env/provider changes, deploy hooks, Supabase mutations,
+source materialization, and other cloud actions retain their own gates.

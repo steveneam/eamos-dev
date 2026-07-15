@@ -103,11 +103,15 @@ Codex-specific reminders that follow from it:
   `Safe to clear: yes|no` line + reason and a fenced stamped resume `Prompt:`
   block (first line `# Resume prompt · YYYY-MM-DD HH:MM ±zzzz · Codex
   <session/task>`). The prompt must be in the message, not only the files.
-- No commit/push/reset/stash/clean/force-push unless the user or the active
-  task brief explicitly authorizes it. Do not start FE-6/7/8 or M-002
-  follow-ups without explicit user direction. Surface product/design/UX
-  decisions for the user instead of silently changing behavior.
+- Verified normal slices are committed and pushed without asking Steven to
+  repeat approval; this is the agent-agnostic standing decision in
+  `docs/governance/decisions.md` and README Hard Rule 11. Inspect status, stage
+  explicit owned paths, push/open the PR, watch CI, and stop at the existing
+  merge-approval gate. Do not infer approval for reset/stash/clean/force-push,
+  cleanup deletion, secrets, deploy/cloud mutations, FE-6/7/8, or M-002
+  follow-ups. Surface product/design/UX decisions instead of silently changing
+  behavior.
 - DL-019 explicit staging rule is durable in `docs/governance/decisions.md`:
   before any staging/commit operation, run `git status --short`; never use
-  `git add -A`, `git add .`, or `git commit -a`; stage only explicit
-  Codex-owned paths with `git add -- <paths>`.
+  `git add -A`, `git add .`, or `git commit -a`; stage only the current
+  change's explicit owned paths with `git add -- <paths>`.
