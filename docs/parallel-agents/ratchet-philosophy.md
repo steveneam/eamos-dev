@@ -50,7 +50,8 @@ they once helped a single sprint.
   flips, and large cleanup deletions are explicit Steven-approved actions.
 - Private search rows stay owner-filtered; raw private report text is not
   exposed outside owner-scoped hits.
-- Backend/frontend contracts are frozen before parallel lanes fork.
+- Backend schemas and the active `app/web` TypeScript contract are frozen before
+  parallel lanes fork.
 - Exactly one lane owns `supabase/migrations/**` in any sprint.
 - Render production deploy stays main-only and lead/Codex-owned; lane worktrees
   do not carry deploy authority.

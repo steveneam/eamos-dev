@@ -1,54 +1,26 @@
-# Demo App Home
+# Eamos application
 
-This is the **single home for the live demo app**.
+The product has two maintained application roots:
 
-We keep the demo split into:
-- `backend/` — API, tool wrappers, rules, and draft-generation workflow
-- `frontend/` — demo UI for case intake, draft review, and final output
-- `shared/` — contracts and demo data used by both sides
+- `web/`: the sole frontend, built with Next.js, React, and TypeScript;
+- `backend/`: the FastAPI service, schemas, providers, repositories, and tests.
 
-## Folder layout
+The historical `frontend/` Vite application was retired on 2026-07-15. Its
+useful pure tests now run from their corresponding `web/` modules, and Git
+history preserves the old implementation.
 
-```text
-04_demo/app/
-├── backend/
-│   ├── app/
-│   │   ├── api/routes/
-│   │   ├── agents/
-│   │   ├── tools/
-│   │   ├── services/
-│   │   ├── rules/
-│   │   ├── schemas/
-│   │   └── fixtures/
-│   └── tests/
-├── frontend/
-│   ├── src/
-│   │   ├── routes/
-│   │   ├── components/
-│   │   ├── features/
-│   │   ├── lib/
-│   │   └── types/
-│   └── public/
-└── shared/
-    ├── contracts/
-    └── demo-data/
+## Contract ordering
+
+Backend Pydantic models under `backend/app/schemas/` are authoritative. Update
+them first, then update `web/lib/backend.ts` in the same change. The parity
+canary is `backend/tests/test_frontend_contract.py`.
+
+## Development
+
+```bash
+npm --prefix app/web run dev
+cd app/backend && python -m uvicorn app.main:create_app --factory --reload
 ```
 
-## Design rule
-
-This app should stay **demo-first**:
-- fake data is acceptable
-- real workflow matters more than deep infrastructure
-- one golden path first
-- backend logic should stay thin and readable
-- frontend should optimize for clarity in a 60–90 second demo
-
-## Build rule
-
-Start from:
-1. `backend/app/schemas/` — Pydantic models, the contract source of truth
-2. `backend/` contract-compatible endpoints
-3. `frontend/` screens wired to those contracts (TS mirror in
-   `frontend/src/lib/backend.ts`, guarded by `backend/tests/test_frontend_contract.py`)
-
-That keeps both sides aligned while disease/referral narrowing continues.
+The web app defaults to `http://localhost:3000`; the backend defaults to
+`http://localhost:8000/api/v1`.

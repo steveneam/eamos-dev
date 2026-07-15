@@ -16,7 +16,7 @@ Last reviewed: 2026-06-16.
 | Service | Role | Notes |
 | ------- | ---- | ----- |
 | **Vercel** | Hosts the active FE (`app/web`, Next.js 16) | Auto-deploy ON → prod (`eamos-dev.vercel.app`). **Deploy from repo root only.** Provides edge DDoS mitigation + WAF/Firewall + BotID — this covers the **frontend** surface. |
-| **Next.js 16** (App Router) | Active frontend (`app/web`) | All current FE work. Legacy Vite `app/frontend` is reference-only + serves the frozen `/runs`. |
+| **Next.js 16** (App Router) | Active frontend (`app/web`) | The sole frontend application and contract consumer. |
 | Tailwind v4 / framer-motion / gsap | UI / animation | In-house, legibility-first design system (`DESIGN.md`). |
 
 ### Backend & compute

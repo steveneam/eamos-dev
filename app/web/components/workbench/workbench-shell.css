@@ -1,0 +1,158 @@
+﻿/* ═══════════════════════════════════════════════════════════════════════
+   EAMOS WORKBENCH — STYLES
+   Inherits the design vocabulary of the Report page:
+     - Inter (body), Spectral (display), IBM Plex Mono (sequence)
+     - Teal #1D9E75 accent, warm near-black ink, 0.5px hairlines
+   Adds a wider 1440px layout with a main canvas and right contextual
+   side panel. Sequence-related color vocabulary is
+   muted (no saturated rainbow) so it reads as Eamos, not Benchling.
+═════════════════════════════════════════════════════════════════════════ */
+
+/* Workbench-only root tokens are defined in globals.css; these locals alias
+   the long names into the short identifiers used throughout this stylesheet. */
+:root {
+  --maxw: var(--maxw-workbench);
+  --side-w: var(--maxw-workbench-side);
+}
+
+/* Full-bleed: the nav + context strip span the viewport with a comfortable
+   gutter, lining their content up with the full-width WorkRail body below
+   (rail flush-left, canvas to the right edge) — no centered 1440 column, so
+   the toggle + tool tabs sit at the right edge, not floating toward centre. */
+.wrap-wide { max-width: none; margin: 0; padding: 0 22px; }
+
+/* ─────────────────── NAV (matches Report) ─────────────────── */
+.nav-wrap {
+  position: sticky; top: 0; z-index: var(--z-nav);
+  /* Opaque warm-paper, matching TopNav/LandingNav. No backdrop-filter:blur on a
+     sticky bar — this one holds a search input, so a blur repaints on every
+     keystroke (mobile typing lag). Use the shared --nav-bg token instead. */
+  background: var(--nav-bg);
+  border-bottom: 0.5px solid var(--line);
+}
+.nav {
+  height: var(--nav-h);
+  /* logo (left) · search (true-centered, capped) · switcher (right). The two
+     1fr tracks are equal, so the middle search column is centred to the
+     viewport regardless of the logo/switcher widths. */
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 720px) 1fr;
+  align-items: center;
+  gap: 22px;
+}
+.nav > :last-child { justify-self: end; }
+/* Brand + search now come from the shared chrome (<EamosLogo>, <EamosSearch>,
+   <ModePill>) so the workbench bar is identical to Report/Batch. These two
+   locals just position those shared components within the wide workbench bar. */
+.wb-logo {
+  display: inline-flex; align-items: center;
+  flex-shrink: 0;
+  text-decoration: none;
+  justify-self: start;
+}
+/* Search fills its centred grid column (capped at 720px by the track). */
+.wb-nav-search { width: 100%; min-width: 0; }
+
+/* ─────────────────── CONTEXT STRIP ─────────────────── */
+.ctx-wrap {
+  background: var(--bg);
+  border-bottom: 0.5px solid var(--line);
+}
+.ctx {
+  height: var(--ctx-h);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.ctx-left {
+  display: flex; align-items: baseline; gap: 8px;
+  flex-wrap: wrap;
+}
+.ctx-gene {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--teal-deep);
+  letter-spacing: -0.015em;
+}
+.ctx-var {
+  font-family: var(--body);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.ctx-sep { color: var(--ink-5); padding: 0 2px; }
+.ctx-sub {
+  font-family: var(--body);
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+/* FE-5.6 item 1: the strip's right side now holds only the tool selector
+   (<ToolBar>); the classification badge + external-link pills moved to the
+   side panel (see `.side-links`). */
+.ctx-right { display: flex; gap: 8px; align-items: center; }
+
+/* ─────────────────── MAIN LAYOUT (canvas / side) ─────────────────── */
+/* FE-5.5 modification #3: the left tool rail is gone — tools moved to a
+   horizontal segmented control in the canvas header. Two columns now. */
+.wb {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr var(--side-w);
+  gap: 0;
+  min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
+}
+
+/* Phase 2: WorkRail-based layout. The outer wrapper sets --rail-top so the
+   rail's sticky positioning clears the nav + context strip. */
+.wb-work-shell-wrap {
+  /* --rail-top is set inline by WorkbenchShell */
+  min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
+}
+/* The WorkRail shell takes full width inside the wrapper. The workbench has a
+   taller sticky header (nav + context strip) than the base 60px nav, so the
+   shell must clear --rail-top to both — otherwise the rail's min/max-height
+   overshoots and the pinned foot falls below the fold. (.work-shell's own
+   --rail-top:60 default would otherwise shadow the wrapper's inline value.) */
+.work-shell.wb-work-shell {
+  --rail-top: calc(var(--nav-h) + var(--ctx-h));
+  min-height: calc(100vh - var(--nav-h) - var(--ctx-h));
+}
+
+/* ── Canvas (center) ── */
+.canvas {
+  padding: 18px 22px 80px;
+  min-width: 0;
+}
+/* Header is view-controls only now (gene · variant identity lives in the
+   context strip), so the controls sit flush-right above the viewer. */
+.canvas-head {
+  display: flex; justify-content: flex-end; align-items: flex-end;
+  margin-bottom: 14px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.canvas-head-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.track-toggles {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 4px;
+}
+.track-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: 6px;
+  user-select: none;
+}
+.track-toggle:hover { background: var(--bg-soft); }
+.track-toggle input { margin: 0; accent-color: var(--teal); width: 11px; height: 11px; }
+.track-toggle:has(input:checked) { color: var(--ink); }
+

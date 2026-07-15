@@ -2,7 +2,7 @@
    <WorkRail> — shared controls-left / output-right shell.
    Used by /compare, /workbench, /report. Reading Room vocabulary
    (DESIGN.md): --bg surface, 0.5px --line hairlines, --elev-1 rest,
-   --dur-2 / --ease-emphasized motion. Self-contained — no workbench.css.
+   --dur-2 / --ease-emphasized motion. Self-contained — no Workbench stylesheet dependency.
    Spec: docs/workspace-rail/spec.md §3 + §6.
 ═════════════════════════════════════════════════════════════════════════ */
 
@@ -363,7 +363,7 @@
 
 /* ─────────────── Rail section — "airy icon-led" grammar ───────────────
    The shared section grammar for every <WorkRail>, mirrored exactly by the
-   Workbench .side-section (workbench.css) so all three surfaces read as one
+   Workbench .side-section (workbench-side-panel.css) so all three surfaces read as one
    rail. A leading MONOCHROME glyph anchors each group ("what belongs to what",
    never a status colour), the uppercase label and right-aligned meta follow,
    and the disclosure chevron sits quietly at the far right. Groups are

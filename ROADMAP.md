@@ -180,8 +180,8 @@ Source: `Eamos Workbench v1.html` + `Workbench/*.{js,css}`. Plan: `plans/v2-fron
 ## Hardening cycle (active — from the whole-project Codex review, 2026-05-16)
 
 Risk-ordered: patient-data security → evidence correctness → invariant hardening →
-features → docs. Lanes: Codex owns `app/backend/**`, Claude owns `app/frontend/**`;
-the lanes don't share files so they run concurrently.
+features → docs. The historical role-pinned lane split is retired; current work
+uses agent-agnostic ownership with disjoint globs from `COORDINATION.md`.
 
 | Sev | Finding | Owner | Session |
 | --- | ------- | ----- | ------- |

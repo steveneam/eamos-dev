@@ -12,10 +12,8 @@
 //      markers matched at line start after stripping a trailing CR, never by
 //      whole-line equality, so `=======\r` is caught and a decorative `====...`
 //      run of 8+ is not).
-//   3. Mirror canary: both backend.ts contract mirrors exist and are non-empty
-//      (app/web/lib/backend.ts + app/frontend/src/lib/backend.ts). The full
-//      schema<->mirror parity ratchet is test_frontend_contract.py; this only
-//      guards that the mirror files are present.
+//   3. Contract canary: the active backend.ts contract exists and is non-empty.
+//      Full schema<->TypeScript parity is guarded by test_frontend_contract.py.
 //
 // Usage:
 //   node scripts/eamos-web-boundary.mjs           # scan app/web
@@ -36,7 +34,7 @@ const argv = process.argv.slice(2)
 if (argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(
     'Usage: node scripts/eamos-web-boundary.mjs [--json]\n' +
-      'Structural boundary guard for app/web (client/server imports, conflict markers, mirror canary).\n' +
+      'Structural boundary guard for app/web (client/server imports, conflict markers, contract canary).\n' +
       'Exit: 0 clean, 1 violation(s), 2 error.\n',
   )
   process.exit(0)
@@ -115,11 +113,11 @@ for (const rel of files) {
   })
 }
 
-// 3) mirror canary
-for (const rel of ['app/web/lib/backend.ts', 'app/frontend/src/lib/backend.ts']) {
+// 3) active contract canary
+for (const rel of ['app/web/lib/backend.ts']) {
   const abs = join(REPO_ROOT, rel)
   if (!existsSync(abs) || readFileSync(abs, 'utf8').trim().length === 0) {
-    violations.push({ kind: 'missing-mirror', file: rel, line: 0, detail: 'contract mirror missing or empty' })
+    violations.push({ kind: 'missing-contract', file: rel, line: 0, detail: 'active contract missing or empty' })
   }
 }
 

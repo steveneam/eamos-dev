@@ -7,9 +7,9 @@ Active and historical work plans for Eamos.
 The live Eamos frontend is the Next.js app in `app/web`. Production build,
 browser proof, Vercel guard, and new product work target `app/web`.
 
-`app/frontend` is a frozen historical Vite reference. It is retained for
-comparison only and must not receive mirrored product work unless Steven
-explicitly approves an exact cleanup or regeneration task.
+The historical Vite implementation was retired on 2026-07-15 after its useful
+pure tests moved into `app/web`. Git history preserves the old implementation;
+do not recreate a second hand-maintained frontend or contract mirror.
 
 ## Active And Historical Plans
 
@@ -41,7 +41,8 @@ attribution, not a lane. These rules are about *ordering and safety*, not roles:
 1. Backend lands schema changes first (schema-first contract; the same agent can
    do both ends).
 2. Current frontend product work targets `app/web/`.
-3. Historical `app/frontend/` Vite files are not mirrored.
+3. Do not recreate the retired `app/frontend/` Vite application or a second
+   hand-maintained TypeScript contract.
 4. No simultaneous edits to shared docs. Use the handoff lock protocol in
    `agent_handoff/README.md`.
 5. Run `git status --short --branch` before staging or merging. Neither agent

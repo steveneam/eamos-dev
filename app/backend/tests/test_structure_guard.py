@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -16,15 +17,9 @@ STATIC_IMPORT_RE = re.compile(
     r"""^\s*import\s+(?:type\s+)?(?:(?:[\w*{}\s,]+)\s+from\s+)?["']([^"']+)["']""",
 )
 
-FRONTEND_LIB_ROOTS = (
-    ROOT / "app" / "web" / "lib",
-    ROOT / "app" / "frontend" / "src" / "lib",
-)
+FRONTEND_LIB_ROOTS = (ROOT / "app" / "web" / "lib",)
 
-FRONTEND_TS_ROOTS = (
-    ROOT / "app" / "web",
-    ROOT / "app" / "frontend" / "src",
-)
+FRONTEND_TS_ROOTS = (ROOT / "app" / "web",)
 
 SOURCE_ASSET_ROOT = ROOT / "app" / "backend" / "data" / "source_assets"
 
@@ -59,6 +54,9 @@ HEAVY_BROWSER_PACKAGES = {
 # Tripwires for known oversized files. These are not repo-wide line caps; they
 # keep current hotspots from growing further without a deliberate split.
 HOTSPOT_LINE_BUDGETS = {
+    "app/backend/app/data_sources/registry.py": 30,
+    "app/backend/app/data_sources/registry_models.py": 375,
+    "app/backend/app/data_sources/registry_records.py": 1375,
     "app/backend/app/services/gene_viewer.py": 500,
     "app/backend/app/services/gene_viewer_full_locus.py": 850,
     "app/backend/app/services/gene_viewer_protein_tracks.py": 375,
@@ -86,9 +84,17 @@ HOTSPOT_LINE_BUDGETS = {
     "app/backend/app/services/workbench_design_service.py": 750,
     "app/backend/app/services/clinvar_local.py": 2200,
     "app/backend/app/services/protein_annotation.py": 1000,
-    "app/web/components/workbench/workbench.css": 4100,
+    "app/backend/app/services/variant_report_orchestrator.py": 900,
+    "app/backend/app/services/variant_report_helpers.py": 275,
+    "app/backend/app/services/variant_report_signals.py": 375,
+    "app/web/components/workbench/workbench-designers.css": 900,
+    "app/web/components/workbench/workbench-shell.css": 175,
+    "app/web/components/workbench/workbench-side-panel.css": 550,
+    "app/web/components/workbench/workbench-tools.css": 1025,
+    "app/web/components/workbench/workbench-viewer.css": 1100,
     "app/web/components/report/ReportGeneViewer.tsx": 2600,
-    "app/web/components/report/PopulationFrequencySection.tsx": 1950,
+    "app/web/components/report/PopulationFrequencySection.tsx": 1600,
+    "app/web/components/report/PopulationAgeDistribution.tsx": 325,
     "app/web/components/report/ReportClient.tsx": 1850,
     "app/web/components/compare/CompareClient.tsx": 1400,
 }
@@ -192,6 +198,22 @@ def test_frontend_libs_do_not_add_barrels_or_flat_feature_api_modules() -> None:
         "Use lib/<feature>/api.ts for feature endpoints and avoid barrels: "
         + ", ".join(sorted(offenders))
     )
+
+
+def test_legacy_vite_frontend_stays_retired() -> None:
+    assert not (ROOT / "app" / "frontend").exists(), (
+        "app/frontend was retired after its useful pure tests moved to app/web. "
+        "Do not restore a second hand-maintained frontend or contract mirror."
+    )
+
+
+def test_root_package_exposes_one_repo_gate_without_vite_dependencies() -> None:
+    package = json.loads(_read(ROOT / "package.json"))
+    scripts = package.get("scripts", {})
+    assert {"audit", "build", "guard", "lint", "test", "typecheck", "verify"}.issubset(scripts)
+    assert all("eamos-repo-gate.mjs" in scripts[name] for name in scripts if name != "prepare")
+    assert "vite" not in package.get("dependencies", {})
+    assert "vite" not in package.get("devDependencies", {})
 
 
 def test_active_docs_do_not_point_to_vite_as_live_frontend() -> None:

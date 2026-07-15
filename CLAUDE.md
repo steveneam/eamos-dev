@@ -59,7 +59,7 @@ line + a fenced stamped resume `Prompt:` (format in README.md).
 
 | Directory | What | When to read |
 | --------- | ---- | ------------ |
-| `app/` | Frontend (React/Vite/Tailwind) + Backend (FastAPI/Python) + shared contracts | All code work |
+| `app/` | Frontend (Next.js/React/Tailwind) + Backend (FastAPI/Python) + shared contracts | All code work |
 | `plans/` | Active and historical work plans — start at `plans/README.md` for the agent-agnostic parallel-worktree workflow | Planning, picking up active milestones |
 | `docs/` | Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic (`proprietary/`) | Finding custom project-generated systems (EP-VLEx, search input resolution) |
 | `archive/` | Retired drafts and historical session notes (includes `archive/franklin/` once BE-1 lands) | Historical context only |
@@ -69,8 +69,8 @@ line + a fenced stamped resume `Prompt:` (format in README.md).
 
 ```
 # Start frontend dev server
-cd app/frontend && npm run dev
-# → http://localhost:5173
+cd app/web && npm run dev
+# → http://localhost:3000
 
 # Node.js (Windows): IT-managed system install at C:\Program Files\nodejs\node.exe (already on PATH)
 # Backend root: app/backend/

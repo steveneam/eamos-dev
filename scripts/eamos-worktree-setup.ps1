@@ -39,7 +39,7 @@ if ((Get-Item $dotGit -Force) -is [System.IO.DirectoryInfo]) {
 $failures = @()
 
 # --- 1. Link every node_modules the main checkout has (native symlink, junction fallback) ---
-$candidates = @("node_modules", "app\web\node_modules", "app\frontend\node_modules")
+$candidates = @("node_modules", "app\web\node_modules")
 foreach ($rel in $candidates) {
   $target = Join-Path $main $rel
   if (-not (Test-Path $target)) { continue }   # main lacks this node_modules; skip

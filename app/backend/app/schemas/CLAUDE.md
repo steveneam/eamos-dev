@@ -1,6 +1,6 @@
 # schemas/
 
-Pydantic request and response models. One file per domain area. These are the API contract — frontend TypeScript types in `app/frontend/src/lib/backend.ts` must match.
+Pydantic request and response models. One file per domain area. These are the API contract; active frontend TypeScript types in `app/web/lib/backend.ts` must match.
 
 ## Files
 

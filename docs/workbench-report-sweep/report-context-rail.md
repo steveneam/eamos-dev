@@ -1,5 +1,10 @@
 # /report — Context sections + Library rail + Ribbon + Section-nav design audit
 
+> **2026-07-15 structure update:** `AssociatedConditions.tsx` and
+> `GeneDiseaseBlock.tsx` were confirmed unimported after
+> `DiseaseValidityDashboard` took ownership of Section 5, then retired. Findings
+> naming those files are historical and must not be treated as live defects.
+
 > Scope: §4–§8 context blocks (gene/locus, disease/conditions, publications, trials, expert panel, curated variants, limitations, provenance), the `VariantLibraryRail` (`LibrarySection` + `RelatedVariants` + `ReportSectionNav`), the `StickyVariantRibbon`, and cross-surface coherence with `/workbench`'s `SidePanel`.
 > Grounded in `DESIGN.md`, `app/web/app/globals.css`, `lib/classification.ts`, `components/layout/work-rail.css`, `components/library/library.css`. Skills: **frontend-design** + **ui-ux-pro-max** (searches cited inline).
 > _Persisted by main agent — scout's direct `.md` write was harness-blocked._

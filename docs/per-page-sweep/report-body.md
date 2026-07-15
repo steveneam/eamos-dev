@@ -1,5 +1,10 @@
 # Report body — inter-section consistency & rhythm sweep
 
+> **2026-07-15 structure update:** Section 5 is now owned by
+> `DiseaseValidityDashboard`; the old standalone `DiseaseSection`,
+> `AssociatedConditions`, and `GeneDiseaseBlock` files were unimported and have
+> been retired. File-specific findings for those components below are historical.
+
 **Scope:** `/report` body below the hero — `app/web/components/report/**` section blocks + the `ReportClient.tsx` scaffold. Excluded: `VariantHeader.tsx` (hero), `StickyVariantRibbon.tsx` (ribbon), and HGVS-in-mono (changed separately to Inter this session).
 
 **Bottom line:** the report is heavily and well designed. Sections are uniform `<Card>` shells at a single 14px gap; the in-card "inset sub-panel" idiom is ~90% consistent. Findings are the last 10%: a few one-off spacing values, one undefined-token bug, one label bypassing the canonical kicker. Surgical unifications only — no redesign.
@@ -14,7 +19,7 @@ Body = single `flex flex-col gap-3.5` (14px) column. Each numbered section = a `
 | 2 | In-silico predictions | CompositeVerdictBar + CalibratedInSilicoTable → LoF → EamosAcmgClassifier |
 | 3 | gnomAD population frequency | AfThermometer → PopulationFrequencySection |
 | 4 | Gene & locus context | ReportGeneViewer → ProteinTrack → MolecularContextBlock |
-| 5 | Disease & curated variants | DiseaseSection → CuratedVariants → AssociatedConditions → GeneDiseaseBlock |
+| 5 | Disease & curated variants | DiseaseValidityDashboard → CuratedVariantsGrid |
 | 6 | Publication literature | PubMedSection |
 | 7 | Active trials & therapies | TrialsSection |
 | 8 | AI evidence summary | AIStack |

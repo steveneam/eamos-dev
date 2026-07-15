@@ -35,12 +35,22 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 
 | File | Lines | Why it matters |
 | --- | ---: | --- |
-| `app/web/components/workbench/workbench.css` | 4028 | Multiple Workbench tool style domains in one global sheet. |
+| `app/web/components/workbench/workbench-viewer.css` | 1078 | Sequence/codon/history/export viewer ownership; separately ratcheted. |
+| `app/web/components/workbench/workbench-tools.css` | 1005 | Shared tool, Align, comparator, and responsive ownership. |
+| `app/web/components/workbench/workbench-designers.css` | 879 | CRISPR, primer, and full-gene designer ownership. |
+| `app/web/components/workbench/workbench-side-panel.css` | 527 | Scratchpad, disclosures, links, and side-panel ownership. |
+| `app/web/components/workbench/workbench-shell.css` | 158 | Workbench route tokens, navigation, context strip, and shell layout. |
+| `app/web/components/report/PopulationFrequencySection.tsx` | 1580 | Frequency shell, tabs, ancestry table, and map; age charts now extracted. |
+| `app/web/components/report/PopulationAgeDistribution.tsx` | 310 | Age chart rendering and spreadsheet export. |
+| `app/backend/app/data_sources/registry.py` | 20 | Stable public facade and default-registry composition. |
+| `app/backend/app/data_sources/registry_models.py` | 357 | Registry types, validation, and license policy invariants. |
+| `app/backend/app/data_sources/registry_records.py` | 1,350 | Declarative source metadata, isolated from registry behavior. |
 | `app/backend/app/services/gene_viewer.py` | 3497 | Fixture provider, live source client, transcript projection, full-locus geometry, protein tracks, and allele display in one module. |
 | `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. Folded 2026-07-02 into a facade plus constants, models, license policy, and parser/source helpers. |
 | `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. 2026-07-03 folds extracted publication/trial section builders, publication callout helpers, and full report-payload assembly/finalization. |
 | `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
+| `app/backend/app/services/variant_report_orchestrator.py` | 886 | Profile assembly remains here; normalization/provenance helpers and section ranking now have focused modules. |
 | `app/web/components/report/ReportGeneViewer.tsx` | 2487 | Report-specific viewer UI plus viewer state, adaptation, controls, and rendering. |
 
 These are the refactor targets. Generated lockfiles, generated JSON fixtures,
@@ -68,8 +78,8 @@ contract mirrors, and historical plans are not structure problems by themselves.
 ### Frontend
 
 - Feature modules live in feature folders. Avoid adding flat `*-api.ts` modules
-  under `app/web/lib` or `app/frontend/src/lib`; use `lib/<feature>/api.ts`
-  when a feature endpoint layer grows.
+  under `app/web/lib`; use `lib/<feature>/api.ts` when a feature endpoint layer
+  grows.
 - No `index.ts` barrel hubs under frontend `lib` directories.
 - Heavy browser libraries must be dynamically imported from browser-only code.
   Do not add static top-level imports for WebGL, plotting, PDF, or editor
@@ -77,8 +87,8 @@ contract mirrors, and historical plans are not structure problems by themselves.
 - Large components should be split by state/behavior boundaries first:
   orchestration hooks, pure adapters, table/detail subcomponents, and CSS blocks
   per tool. Do not shard a presentational component solely to satisfy a number.
-- The active Next app is `app/web`; `app/frontend` is a frozen historical Vite
-  reference. Do not mirror new product work into `app/frontend`.
+- The active Next app is `app/web`; it is the only frontend application and
+  TypeScript contract consumer. Do not recreate a second maintained frontend.
 
 ### Docs
 
@@ -97,13 +107,24 @@ contract mirrors, and historical plans are not structure problems by themselves.
 - Frontend `lib` folders do not add flat `*-api.ts` feature modules.
 - Known heavy browser libraries are not statically imported in web/frontend
   TypeScript.
-- Active frontend source-of-truth docs do not describe `app/frontend` or Vite
-  as the live product app unless the document is explicitly superseded/frozen.
+- Active frontend source-of-truth docs point at `app/web`, and an executable
+  ratchet prevents the retired `app/frontend` application from returning.
 - Current oversized hotspots have fixed line budgets so future work cannot
   keep expanding them silently.
 
 The budgets are not a style cap for the whole repo. They are a tripwire on
 known files that need deliberate package/hook/CSS splits.
+
+The 2026-07-15 cleanup extracted `variant_report_helpers.py` and
+`variant_report_signals.py` while preserving
+`VariantReportDataOrchestrator`'s import path. Budgets are now 900, 275, and
+375 lines respectively; the focused orchestration, currency, and frontend
+contract suites cover the fold.
+
+The same cleanup split the 1,707-line data-source registry into a stable
+20-line facade, 357 lines of types and validation, and a 1,350-line declarative
+record catalog. The original imports remain valid, while focused registry,
+field-policy, manifest, structure, and protein-annotation tests cover the fold.
 
 ## Refactor sequence
 
@@ -121,9 +142,10 @@ Done in this pass:
     scan/build helpers, labels, descriptions, and lane mapping.
   - `protein_feature_projection.py` for bundled feature seeds and conversion
     from `ProteinDomainTrack` into viewer `ProteinFeatures`.
-- Follow-up cleanup: `app/frontend` has been quarantined as a frozen historical
-  Vite reference, active docs now point at `app/web`, and the structure guard
-  includes a docs drift guard.
+- Follow-up cleanup: `app/frontend` was first quarantined, then retired on
+  2026-07-15 after its 13 useful pure-test files moved into `app/web`. The web
+  app now owns Vitest directly, the Pydantic contract canary has one TypeScript
+  target, and the structure guard prevents a second frontend from returning.
 - Follow-up cleanup: the first Search Control Plane slice has been wired:
   `create_app()` constructs search services, `/api/v1/search` uses an explicit
   search rate limit, and run creation indexes newly created runs.
@@ -260,18 +282,18 @@ new gene-viewer behavior requires another targeted split.
 
 Targets:
 
-- `app/web/components/workbench/workbench.css`
+- `app/web/components/workbench/workbench-*.css`
 - `app/backend/app/services/workbench_design.py`
 
 CSS should split by tool block only when the import path and Next global-CSS
 constraints are confirmed. Candidate files:
 
 ```text
-components/workbench/workbench.css         # tokens, shell, common controls
-components/workbench/align/align.css
-components/workbench/crispr/crispr.css
-components/workbench/primer/primer.css
-components/workbench/viewer/viewer.css
+components/workbench/workbench-shell.css       # route tokens, nav, shell
+components/workbench/workbench-viewer.css      # sequence/codon/history/export
+components/workbench/workbench-side-panel.css  # scratchpad and rail content
+components/workbench/workbench-tools.css       # shared tools, Align, comparator
+components/workbench/workbench-designers.css   # CRISPR, primer, full-gene viewer
 ```
 
 Backend design package candidate:
@@ -286,8 +308,10 @@ app/backend/app/services/workbench_design_alignment.py    # Sanger alignment + A
 app/backend/app/services/workbench_design_service.py      # WorkbenchDesignService orchestration
 ```
 
-Backend split status: done 2026-07-02. Frontend Workbench CSS remains open and
-is still Claude/frontend-lane work unless Steven redirects.
+Backend split status: done 2026-07-02. Frontend split status: done 2026-07-15.
+The cleanup removed 380 lines owned only by retired minimap/protein components,
+then split the remaining bytes at existing responsibility headers without
+reordering selectors. All five files now have independent growth ratchets.
 
 ### R3 - PubMed local package fold
 
