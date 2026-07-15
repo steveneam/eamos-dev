@@ -1,7 +1,8 @@
 # Agent Risks And Guardrails
 
-Consolidated: 2026-07-15 11:19 UTC by Codex. The complete pre-consolidation
-ledger is preserved at
+Consolidated: 2026-07-15 11:19 UTC by Codex. Relocated from
+`agent_handoff/RISKS.md`: 2026-07-15 21:39 +1000 by Codex. The complete
+pre-consolidation ledger is preserved at
 `agent_handoff/archive/2026-07-15-risks-pre-consolidation.md`.
 
 ## AI Gateway Chat - Live Security Boundary
@@ -66,7 +67,7 @@ wanted again.
 
 Section edited: 2026-06-02 01:44 +1000 - Claude (from Codex's verified provisioning brief).
 
-Setup decided 2026-06-02 (see `agent_handoff/DECISIONS.md`): Hobby workspace +
+Setup decided 2026-06-02 (see `docs/governance/decisions.md`): Hobby workspace +
 Standard SG instance + 60 GB disk at `/var/data`. When actually wiring the
 dbSNP/phyloP/Pfam local-first adapters to live SG, these operational constraints
 hold:

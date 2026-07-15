@@ -1,1 +1,2 @@
 app/backend/data/source_assets/** -text -diff
+agent_handoff/archive/*.txt -text -diff

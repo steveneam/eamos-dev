@@ -1,5 +1,8 @@
 # Agent Coordination Decisions
 
+Relocated from `agent_handoff/DECISIONS.md`: 2026-07-15 21:39 +1000 by Codex
+to keep durable reference material outside the live session handoff.
+
 ## 2026-07-08: Agent-Agnostic Ownership (supersedes role-pinned lane decisions)
 
 Section edited: 2026-07-08 22:43 +1000 - Claude.
@@ -101,7 +104,8 @@ runtime instance / build pipeline) plus disk — keep them straight:
 
 Provisioning (workspace / instance / disk toggles) = Steven's dashboard/billing.
 Seeding + env wiring + the dbSNP/phyloP adapter materialization = Codex's backend
-lane. Operational reality, env vars, and the seeding sequence: see RISKS.md
+lane. Operational reality, env vars, and the seeding sequence: see
+`docs/operations/risks-and-guardrails.md`
 "Render Persistent Disk + Local-First Asset Seeding".
 
 ## 2026-06-01: Codex Owns Backend Render Redeploys And Verification — [role-pinning SUPERSEDED 2026-07-08 → deploy-ownership follows the pusher; see top entry]

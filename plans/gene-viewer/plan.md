@@ -382,7 +382,7 @@ UniProt, and ClinVar availability can vary.
 Relevant files:
 
 - `plans/gene-viewer/spec.md`
-- `agent_handoff/RISKS.md`
+- `docs/operations/risks-and-guardrails.md`
 - `agent_handoff/CURRENT.md`
 - any endpoint/provider docs added during implementation
 

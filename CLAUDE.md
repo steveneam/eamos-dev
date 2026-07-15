@@ -39,7 +39,7 @@ rules here or elsewhere (change a rule once, there).
 Operational summary: live state is `agent_handoff/CURRENT.md` (state only —
 update your own section at *major* boundaries, replace don't stack; the
 `## Active Status` heartbeat + `## Log Edit-Lock` release happen every
-session). Risks → `agent_handoff/RISKS.md`. Per-task history → `PROGRESS.md`
+session). Risks → `docs/operations/risks-and-guardrails.md`. Per-task history → `PROGRESS.md`
 + Claude's own `~/.claude/plans/next-session-eamos.md` (Claude's rolling log;
 keep incremental detail there, not in CURRENT.md). Every task/break still ends
 **clear-safe**: final chat message ends with a labeled `Safe to clear: yes|no`
@@ -153,7 +153,7 @@ The loop is **capture → route → compress → verify it fires** (not capture 
 
 - Minutes–hours → chat / status update
 - This session's state → `agent_handoff/CURRENT.md`
-- Known risk / operational guardrail → `agent_handoff/RISKS.md` or the active plan
+- Known risk / operational guardrail → `docs/operations/risks-and-guardrails.md` or the active plan
 - Cross-session invariant → `MEMORY.md` / `AGENTS.md` / this file / a skill
 - Repeatable action → a script or CLI
 - Behavioral guarantee → a test

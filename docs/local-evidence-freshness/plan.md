@@ -40,7 +40,7 @@ Reuse, do not duplicate, these existing docs:
 - `docs/backend-evidence-roadmap/spec.md`
 - `docs/deployment/materialization-lessons-learned.md`
 - `docs/post-m9-flip-readiness/plan.md`
-- `agent_handoff/RISKS.md` (sole-live-backend guardrails)
+- `docs/operations/risks-and-guardrails.md` (sole-live-backend guardrails)
 
 ## Core principle — tier by volatility, not one global cadence
 

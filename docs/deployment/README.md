@@ -197,7 +197,8 @@ anon key can only touch rows the logged-in user owns.
 | Python | ✅ 3.10.11 local; Docker image pins 3.12 for the host |
 
 **No IT blockers found.** The one historical caveat (the *local* UCSC isPcr binary
-needs WSL — `RISKS.md` M-002C) only affects the parked **Workbench**, which is
+needs WSL — `docs/operations/risks-and-guardrails.md` M-002C) only affects the
+parked **Workbench**, which is
 **not** part of this deployment.
 
 **One thing to watch:** the 15-min inactivity timeout on this machine. It doesn't

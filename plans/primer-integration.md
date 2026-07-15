@@ -45,7 +45,7 @@ infra doc's ask is implemented behind a provider seam:
     `hg38.2bit`). The infra doc asked for `hgPcr`; Codex correctly used
     **isPcr** — `hgPcr` is the web-CGI behind the UCSC form, `isPcr` is the
     standalone batch binary appropriate for local execution. Local-asset/host
-    limitations are tracked in `agent_handoff/RISKS.md` (M-002C).
+    limitations are tracked in `docs/operations/risks-and-guardrails.md` (M-002C).
   - ARMS real-mode → structured `422 input_unsupported:primer_mode_arms`.
   - SNP masking not implemented even when `avoid_snps=true` (the `notes`
     string says so).
@@ -281,7 +281,8 @@ principle #2: one focal point per region).
   here because honest coordinates require this field; no synthetic
   coordinates in Phase A). When absent → the parsed-`notes` prose (Phase A).
 - **Out of scope:** NCBI Primer-BLAST parity, genome-wide completeness, SNP
-  masking, ARMS real-mode (separate M-002 approvals — see RISKS.md M-002C).
+  masking, ARMS real-mode (separate M-002 approvals — see
+  `docs/operations/risks-and-guardrails.md` M-002C).
 
 ## 7. Execution order & status
 

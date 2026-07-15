@@ -50,7 +50,7 @@ under one new allowlisted key, and the model answers grounded in (and citing) th
 | PubMed-local corpus | `services/pubmed_local.py` | Source text. **Abstracts are license-gated**: `abstract_policy_for_license` persists full text only for permissive licenses (CC-BY/CC0/public-domain/US-gov); otherwise `metadata_only_no_abstract`. So the embeddable unit = title + (license-permitted) abstract + keywords. |
 | Embeddings hook | `agents/client.py::build_embeddings_model` | Exists, returns `OpenAIEmbeddings(model=settings.openai_embeddings_model)` — OpenAI-direct, **not** via the gateway. A reuse candidate for D2. |
 | Supabase `vector` ext | Supabase project | **Available** (`vector` 0.8.0, ivfflat + hnsw), **not yet installed**. Enabling it is a one-line migration — see D1/§5. |
-| Materialization pattern | `cli/eamos_pubmed_local_*` (Codex) | Embedding generation is an **offline CLI**, never a startup/deploy download (Render disk guardrail in RISKS.md). |
+| Materialization pattern | `cli/eamos_pubmed_local_*` (Codex) | Embedding generation is an **offline CLI**, never a startup/deploy download (Render disk guardrail in `docs/operations/risks-and-guardrails.md`). |
 
 ## 3. Key decisions — need your sign-off
 
@@ -76,7 +76,7 @@ under one new allowlisted key, and the model answers grounded in (and citing) th
   deliberately keeps bulk reference data off Supabase. Choose **A** if you want the
   corpus managed/shared/queryable outside the backend, or if multi-instance scaling is
   imminent. (If A: it's a real migration + the SOLE-backend single-instance reality in
-  RISKS.md still applies.)
+  `docs/operations/risks-and-guardrails.md` still applies.)
 
 **D2 — Embedding model / provider.**
 - **A — Gateway embeddings** (extend the broker with a small `/embeddings` call, e.g.

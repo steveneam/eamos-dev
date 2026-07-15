@@ -1001,7 +1001,7 @@ Windows runs do not require network.
 
 ### Source Reference
 
-Existing backend verification expectations in `agent_handoff/RISKS.md` and
+Existing backend verification expectations in `docs/operations/risks-and-guardrails.md` and
 the BE-11/RP-003 publication verification history in `plans/v2-backend.md`.
 
 ### Verify
