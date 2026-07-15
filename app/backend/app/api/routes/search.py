@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from app.core.deps import require_authenticated_user
+from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
 from app.core.rate_limit import RATE_LIMIT_SEARCH, enforce_rate_limit
-from app.schemas.auth import AuthUser
 from app.schemas.search import (
     SearchAccessContext,
     SearchAnswerRequest,
@@ -21,9 +20,9 @@ def search(
     doc_type: str | None = None,
     run_status: str | None = None,
     review_status: str | None = None,
-    current_user: AuthUser = Depends(require_authenticated_user),
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> SearchResponse:
-    enforce_rate_limit(request, RATE_LIMIT_SEARCH, subject=current_user.user_id)
+    enforce_rate_limit(request, RATE_LIMIT_SEARCH, subject=principal.user_id)
     service = getattr(request.app.state, "search_service", None)
     if service is None:
         raise HTTPException(
@@ -32,7 +31,7 @@ def search(
         )
     return service.search(
         query=q,
-        access_context=SearchAccessContext(user_id=current_user.user_id),
+        access_context=SearchAccessContext(user_id=principal.user_id),
         limit=limit,
         doc_type=doc_type,
         run_status=run_status,
@@ -44,13 +43,13 @@ def search(
 def search_answer(
     payload: SearchAnswerRequest,
     request: Request,
-    current_user: AuthUser = Depends(require_authenticated_user),
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> SearchAnswerResponse:
-    enforce_rate_limit(request, RATE_LIMIT_SEARCH, subject=current_user.user_id)
+    enforce_rate_limit(request, RATE_LIMIT_SEARCH, subject=principal.user_id)
     service = getattr(request.app.state, "search_answer_service", None)
     if service is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Search answer service is unavailable.",
         )
-    return service.answer(payload, access_context=SearchAccessContext(user_id=current_user.user_id))
+    return service.answer(payload, access_context=SearchAccessContext(user_id=principal.user_id))
