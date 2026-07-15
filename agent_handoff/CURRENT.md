@@ -26,67 +26,56 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** STOPPED @ 2026-07-15 13:22 UTC — explicit user-constrained merge
-  session complete. PR #9 was rebase-merged into `main` as `a6c5671` after
-  Steven's fresh approval and a green serialized gate. GitHub Actions billing
-  is restored. The CI action wrappers now use their established Node-24-runtime
-  `v6` majors; final `main` run `29417944226` passed backend, frontend, and web
-  with zero annotations, and Vercel passed. No deploy, provider, environment,
-  database, Supabase schema, asset, resize, or cancellation mutation occurred.
+- **Codex:** REVIEW @ 2026-07-15 13:49 UTC — lead for PR #10, the verified
+  serial P0 run/report object-authorization gate. CI watch is active; merge is
+  paused for Steven's explicit approval. No deploy or cloud mutation authorized.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 13:22 +0000 · Codex (backend-CI optimization queued)
+UNLOCKED · 2026-07-15 13:50 +0000 · Codex (PR-10 handoff reconciled; locks released)
+
+## Shared File Locks
+
+- None.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 13:22 +0000 · Codex post-PR-9
-Eamos on syd4. Read CURRENT.md, agent_handoff/README.md, then
-docs/repo-structure/audit-2026-07-15.md. Check git status and recent main CI.
-PR #9 is merged at a6c5671: Graphify is retired, MCP startup is hardened,
-the repo audit is published, and Actions wrappers use Node-24-runtime v6.
-Start the audit's serial P0 run/report object-authorization fix next.
-Freeze the principal/owner contract and add two-user negative tests first.
-Do not launch parallel refactor lanes until that shared contract is stable.
-Then optimize backend CI: remove live-network waits from cache tests, benchmark
---dist=worksteal, and add duration-balanced shards only if the gate stays >90s.
-Supabase and Chrome MCP are healthy; Render MCP awaits RENDER_API_KEY.
-Do not mutate Supabase/Render/VPS state without the recorded approval gates.
+# Resume prompt · 2026-07-15 13:49 +0000 · Codex PR-10 review
+Read CURRENT.md, agent_handoff/README.md, then audit-2026-07-15.md.
+Branch codex/p0-run-report-authorization; PR #10 is open against main.
+P0 now stores and enforces (provider, user_id) owners for reports/runs,
+adds fail-closed legacy upgrades/backfill, and proves two-user denials.
+Commits: bb37345 security gate; 97c6e00 Black py312 pin.
+Full backend pytest, Ruff/Black, contract and boundary guards passed locally.
+Python stays on 3.12 by Steven's direction; 3.15 beta was not adopted.
+Check PR #10 CI/review; fix red only. Do not merge without Steven approval.
+After approved merge, run post-merge verification, then start backend CI work.
+Safe to clear: yes — branch pushed, PR open, worktree handoff only.
 ```
 
 ## Pointer
 
-- Merged scope: PR #9; final `main` CI evidence: Actions run `29417944226`.
-- Audit and proposed later Mode B lanes:
-  `docs/repo-structure/audit-2026-07-15.md`.
-- Render→VPS Phase 1 contract: `agent_handoff/FROM-SWORDFISH.md` and
-  `/home/deploy/work/swordfish/research/project1-asset-migration-plan-2026-07-15.md`.
+- Review target: PR #10, `codex/p0-run-report-authorization` → `main`.
+- Implementation commits: `bb37345` and `97c6e00`.
+- Source audit and later lanes: `docs/repo-structure/audit-2026-07-15.md`.
 
 ## Delta
 
-- Rebase-merged Graphify retirement, hook/package/worktree guards, Chrome MCP
-  hardening, and the 2026-07-15 whole-repo audit via PR #9.
-- The audit found 31 active source files over 1,000 lines versus none in
-  Thalon/Swordfish, and orders P0 authorization ahead of structural refactors.
-- Restored GitHub Actions capacity, upgraded `checkout`, `setup-node`, and
-  `setup-python` to Node-24-runtime `v6`, and verified all CI/Vercel checks green
-  with zero action annotations.
-- Backend CI profiling found 1,639 tests, two CI workers, and a 5m42s gate whose
-  long tail is concentrated in cache tests that enable real-API resolution.
-- Local verification carried by the merged gate: active Next lint/type/build;
-  frozen Vite lint and 139 tests; backend Ruff/Black and 1,619 passed / 20
-  skipped; boundary/structure ratchets; live Render health 200.
+- PR #10 persists server-derived owner provider/user IDs and scopes every
+  mounted run read/mutation at both service and repository boundaries.
+- Ownerless rows fail closed; startup upgrades both SQLite/Postgres and only
+  backfill unambiguous legacy local owners. Duplicate review route removed.
+- Focused affected sweep: 98 passed. Full backend pytest and all structural,
+  frontend-contract, Ruff, Black, and diff checks passed.
+- Steven chose Python 3.12; Black is pinned to `py312` with no warning.
+- Durable milestone evidence is recorded at the top of `PROGRESS.md`.
 
 ## Next Action
 
-- **Serial P0:** fix run/report object authorization first; freeze the
-  principal/owner contract and prove two-user cross-tenant denials before any
-  auth/schema/dependency refactor lanes.
-- **Then backend CI:** make cache tests hermetic, benchmark xdist
-  `--dist=worksteal`, then use duration-balanced shards only if still >90s.
-- **Founder decision still open:** M-013 aggregate required-check policy in
-  `agent_handoff/NEEDS-STEVEN.md`; it does not block the P0 fix.
-- **Render MCP:** Steven creates a Render API key and exports it as
-  `RENDER_API_KEY` outside chat; then verify read-only access. This does not
-  authorize a deploy, migration, seed, resize, or cancellation.
+- Watch PR #10 checks, inspect scope, and resolve only genuine red findings.
+- Pause for Steven's explicit approval before merge; never merge on red.
+- After merge, verify `main`, then make cache tests hermetic and benchmark
+  xdist `--dist=worksteal`; shard only if the backend gate remains over 90s.
+- M-013 required-check policy and all Render/Supabase/VPS mutations remain
+  separately founder-gated.

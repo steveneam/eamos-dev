@@ -1,5 +1,45 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-15 13:47 +0000 - Codex - P0 run/report object authorization verified
+
+Completed the serialized P0 security gate from the 2026-07-15 repository audit.
+
+- Added a server-derived `OwnerIdentity(provider, user_id)` contract and stored
+  both fields on reports and runs.
+- Standardized mounted report/run/review routes on `AuthenticatedPrincipal` and
+  enforced ownership again in repository/service reads and mutations.
+- Covered run read, both review routes, report-payload mutation, chat, eager
+  stream authorization, approve, drop, and GET/HEAD PDF access with consistent
+  non-enumerating 404s for a second user.
+- Prevented a user from creating a run from another user's report and kept local
+  and Supabase principals with the same `user_id` isolated by provider.
+- Added additive SQLite/Postgres startup column upgrades. Ownerless legacy rows
+  fail closed; only unambiguous search-index owners matching a local Eamos user
+  are backfilled. The existing search access-column upgrade now runs before the
+  backfill, with a legacy-table regression test covering that order.
+- Removed the duplicate `/api/v1/runs/{run_id}/review` registration.
+
+Verification:
+
+- Full backend pytest gate exited 0 after the final migration-order fix.
+- Focused run/report/review/chat/search/rate-limit authorization sweep: 98
+  passed; the authorization file itself has 7 passing tests.
+- Full backend Ruff and Black checks passed.
+- Backend boundary plus frontend-contract canary passed; web boundary guard was
+  clean across 241 tracked `app/web` files; `git diff --check` passed.
+
+Coordination:
+
+- Released the `app/backend/app/core/db.py` and `PROGRESS.md` shared-file locks
+  at the verified milestone.
+- P0 was committed as `bb37345`; the Python pin as `97c6e00`; branch
+  `codex/p0-run-report-authorization` was pushed and PR #10 opened. No merge,
+  deploy, provider/flag change, Supabase/Render mutation, or other cloud action.
+- Python 3.15 was not adopted: on 2026-07-15 it is still beta 3, with final
+  release scheduled for 2026-10-01. Steven confirmed Eamos should stay on
+  Python 3.12; Black is now explicitly pinned to `py312`, matching current CI,
+  Docker, and the local 3.12.3 verification environment.
+
 ## 2026-07-09 03:36 +1000 - Claude - Assimilation W-002 (Conform): M-017 + M-012 handoff leanness
 
 Thalon/Swordfish assimilation **Wave W-002 (Conform)**, committed local/unpushed
