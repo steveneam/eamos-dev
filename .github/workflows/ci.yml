@@ -19,7 +19,9 @@ permissions:
 
 jobs:
   web:
-    name: web (typecheck + lint + vercel guard)
+    # This label is a protected-branch status context. Keep it stable even as
+    # the job adds test, boundary, typecheck, or production-build coverage.
+    name: web (lint + vercel guard)
     runs-on: ubuntu-latest
     defaults:
       run:
