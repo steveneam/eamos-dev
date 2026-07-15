@@ -26,13 +26,13 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** STOPPED @ 2026-07-15 14:35 UTC — Steven approved PR #11; it is
-  rebase-merged and post-merge implementation CI is green. No active lane and
-  no cloud mutation authorized. Next audit item is the P1 search-auth split.
+- **Codex:** STOPPED @ 2026-07-15 15:01 UTC — P1 search auth and the corrected
+  automatic verified-slice commit/push rule are pushed in PR #12. Initial PR CI
+  is green; the branch is at the explicit merge-approval gate.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 14:35 +0000 · Codex (PR-11 merge recorded; locks released)
+UNLOCKED · 2026-07-15 15:01 +0000 · Codex (PR #12 pushed; locks released)
 
 ## Shared File Locks
 
@@ -41,44 +41,44 @@ UNLOCKED · 2026-07-15 14:35 +0000 · Codex (PR-11 merge recorded; locks release
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 14:35 +0000 · Codex P1 search-auth split
+# Resume prompt · 2026-07-15 15:01 +0000 · Codex PR 12 merge gate
 Read CURRENT.md, agent_handoff/README.md, then docs/repo-structure/audit-2026-07-15.md.
-PR #11 is rebase-merged at 5d581a8; latest main checks are green at wrap.
-Backend cache tests are hermetic and the exhaustive two-shard CI gate is live.
-Start P1 search auth: move /api/v1/search to AuthenticatedPrincipal.
-Preserve owner-scoped SearchAccessContext; do not widen report/run access.
-Add a Supabase-JWT route test plus local-token compatibility coverage.
-Use the vibe-security skill because this changes auth and user-data access.
-Python remains 3.12; no second GitHub reviewer account is planned.
-M-013 branch-policy repair and all cloud mutations remain founder-gated.
-Safe to clear: yes — main is clean, PR #11 is merged, and the next lane is scoped.
+PR #12 contains P1 search dual-provider auth plus the verified-slice git rule correction.
+Branch: codex/p1-search-auth-principal; all owned work is pushed.
+Search query/answer accept local + Supabase JWTs and retain owner-scoped filtering.
+Tests cover ES256/JWKS, local compatibility, and cross-user private isolation.
+The initial PR run 29425995342 is fully green; recheck the latest run before merge.
+Verified scoped work now commits/pushes automatically; do not ask Steven again for that.
+PR merge still requires Steven's explicit approval and a green rebased head.
+The live Supabase migration, deploy hook, M-013, and all cloud mutations remain founder-gated.
+Safe to clear: yes — PR #12 is pushed and the only next action is the merge gate.
 ```
 
 ## Pointer
 
-- Merged target: PR #11 at `5d581a8`; post-merge run `29424019736` is green.
-- Implementation commit on main: `a336e3a`; Python remains 3.12.
-- Next lane: P1 search auth in `docs/repo-structure/audit-2026-07-15.md`.
+- PR: `#12` from `codex/p1-search-auth-principal` into `main`.
+- Implementation: `0308716`; governance correction: `0f9cc67`.
+- Initial green run: `29425995342`; latest PR head must be rechecked before merge.
 
 ## Delta
 
-- Cache tests retain live-cache semantics but use offline coordinate, consensus,
-  and gene-context providers; 39 tests improved by 87.7% wall time.
-- Full two-worker load scheduler: 119.87s; worksteal: 125.03s, so no scheduler
-  change. SHA-256 test-ID shards cover exactly all 1,646 collected tests.
-- Post-merge main shard jobs passed in 1m58s / 2m04s; stable aggregator
-  `backend (pytest)` passed in 3s. Web passed in 1m10s; frontend in 31s.
-- Ruff, Black, 369 boundary/frontend-contract tests, web boundary, web/frontend
-  CI, and Vercel preview are green. Python remains 3.12.
-- Durable evidence and exact measurements are at the top of `PROGRESS.md`.
+- `GET /api/v1/search` and `POST /api/v1/search/answer` accept local and
+  signature-verified Supabase principals; rate limiting and owner filtering
+  still derive from the authenticated principal's server-side user ID.
+- The new Supabase route test failed 401 before the change, then passed through
+  ES256/JWKS verification; local compatibility and cross-user isolation pass.
+- Full backend: 1,628 passed / 20 skipped (1,648 total). Ruff and Black pass.
+- Boundary/frontend-contract: 369 passed; web boundary, ESLint, TypeScript,
+  production build, and local Next-proxy-to-FastAPI HTTP smoke pass.
+- PR CI passed both backend shards, the stable aggregator, web, frontend, and
+  Vercel preview. Exact timings and non-mutation scope are in `PROGRESS.md`.
+- Eamos now matches Thalon/Swordfish: verified scoped work commits and pushes
+  without repeat permission; merge and hazardous actions remain gated.
 
 ## Next Action
 
-- Correct the active search auth split next: accept both Supabase and local
-  principals while retaining owner-scoped search access and non-enumeration.
-- Add negative cross-user coverage and both token compatibility paths before any
-  route dependency change lands.
-- Do not apply the missing live Supabase migration in this lane; that remains a
-  separate reviewed, rollback-ready founder-gated operation.
-- M-013 required-check policy and all Render/Supabase/VPS mutations remain
-  separately founder-gated.
+- Founder gate: Steven must explicitly approve merging PR #12.
+- Before merge, the lead rechecks scope, rebases onto latest `main` if needed,
+  waits for every required check to pass, then merges only on Steven's go.
+- Do not apply the missing live Supabase migration or invoke a deploy hook in
+  this lane. M-013 and all Render/Supabase/VPS mutations remain separately gated.

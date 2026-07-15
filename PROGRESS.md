@@ -1,5 +1,55 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-15 14:48 +0000 - Codex - P1 search dual-provider authentication
+
+Section updated: 2026-07-15 15:01 +0000 · Codex after push and PR CI.
+
+Completed the P1 active-search authentication correction from the 2026-07-15
+whole-repo audit, without changing the search response contract or the
+report/run authorization surface.
+
+- Both `GET /api/v1/search` and `POST /api/v1/search/answer` now use the shared
+  `AuthenticatedPrincipal` dependency, so they accept legacy local Eamos JWTs
+  and signature-verified Supabase JWTs.
+- Search rate limiting and the existing `SearchAccessContext(user_id=...)`
+  owner filter remain server-derived from the authenticated principal.
+- Added a focused auth-boundary test module. Its ES256/JWKS token follows the
+  real Supabase verification path, covers both search handlers, and proves a
+  second user's matching private row is absent from query and answer results.
+- Added an explicit local-token compatibility case that gives two users the
+  same search term and proves each receives only their own private row.
+- The new Supabase route test failed with 401 before the dependency change and
+  passed afterward. No dependency override bypasses the JWT verifier.
+
+Verification:
+
+- Focused search/auth/run-authorization regression: 39 passed.
+- Full backend collection: 1,628 passed / 20 skipped (1,648 total).
+- Full backend Ruff and Black passed.
+- Backend boundary plus frontend-contract canary: 369 passed; web boundary
+  clean across 241 tracked files; `git diff --check` passed.
+- Active web ESLint, TypeScript, and Next production build passed.
+- Local FE-to-BE HTTP smoke registered through FastAPI with 201, then sent the
+  resulting bearer token through the built Next search proxy and received 200
+  with the expected search response shape.
+- No report/run route, schema, database, migration, environment, provider,
+  deployment, Render service, Supabase resource, or other cloud state changed.
+
+Integration and governance correction:
+
+- Implementation commit `0308716` and governance commit `0f9cc67` are pushed
+  on `codex/p1-search-auth-principal`; PR #12 is open.
+- Steven pointed out that Thalon and Swordfish finish verified work by
+  committing and pushing without another prompt. Eamos already had the same
+  agent-agnostic standing approval in `docs/governance/decisions.md`, but stale
+  text in `CODEX.md` and the dirty-worktree risk section contradicted it.
+- Aligned `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, the canonical handoff protocol,
+  and the risk ledger: verified scoped work now commits/pushes automatically;
+  explicit merge approval, destructive Git, secrets, deploy/cloud actions,
+  Supabase mutations, and other named founder gates remain separate.
+- PR run `29425995342` passed backend shards in 1m52s / 2m17s, the stable
+  backend aggregator in 3s, web in 1m11s, frontend in 35s, and Vercel preview.
+
 ## 2026-07-15 14:19 +0000 - Codex - Backend CI cache hermeticity and stable sharding
 
 Completed the backend-CI optimization queued by the 2026-07-15 repository
