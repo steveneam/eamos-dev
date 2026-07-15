@@ -18,6 +18,7 @@ from app.services.lookup_service import (
     REPORT_SHELL_CACHE_VERSION,
     LookupService,
 )
+from app.services.search_input_resolver import EamosSearchInputResolver
 
 pytestmark = pytest.mark.report_cache_contract
 
@@ -181,17 +182,23 @@ def _service(
     tmp_path: Path,
     report_repo: ReportCacheRepo | None = None,
 ) -> LookupService:
-    return LookupService(
+    settings = Settings(
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
+        jwt_secret="test-secret",
+        use_real_apis=True,
+    )
+    service = LookupService(
         {},
         ClinicRules(),
         variant_cache_repo=variant_repo,
         report_cache_repo=report_repo,
-        settings=Settings(
-            database_url=f"sqlite+pysqlite:///{(tmp_path / 'cache.db').as_posix()}",
-            jwt_secret="test-secret",
-            use_real_apis=True,
-        ),
+        settings=settings,
     )
+    service.search_input_resolver = EamosSearchInputResolver(
+        settings=settings,
+        resolve_coordinates=False,
+    )
+    return service
 
 
 def _identity(query: str) -> dict:

@@ -13,7 +13,10 @@ from app.repos.source_cache_repo import SourceCacheRepo
 from app.rules.clinic_rules import ClinicRules
 from app.schemas.lookup import LookupRequest, LookupResponse, LookupSectionFetchRequest
 from app.schemas.run import ReportPayload
+from app.services.clinical_consensus import ClinicalConsensusBuilder
+from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.lookup_service import LookupService
+from app.services.search_input_resolver import EamosSearchInputResolver
 from app.services.source_cache import (
     HERO_EXAMPLE_VARIANTS,
     HeroExampleSourceCacheWarmer,
@@ -144,13 +147,20 @@ def _service(
         "clinical_trials": _ClinicalTrialsTool(),
     }
     tools.update(tool_overrides or {})
-    return LookupService(
+    service = LookupService(
         tools,
         ClinicRules(),
         source_cache_repo=repo,
         settings=settings,
         functional_evidence_extractor=_NoopFunctionalEvidenceExtractor(),
+        clinical_consensus_builder=ClinicalConsensusBuilder(settings=None),
+        gene_context_snapshot=GeneContextSnapshotService(settings=None),
     )
+    service.search_input_resolver = EamosSearchInputResolver(
+        settings=settings,
+        resolve_coordinates=False,
+    )
+    return service
 
 
 def _repo(tmp_path: Path) -> SourceCacheRepo:

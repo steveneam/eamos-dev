@@ -1,5 +1,41 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-15 14:19 +0000 - Codex - Backend CI cache hermeticity and stable sharding
+
+Completed the backend-CI optimization queued by the 2026-07-15 repository
+audit, without changing production lookup behavior.
+
+- Cache-contract tests still enable `use_real_apis` so they exercise the live
+  cache branches, but now receive the existing offline coordinate resolver,
+  clinical-consensus builder, and gene-context provider. Their source tools
+  remain explicit test doubles.
+- The three affected cache suites fell from 142.92s wall / 10.69s CPU to
+  17.62s wall / 7.50s CPU with the same 39 passing tests (87.7% less wall
+  time), eliminating unintended external-provider waits.
+- Benchmarked the complete 1,646-test collection on two workers. The existing
+  xdist scheduler finished in 119.87s; `--dist=worksteal` regressed to 125.03s,
+  so the scheduler was not changed.
+- Added opt-in, deterministic SHA-256 sharding by collected test ID. Two shards
+  selected 824 and 822 IDs—exactly the full 1,646 IDs—and invalid shard counts
+  fail with a pytest usage error. New tests are assigned automatically.
+- The locally modeled CI shards passed independently: shard 1 had 819 passed / 5
+  skipped in 64.60s; shard 2 had 807 passed / 15 skipped in 72.41s. The GitHub
+  workflow runs them concurrently and retains the stable required-check name
+  `backend (pytest)` through an all-shards-success aggregator.
+- Updated the stale pytest suite-size comment while retaining Python 3.12 and
+  the existing `-n auto` default.
+
+Verification:
+
+- Full unsharded backend: 1,626 passed, 20 skipped in 119.87s.
+- Both exhaustive shards passed after the workflow/sharding change.
+- Full backend Ruff and Black passed across 403 Python files.
+- Backend boundary plus frontend-contract canary: 369 passed; web boundary
+  clean across 241 tracked files; `git diff --check` passed.
+- No production module, API contract, deploy setting, provider flag, database,
+  Render service, or Supabase resource changed. GitHub matrix verification is
+  deferred to the branch PR.
+
 ## 2026-07-15 13:47 +0000 - Codex - P0 run/report object authorization verified
 
 Completed the serialized P0 security gate from the 2026-07-15 repository audit.
