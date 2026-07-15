@@ -3,17 +3,20 @@
 **Owner:** Codex (takeover from Claude, 2026-07-15).
 **Approval:** Steven approved "do it now as one PR" (2026-07-15). Execute via
 branch → PR → CI-green → Steven's explicit merge approval → admin-merge.
+**Updated:** 2026-07-15 21:39 +1000 by Codex after direct comparison with
+`/home/deploy/work/swordfish/agent_handoff` and Steven's final layout direction.
 **Goal:** converge eamos `agent_handoff/` onto swordfish's lean fleet shape —
 a few live files + a stamped `archive/` — without losing any history.
 
 ## Why (inventory, 2026-07-15)
 
-Eamos `agent_handoff/` has 9 root files + 5 subdirs. A full read pass found
-only **3 genuinely live** (`CURRENT.md`, `DECISIONS.md`, `RISKS.md`); the rest
-are stale/superseded (most ~6 weeks old, pre the 2026-07-13 VPS migration) or
-already history. Swordfish's model (its `agent_handoff/README.md`): two live
-files + stamped `archive/`, peer-mail mirrored in the peer repo, reference docs
-in `research/`.
+Eamos `agent_handoff/` started with 9 tracked root files + 5 subdirs, then the
+VPS migration added four loose prompt/drive-note artifacts. A full read pass
+found only the canonical current handoff and peer-mail channels belonged on
+the live surface; durable risk/decision ledgers are reference docs, while the
+rest is stale/superseded history. Swordfish's live model is `CURRENT.md` +
+`NEEDS-STEVEN.md` + convention `README.md` + stamped `archive/`; peer-mail
+files remain in the peer repo as pinned exceptions.
 
 ## Hard constraints (do not violate)
 
@@ -32,17 +35,17 @@ in `research/`.
 ## Target shape
 
 **Keep LIVE at `agent_handoff/` root:**
-- `CURRENT.md` — session handoff (already lean).
-- `README.md` — canonical protocol (CLAUDE.md/CODEX.md point here).
-- `DECISIONS.md` — durable decision ledger (current to 2026-07-08; optionally
-  refresh the one stale 2026-05-29 "CLI First" entry's Windows paths).
-- `RISKS.md` — **pruned**: keep the guardrail sections (Gated Work, Dirty
-  Worktree gate, Shared Files, Verification Expectations, AI Gateway Pre-Launch
-  Security Gate, Sole Live Backend / No Oregon Fallback, Render disk-seed env).
-  Rotate OUT to archive: the resolved incidents (`1e86a78` protein OOM
-  ✅RESOLVED, Epic A A1–A12 ✅SHIPPED) and the two dead Windows-only sections
-  ("Repo Drive Relocation" E:/D:, "WSL / Linux RAM Guardrail" .wslconfig).
-- `FROM-SWORDFISH.md` + `ASK-BACKS-FOR-SWORDFISH.md` — channel (frozen).
+- `CURRENT.md` — lean session handoff.
+- `NEEDS-STEVEN.md` — open founder action queue, matching Swordfish's format.
+- `README.md` — canonical Eamos coordination protocol.
+- `FROM-SWORDFISH.md` + `ASK-BACKS-FOR-SWORDFISH.md` — watcher-pinned peer-mail
+  exceptions; names and locations remain frozen.
+- `archive/` — stamped historical material only.
+
+**Move durable live references outside the handoff:**
+- `DECISIONS.md` → `docs/governance/decisions.md`.
+- pruned `RISKS.md` → `docs/operations/risks-and-guardrails.md`.
+- Update every live pointer; leave dated archives/build logs unchanged.
 
 **ROTATE to `archive/` (stamped, verbatim):**
 - `TASKS.md` — the resolved 2026-05-31 gnomAD PopFreq CAR thread is settled
@@ -58,27 +61,35 @@ in `research/`.
   the `eamos_private` table inventory — into `docs/` (e.g.
   `docs/db/supabase-inventory.md`); archive the superseded narrative.
 - `database_webserver/README.md` — fold its no-secrets / private-bucket / FE↔DB
-  boundary rules into `RISKS.md` (or main `README.md`), then retire the folder.
+  boundary rules into `docs/operations/risks-and-guardrails.md` (or main
+  `README.md`), then retire the folder.
 - `verify/` — stale 2026-05-24 FE-verify screenshots (~4 MB, in git history
   regardless). Archive or drop; if kept, relocate out of the live handoff dir.
+- VPS migration artifacts (`FROM-SWORDFISH-DRIVE-ARK.md`, the first-boot resume
+  prompt, and both `drive-notes/*` prompts) — stamp and archive with each
+  original body preserved byte-for-byte; retire the emptied directories.
 
 **Leave as-is:** `archive/` (47 entries) — already the correct history home and
 the destination for everything above.
 
-## Open item — NEEDS-STEVEN.md (waiting on swordfish)
+## NEEDS-STEVEN.md + fleet dashboard
 
-Do **not** add an eamos `NEEDS-STEVEN.md` yet. Its dashboard
-(`render-dashboard.py`) reads only swordfish's own file, so a local one wouldn't
-feed the fleet card. Steven deferred this to swordfish's fleet-pattern reply —
-see the open ask-back thread in `ASK-BACKS-FOR-SWORDFISH.md` (2026-07-15). Act
-on whatever swordfish answers.
+Steven directed the live-Swordfish layout alignment before PR #8 merges, so
+add Eamos's local queue now with the open M-013 branch-protection/CI decision.
+Swordfish's dashboard currently reads only its own queue; ask Swordfish through
+the pinned outbound channel to add peer queue ingestion or confirm the fleet
+collector pattern. Dashboard ingestion is follow-up work and does not block the
+Eamos layout or the already-approved Graphify retirement.
 
 ## Verification / done-criteria
 
-- `RISKS.md` still contains every live guardrail; each removed section exists
-  verbatim under `archive/` with an ARCHIVED header.
+- `docs/operations/risks-and-guardrails.md` contains every live guardrail; each
+  removed section exists verbatim under `archive/` with an ARCHIVED header.
 - Salvaged Supabase inventory readable under `docs/`; nothing unique lost.
-- `agent_handoff/` root ≈ 5 live files + `archive/`.
+- `agent_handoff/` root is exactly `CURRENT.md`, `NEEDS-STEVEN.md`, `README.md`,
+  the two peer-mail files, and `archive/`; no empty legacy directories remain.
+- All four loose VPS migration artifacts are stamped in `archive/`, and body
+  hashes match the original bytes (including the two CRLF prompts).
 - Pre-commit guard green (vercel-link, grep-guard, handoff-lint if CURRENT.md
   staged); `%(trailers)` empty on each commit.
 - One PR, logical commits (one milestone per commit), CI green before merge.

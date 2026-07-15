@@ -51,7 +51,7 @@ Last reviewed: 2026-06-16.
 | Service | Role | Notes |
 | ------- | ---- | ----- |
 | **Stripe** | Payments / subscription tiers | Checkout → receipt; Stripe sends its own receipts. |
-| **Resend** | Transactional email | Established vendor (CLI-first list in `DECISIONS.md`). |
+| **Resend** | Transactional email | Established vendor (CLI-first list in `docs/governance/decisions.md`). |
 | **PostHog** | Product analytics + session replay | `posthog-js` wired in `app/web`. Replay lives here — **not** in Sentry. |
 | **Sentry** | Error/crash + performance monitoring | Account created 2026-06-16. **Integration pending** — FE (`app/web`) first; backend FastAPI is Codex's lane. Errors + tracing only (replay stays in PostHog). |
 | **Porkbun** | Domain registrar | `eamos.com.au`. |

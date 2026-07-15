@@ -226,7 +226,8 @@ and ships today — do it before any redesign work, verify on a real report.
 
 Coordination per `agent_handoff/README.md` (parallel-mode lanes, own-section-only,
 no-delete/append+archive). All work is Claude's frontend lane; do not touch Codex's
-dirty `PROGRESS.md`/`RISKS.md`/`plans/v2-backend.md`/its CURRENT.md section.
+dirty `PROGRESS.md`/`docs/operations/risks-and-guardrails.md`/
+`plans/v2-backend.md`/its CURRENT.md section.
 
 Each impeccable command maps to a step: `extract` (tokens/primitives), `typeset`
 (type), `colorize` (color), `layout` (spacing/alignment), `animate` (motion),
@@ -570,7 +571,7 @@ coordinated. No code changes required pre-trigger. Memory:
 | 4 | M-007 / M11 full ship — mobile-first sweep + LazySection broadly | FE-only (Claude) | ~2 wk | Wave 3 lands |
 | 5 (deferred) | M-008 / M10b publication index v2 (PMC + LLM tags + provenance) | BE (~quarter); FE render-only later | ~1 quarter Codex | capacity / Steven scoping |
 | 5 (deferred) | M-009 / M12 events emission primitive (BE-only) | BE (Codex); FE consumption later | ~1 wk Codex (when pulled forward) | organic volume justifying landing strip |
-| 5 (deferred) | M-010 / AlphaMissense re-enable trigger monitoring | no-code (RISKS.md watch entry) | minutes | trigger condition fires (no auto-flip — Steven approval required) |
+| 5 (deferred) | M-010 / AlphaMissense re-enable trigger monitoring | no-code (`docs/operations/risks-and-guardrails.md` watch entry) | minutes | trigger condition fires (no auto-flip — Steven approval required) |
 
 #### Decision → milestone map (selected)
 
@@ -677,7 +678,7 @@ Per **DL-003**: upgrades on Phase-0 primitives, NOT a separate milestone.
 5. **Wave 5 deferred** — M10b waits on capacity (~1 Codex quarter); M12
    waits on organic volume justifying landing strip (BE-only primitive when
    pulled forward, hard privacy guardrails); M-010 AM trigger watch criteria
-   recorded in `agent_handoff/RISKS.md` when M-010 is actually touched
+   recorded in `docs/operations/risks-and-guardrails.md` when M-010 is actually touched
    (until then, this section is the canonical reference for the trigger).
 
 #### Risks (mitigations baked into milestones)

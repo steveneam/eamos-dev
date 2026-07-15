@@ -283,7 +283,7 @@ desktop and mobile flows. Do not use Vercel commands.
 ## Canonical Resume Prompt
 
 ```text
-Resume Eamos from D:\eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, then read docs/prelaunch-batch-workbench-readiness/design.md, review.md, plan.md, and resume-prompt.md.
+Resume Eamos from D:\eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, docs/operations/risks-and-guardrails.md, PROGRESS.md top, then read docs/prelaunch-batch-workbench-readiness/design.md, review.md, plan.md, and resume-prompt.md.
 
 Current state: `main == origin/main` at `d5ee212 feat(prelaunch): disclose workbench and batch launch states` unless newer git status says otherwise. SG Render deploy `dep-d91k7d6q1p3s73c493cg` is live on `d5ee212f41956ac22be68a27a5626d984513d780`. ClinVar/report generated artifact phase is complete on SG for `clinvar_gene_distribution_index`; no further deploy, seed, provider flip, runtime script, or live sync is needed for that artifact. PubMed remains API/cache for launch. DuckDB/Parquet remains disabled analytical infrastructure for launch.
 

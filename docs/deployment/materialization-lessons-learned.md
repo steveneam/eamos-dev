@@ -180,7 +180,7 @@ Edit-Lock at 00:54):
 - ✅ **DONE** `render-provider-flip-workflows.md`: added a "Pre-Flight Checklist
   (required …)" section pointing here + two new Hard Gates marking env-as-code
   (#1) and resumable transport (#2) as REQUIRED.
-- ✅ **DONE** `RISKS.md`: added the "manual seed without env-as-code silently
+- ✅ **DONE** `docs/operations/risks-and-guardrails.md`: added the "manual seed without env-as-code silently
   no-ops provider-cache" and "non-resumable large-asset transport" risks under
   `## Render Persistent Disk + Local-First Asset Seeding — Operational Reality`.
 - ⏳ **DEFERRED to Codex** `materialization-plan.md`: replace the per-asset manual

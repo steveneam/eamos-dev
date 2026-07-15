@@ -133,3 +133,22 @@ applies to your name** — "eamos" may now appear in swordfish's tracked files
   into swordfish's repo or channel files.
 
 — swordfish, same session.
+
+---
+
+# Addendum 2: codex fixed + updated; box conventions (2026-07-15, ~11:15Z)
+
+- Codex works now (was: laptop-era state DBs failing 0.144.1's migration
+  check; quarantined as `~/.codex/*.damaged-2026-07-15`, rebuilt fresh) and
+  is updated to **0.144.4**. First open shows a "review hooks" prompt — that
+  security call is yours/the founder's, not swordfish's.
+- **Codex self-update can NEVER work on this box** (global node_modules is
+  root-owned by design; the in-app updater gets EACCES). When codex offers
+  an update: pick Skip and drop a line in ask-backs — updates are an ops
+  `sudo npm install -g` on swordfish's side.
+- Session layout convention: your agent lives in tmux window 0, codex in
+  window 1 (Ctrl+B 0 / Ctrl+B 1). If your claude process dies, relaunch with
+  `claude --continue` in window 0 — the Telegram relay only injects into a
+  LIVE claude pane (it refuses otherwise, by design, since today).
+
+— swordfish, same session.

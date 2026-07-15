@@ -12,9 +12,10 @@ is the single home for the coordination protocol** — `CLAUDE.md`, `CODEX.md`, 
 
 ## Read Order (every session)
 
-`CLAUDE.md`/`CODEX.md` → this file → `CURRENT.md` (live state) → `RISKS.md`
-(hazards/gated) → the active `plans/<feature>/` → `git status --short --branch` +
-`git diff --stat` (live worktree truth). `DECISIONS.md` when relevant.
+`CLAUDE.md`/`CODEX.md` → this file → `CURRENT.md` (live state) →
+`docs/operations/risks-and-guardrails.md` (hazards/gated) → the active
+`plans/<feature>/` → `git status --short --branch` + `git diff --stat` (live
+worktree truth). Read `docs/governance/decisions.md` when relevant.
 
 ## Hard Rules (user-mandated — breaking any needs explicit per-instance user OK)
 
@@ -41,12 +42,13 @@ is the single home for the coordination protocol** — `CLAUDE.md`, `CODEX.md`, 
    Idle Protocol; never idle, never start a gated milestone to fill time.
 7. **Ownership is by availability, not role.** Two agents at once → take **disjoint
    scopes**, record who owns which in `## Active Status` (see Rule 3).
-8. **Timestamp + edit-lock every log/handoff write** (`CURRENT.md`, `RISKS.md`,
-   `DECISIONS.md`, `CHANGELOG.md`, `PROGRESS.md`, `ROADMAP.md`, active
-   `plans/*`). Stamp the section `YYYY-MM-DD HH:MM ±zzzz · <agent>` from the real
-   clock. Claim the single `## Log Edit-Lock` line first (`LOCKED: …`), release
-   last (`UNLOCKED · …`) after re-reading. Other agent's lock fresh (≤20 min) →
-   STOP + ask; stale (>20 min) → record takeover, proceed.
+8. **Timestamp + edit-lock every log/handoff write** (`CURRENT.md`,
+   `docs/operations/risks-and-guardrails.md`, `docs/governance/decisions.md`,
+   `CHANGELOG.md`, `PROGRESS.md`, `ROADMAP.md`, active `plans/*`). Stamp the
+   section `YYYY-MM-DD HH:MM ±zzzz · <agent>` from the real clock. Claim the
+   single `## Log Edit-Lock` line first (`LOCKED: …`), release last
+   (`UNLOCKED · …`) after re-reading. Other agent's lock fresh (≤20 min) → STOP
+   + ask; stale (>20 min) → record takeover, proceed.
 9. **`CURRENT.md` updates at MAJOR boundaries only — REPLACE, never stack.**
    Minor progress → your own rolling log (Claude →
    `~/.claude/plans/next-session-eamos.md`; Codex → `PROGRESS.md`), never here.
@@ -108,13 +110,16 @@ leave a one-line pointer.
 
 ## Roles & Capabilities (agent-agnostic — neither is a lane)
 
-Inventory reconciled: 2026-07-15 11:19 UTC by Codex.
+Inventory reconciled: 2026-07-15 11:39 UTC by Codex against the live Swordfish
+checkout.
 
-Live (this folder): `CURRENT.md` (state only), `README.md` (this protocol),
-`DECISIONS.md`, `RISKS.md`, and the watcher-pinned `FROM-SWORDFISH.md` /
-`ASK-BACKS-FOR-SWORDFISH.md` channel files. `archive/` holds verbatim snapshots
-and retired evidence. History outside this folder lives in `CHANGELOG.md`,
-`PROGRESS.md` (per-task narrative home), `ROADMAP.md`, and `plans/*`.
+Live (this folder): `CURRENT.md` (state only), `NEEDS-STEVEN.md` (open founder
+actions), `README.md` (this protocol), and the watcher-pinned
+`FROM-SWORDFISH.md` / `ASK-BACKS-FOR-SWORDFISH.md` peer-mail exceptions.
+`archive/` holds stamped snapshots and retired evidence. Durable reference
+ledgers live at `docs/governance/decisions.md` and
+`docs/operations/risks-and-guardrails.md`; other history lives in
+`CHANGELOG.md`, `PROGRESS.md`, `ROADMAP.md`, and `plans/*`.
 Either agent owns any of FE (UI, design, Workbench, copy, browser iteration) or BE
 (APIs, evidence tools, pipelines, schema contracts, tests, live verification,
 security, review). Direct Codex sessions have full `~/work/eamos` read/write,

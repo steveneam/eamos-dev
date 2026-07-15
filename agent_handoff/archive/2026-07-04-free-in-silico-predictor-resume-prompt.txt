@@ -1,0 +1,14 @@
+ARCHIVED 2026-07-15: Predictor readiness moved back to its durable plan and
+the canonical current handoff. The original resume prompt follows verbatim.
+
+ # Resume prompt - 2026-07-04 20:18 +1000 - Codex free in-silico predictor readiness
+  Eamos. Read AGENTS.md, CODEX.md, agent_handoff/README.md, agent_handoff/CURRENT.md, agent_handoff/RISKS.md, PROGRESS.md top, COORDINATION.md, docs/parallel-agents/{retrofit-notes,ratchet-philosophy}.md, docs/free-in-
+  silico-predictors/plan.md, then git status --short --branch.
+  Delta: Free-tagged in-silico readiness started locally. Source registry now records `ci_spliceai_model`, `gpn_msa_hg38_scores`, and `pangolin_splice_effect_scores`; provider-cache/preflight/build-ledger expose
+  `gpn_msa` as `remote_range_reader_planned` and `pangolin` as `source_decision_required`, both fail-closed. CI-SpliceAI remains complete-artifact-gated; ESM1b remains MIT-regenerated-file-gated; AlphaMissense is the
+  live/runtime-ready lane.
+  Next: continue from `docs/free-in-silico-predictors/plan.md`: CI-SpliceAI complete artifact gate if artifacts are staged, or GPN-MSA remote-range adapter proof with fixture-only tests. Keep Pangolin to design/legal/
+  runtime-decision until approved.
+  Guardrails: keep Search auth-required/read-only unless explicitly changed; no env/provider flips, Supabase mutation, runtime seed/sync, source materialization/download/upload, deploy hook use, destructive git, secret
+  output, or Obsidian write/execute/open tool use/allowlisting unless explicitly approved.
+  End clear-safe with a fresh stamped resume prompt.

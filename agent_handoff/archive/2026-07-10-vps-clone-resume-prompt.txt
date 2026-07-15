@@ -1,0 +1,74 @@
+ARCHIVED 2026-07-15: The VPS clone completed; its remaining Graphify removal
+and package-wiring work is carried by the live assimilation plan. The original
+resume prompt follows verbatim.
+
+HANDOFF STAMP: 2026-07-10 21:59 AEST (UTC+10), Australia/Sydney.
+Eamos, VPS clone. Do not work in D:\eamos or E:\eamos; E: is a frozen migration snapshot.
+
+ Codex session. Read in order:
+  1. agent_handoff/CURRENT.md
+  2. agent_handoff/README.md, especially Hard Rules
+  3. RISKS.md
+  4. plans/thalon-swordfish-assimilation/plan.json
+  5. plans/thalon-swordfish-assimilation/plan.md
+  6. CODEX.md and AGENTS.md
+
+  First run from the VPS repository:
+  git fetch origin
+  git status -sb
+  gh pr list --state open
+
+  Handoff state: main @ 5a29d50 == origin/main with 0 unpushed commits. Assimilation W-001/W-002/W-003 landed in PRs #5 and #6. Verify this after fetching; do not assume it remains current.
+
+  GOAL: finish graphify decommission and package wiring on the VPS.
+
+  Scope:
+  - W-006 / M-014:
+    - Update .claude/settings.json and .codex/hooks.json.
+    - Preserve the no-attribution settings.
+    - Fix the .claude/settings.json hook that currently runs PowerShell with hardcoded D:\eamos\app\frontend.
+    - Fully remove graphify artifacts and integration.
+    - Targets include graphify-out/, .graphifyignore, .claude/skills/graphify/, .agents/skills/graphify/, .worktreeinclude, relevant .gitignore lines, and eamos-encoding-scan.mjs.
+    - graphify-out/ was untracked on the Windows handoff, so its deletion may be local-only. Verify tracking rather than staging nonexistent deletions.
+  - W-004 / M-011:
+    - Complete package wiring in package.json, app/web/package.json, and app/frontend/package.json.
+
+  Steven decided 2026-07-10 that graphify is FULLY REMOVED, not merely de-enforced. This teardown task explicitly overrides any existing instruction to query or update graphify. Do not run graphify query/update or
+  regenerate graphify-out/.
+
+  Batch M-015 and M-018 into the same PR so they produce only one merge to main and one Vercel production rebuild. Preserve one milestone per commit within the PR. Follow the plan’s exact milestone manifests and report
+  any scope mismatch before staging.
+
+  W-005 / M-013 is now on the correct Linux host, but it still requires Steven’s branch-protection decision. Do not include it without that explicit decision; its absence must not block W-006, W-007, or W-004.
+
+  Still deferred:
+  - M-006 gateway choke.
+  - M-013 unless Steven supplies the branch-protection decision.
+
+  Deployment hazards:
+  - Vercel autoDeploy is ON. Every push to main rebuilds production.
+  - Render autoDeploy is OFF. Do not touch its deploy hook.
+  - Do not revert LLM_PROVIDER=gateway.
+
+  Git and verification guardrails:
+  - Work through branch -> PR -> CI green -> Steven’s explicit merge approval -> admin merge.
+  - No direct commits or pushes to main.
+  - The lead is the sole merger.
+  - Never merge on red.
+  - Never use git add -A; stage explicit pathspecs.
+  - Never add attribution or co-author trailers. Verify each intended commit with:
+    git log -1 --format=%(trailers)
+    Expected output is empty.
+  - Use repository-root-aware commands rather than cd.
+  - Use Python 3.12.
+  - Run backend tests with -n auto.
+  - Keep one milestone per commit.
+  - Do not modify unrelated dirty files.
+
+  Before merging, inspect the complete PR diff and changed-path list, run the relevant package/frontend/backend checks, wait for all required CI checks to pass, and pause for Steven’s explicit approval. Use admin merge
+  only because enforce_admins is off and the lead is authorized to bypass after approval.
+
+  End clear-safe:
+  - Update agent_handoff/CURRENT.md.
+  - Produce a stamped resume prompt following agent_handoff/README.md.
+  - Report commits, PR URL, CI results, merge state, remaining deferred work, and whether production rebuilt.

@@ -6,7 +6,7 @@
   ],
   "constraints": [
     "MUST: frontend-only this pass; no backend.ts contract reshape (Hard Rule 5, backend-led); request via Cross-Agent if needed",
-    "MUST: do not touch /runs or AlphaMissense (both user-mandated ON HOLD; DECISIONS.md)",
+    "MUST: do not touch /runs or AlphaMissense (both user-mandated ON HOLD; docs/governance/decisions.md)",
     "MUST: evolve existing DESIGN.md v2 tokens (extend :root scale, add navy-header tier) - not a full rewrite",
     "MUST: navy = header/chrome ONLY, NOT page background; white/off-white content surfaces; teal buttons/accents; neutral grays + subtle warm neutral (user-clarified)",
     "MUST: preserve clinical core - 0.5px hairlines, muted palette, semantic classification colours, no font weight >700, motion only via --dur/--ease tokens, ship prefers-reduced-motion guard",
@@ -55,7 +55,7 @@
     "Contract changes are backend-led; test_frontend_contract.py is the canary (currently 40/40); FE mirrors, never reshapes backend.ts",
     "DESIGN.md invariants: no ad-hoc box-shadow (only --elev-*), no decorative gradients (<=4% functional wash only), no weight>700, no radius>14px card/100px pill, no pure black (#0b1a2b ink), no Franklin chip/link, semantic classification colours never change",
     "Existing focus glow 0 0 0 3px rgba(29,158,117,.12) is the generalised affordance ring; reuse it",
-    "Workbench dev needs browser/pixel verification after meaningful UI change (RISKS.md)",
+    "Workbench dev needs browser/pixel verification after meaningful UI change (docs/operations/risks-and-guardrails.md)",
     "CSS comments must not contain */ (Tailwind v4 Lightning CSS strict); build ~50s, chunk+plugin-timings warnings are NOT failures",
     "Coordination: agent_handoff/ protocol; update CURRENT.md Active Status heartbeat + release Log Edit-Lock each session; narrative only at major boundaries (replace-never-stack); end clear-safe with stamped resume prompt",
     "Tradeoff accepted: visual shells now, real data via Codex later, to reduce repetitive FE<->BE back-and-forth (user explicit)"
@@ -66,7 +66,7 @@
     "...Report page 2.txt - progressive disclosure teaser/expand, key-metrics bar, multi-variant/VCF, export needs",
     "...Workbench.txt - viewer-as-hero split-pane, tracks, side panels, sync, data-source stamps",
     "E:/eamos/DESIGN.md - design system v2 tokens/components/invariants (evolve, don't rewrite)",
-    "E:/eamos/agent_handoff/README.md - coordination protocol; CURRENT.md/RISKS.md/DECISIONS.md - locks, gated work, holds",
+    "agent_handoff/README.md + CURRENT.md - protocol and live state; docs/operations/risks-and-guardrails.md + docs/governance/decisions.md - gates and decisions",
     "E:/eamos/CLAUDE.md - golden rule (Claude=FE), coding guidelines",
     "C:/Users/seamegdool/.claude/plans/next-session-eamos.md - Claude rolling handoff log"
   ]

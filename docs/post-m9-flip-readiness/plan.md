@@ -33,7 +33,7 @@ Current live SG readiness observed after the Phase 0 flip:
 Related docs:
 
 - `agent_handoff/CURRENT.md`
-- `agent_handoff/RISKS.md`
+- `docs/operations/risks-and-guardrails.md`
 - `docs/backend-evidence-roadmap/spec.md`
 - `docs/clingen-local-materialization/spec.md`
 - `docs/pubmed-corpus-materialization/spec.md`
@@ -136,7 +136,7 @@ Acceptance criteria:
 - Rollback restores provider-cache to local orchestrator disabled.
 - `/healthz`, provider-cache, and RPE65 lookup return 200 after rollback.
 
-Source reference: `agent_handoff/RISKS.md` sole-live-backend guardrails.
+Source reference: `docs/operations/risks-and-guardrails.md` sole-live-backend guardrails.
 
 Verify: Same smoke commands as Task 0.1.
 
@@ -162,7 +162,7 @@ Relevant files or references:
 - `app/backend/app/services/source_imports.py`
 - `app/backend/app/services/clinical_source_tables.py`
 - `app/backend/data/source_assets/**`
-- `agent_handoff/RISKS.md`
+- `docs/operations/risks-and-guardrails.md`
 
 Proposed approach:
 

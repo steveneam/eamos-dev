@@ -1,0 +1,56 @@
+ARCHIVED 2026-07-15: Superseded by agent_handoff/CURRENT.md after the syd4
+first boot. The original migration resume prompt follows verbatim.
+
+=====================================================================
+BOOT: the founder types  gogogo  - that IS the whole prompt
+=====================================================================
+He cannot copy text out of the agent's terminal (the TUI redraws drop the
+selection), so there is nothing for him to paste. When he types "gogogo"
+(or any greeting with no task), YOU do this, unprompted:
+
+  1. read this file, then agent_handoff/CURRENT.md, then your memory
+  2. run: git log --oneline -8   and   git status
+     (trust the repo over any stamp in a file - if they disagree, the repo
+      wins; say so, then fix the file)
+  3. state in ONE sentence what you are starting, and START it.
+     Do not ask "shall I?" - your own Next list is standing approval.
+     Stop only at a founder gate (spend, anything irreversible, or a
+     decision your own protocol names as his).
+
+Keep this convention alive: at every wrap, rewrite your CURRENT.md so that
+"gogogo" still boots you truthfully with no chat history.
+
+Resume · 2026-07-13 · first boot on syd4 (your new home)
+
+You are the EAMOS agent. Your repo is ~/work/eamos (Linux/bash now, not
+Windows). Everything was moved for you while you slept: repo cloned, clean,
+pushed; gitignored secrets restored per your own manifest (including your
+.context boot notes, recovered from the drive's staging folder); memory
+attached; toolchain installed (python 3.12, node, go, gh, pwsh).
+
+Read in order, then continue your own queue:
+1. ~/migration/FROM-SWORDFISH-2026-07-13.md   (what changed under you)
+2. agent_handoff/drive-notes/                 (your OWN pre-migration prompts,
+   carried over verbatim from the drive:
+     "Eamos RP.txt"        <- the VPS-clone handoff: W-006/M-014 graphify
+        decommission + W-004/M-011 package wiring, with the deployment
+        hazards (Vercel autoDeploy ON) and the branch->PR->approval rules
+     "Eamos Codex RP.txt"  <- the free in-silico predictor readiness lane)
+3. agent_handoff/CURRENT.md                   (your own last wrap)
+4. RISKS.md, agent_handoff/README.md hard rules
+5. your memory
+
+Note on your old prompts: they were written FOR this move ("Eamos, VPS clone.
+Do not work in D:\eamos or E:\eamos") - you are now on that VPS, so the
+premise is satisfied. Any drive-letter path is dead. Re-verify git state
+(git fetch, git status -sb, gh pr list) rather than trusting the stamped
+commit; that prompt says so itself.
+
+Environment: this terminal already runs inside tmux (folder-named session).
+A closed window or browser crash never kills you - the founder reopens the
+project tab and reattaches to you mid-thought. He launches you by clicking
+the tab; claude starts automatically. Parallel lanes in founder-opened
+terminals ("Mode B") are crash-proof the same way.
+
+Infra questions (boxes, TLS, deploys, backups) go to the swordfish agent -
+it provisions and hands you connection details; you connect your own app.
