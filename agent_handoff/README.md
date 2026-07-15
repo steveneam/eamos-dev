@@ -65,6 +65,13 @@ worktree truth). Read `docs/governance/decisions.md` when relevant.
     (name the metric), or a stronger verification layer. Lint/doc/refactor sweeps
     don't satisfy it alone. *Exception:* explicit user-constrained sessions ("just
     commit / clean up / verify") — record the constraint in `## Active Status`.
+11. **Finish verified slices committed and pushed.** Once scoped user-directed
+    work passes its gates, the acting agent commits and pushes without asking
+    Steven to repeat approval; open/update the PR and watch CI when the branch
+    workflow applies. Before staging, inspect status and use only explicit owned
+    paths (DL-019). Merge approval, destructive Git, cleanup deletion, secrets,
+    deploy/cloud actions, Supabase mutations, and other named founder gates stay
+    separate. Unverified, speculative, or mixed-ownership work is not swept in.
 
 ## Idle / Usage-Exhaustion Protocol
 
@@ -74,7 +81,7 @@ artifacts; behavior-preserving hardening (no contract-shape change); mock-first
 against a not-yet-built dep; write the precise ask into `## Cross-Agent Requests`;
 browser/a11y/perf/security/test QA. Never in free time: gated milestones, the
 other agent's in-flight work, shared-contract shape mid-flight, broad reformatting,
-commits/pushes without ask, speculative features.
+committing/pushing unrequested work, speculative features.
 
 ## Integration Checkpoint
 

@@ -58,6 +58,16 @@ Guidance:
 End every session clear-safe — update `agent_handoff/CURRENT.md` + hand Steven a stamped
 resume prompt (protocol: `agent_handoff/README.md`).
 
+## Verified-slice git completion
+
+Normal user-directed work ends at a verified, committed, pushed boundary without asking Steven
+to repeat a commit/push approval. This standing approval is agent-agnostic and matches Thalon and
+Swordfish: inspect `git status`, stage only the acting agent's explicit owned paths, commit without
+AI attribution, push the branch, open/update the PR when the branch workflow applies, and watch CI.
+Pause for the existing explicit approval before merge. This does not authorize destructive Git,
+cleanup deletion, secret output, env/provider changes, deploy hooks, Supabase mutations, source
+materialization, or other cloud actions; those retain their own gates.
+
 ## backend predictor wiring
 
 When Steven says "admin" for predictor work, interpret it as: Steven/backend gets all predictors wired now. Do not add account-role/auth plumbing for this. Do not postpone backend predictor integration because of commercial, launch, or licensing labels. Preserve license/provenance/launch-gate metadata on rows and health/preflight output so commercialization filtering can be decided later.

@@ -30,25 +30,26 @@ Residual guardrails:
 - The transcript-exposed key was rotated on 2026-06-20. Rotate again on any new
   exposure signal; never record key material in handoff or deployment docs.
 
-## Dirty Worktree
+## Git Completion And Dirty-Worktree Safety
 
-Section edited: 2026-05-18 17:14 +1000 · Claude (user lifted Claude's commit
-gate; destructive/cross-lane guardrail kept).
+Section reconciled: 2026-07-15 14:55 +0000 · Codex against the standing
+agent-agnostic decision and the Thalon/Swordfish verified-slice finish rule.
 
-The worktree is intentionally dirty and contains verified work from both lanes.
+Normal user-directed work that reaches a green verification boundary is
+committed and pushed by the acting agent without asking Steven to repeat that
+approval. A dirty worktree is a staging-scope problem, not a reason to leave
+verified owned work stranded.
 
 Guardrails:
 
-- **Commit gate lifted for Claude (user-authorized 2026-05-18).** Claude may
-  create commits of its own verified frontend work on a non-default branch
-  without re-asking. Codex's commit gate is unchanged (its own brief governs).
-- Cross-lane: do **not** sweep Codex's uncommitted backend tree
-  (`app/backend/**`, `plans/v2-backend.md`, `plans/gene-viewer/`) into a Claude
-  commit without coordination — commit Claude-lane paths, or coordinate first.
+- Run `git status --short` before staging and use explicit owned pathspecs only;
+  never `git add -A`, `git add .`, or `git commit -a`.
+- Cross-lane: do **not** sweep another agent's in-flight or unrelated paths into
+  a commit. Commit only the current slice's owned files, or coordinate first.
+- Push/open the PR and watch CI after a green slice; the lead still pauses for
+  Steven's explicit approval before merge.
 - Still **never** without an explicit user ask: `stash`, `reset`, `checkout`
-  (discarding), `clean`, discard changes, force-push, or any rewrite of
-  `e0f1763` / shared `origin` lineage. These protect the other agent's
-  uncommitted work and origin/main, not Claude specifically.
+  (discarding), `clean`, discard changes, force-push, or shared-lineage rewrite.
 - Do not treat untracked files as junk.
 
 ## Sole Live Backend — No Oregon Fallback
