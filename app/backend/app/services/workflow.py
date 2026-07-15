@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.core.logging import get_logger
+from app.core.ownership import OwnerIdentity
 from app.rules.base import DecisionInput
 from app.services.lookup_service import GENE_THERAPY_MAP
 from app.services.variant_decoder import decode_variant
@@ -52,7 +53,12 @@ class WorkflowService:
             thread_name_prefix="eamos-workflow",
         )
 
-    def create_run(self, payload: RunRequest, *, owner_user_id: str | None = None) -> RunResponse:
+    def create_run(
+        self,
+        payload: RunRequest,
+        *,
+        owner: OwnerIdentity | None = None,
+    ) -> RunResponse:
         if not payload.report_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -62,7 +68,11 @@ class WorkflowService:
         reports = []
         missing = []
         for report_id in payload.report_ids:
-            report = self.reports_repo.get(report_id)
+            report = (
+                self.reports_repo.get_for_owner(report_id, owner=owner)
+                if owner is not None
+                else self.reports_repo.get(report_id)
+            )
             if report is None:
                 missing.append(report_id)
             else:
@@ -144,6 +154,7 @@ class WorkflowService:
             report_payload=report_payload,
             evidence=evidence,
             warnings=warnings,
+            owner=owner,
         )
 
         response = RunResponse(
@@ -159,7 +170,11 @@ class WorkflowService:
             reviewed_at=None,
             approved_pdf_path=None,
         )
-        self._index_run(response, reports, owner_user_id=owner_user_id)
+        self._index_run(
+            response,
+            reports,
+            owner_user_id=owner.user_id if owner is not None else None,
+        )
         return response
 
     def _index_run(self, run: RunResponse, reports, *, owner_user_id: str | None) -> None:
@@ -230,8 +245,8 @@ class WorkflowService:
             warnings.extend(result.warnings)
         return evidence, evidence_map, evidence_statuses, warnings
 
-    def get_run(self, run_id: str) -> RunResponse:
-        run = self.run_repo.get_run(run_id)
+    def get_run(self, run_id: str, *, owner: OwnerIdentity) -> RunResponse:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
         return run

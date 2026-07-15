@@ -13,6 +13,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from app.core.ownership import OwnerIdentity
 from app.schemas.chat import RunChatCitation, RunChatRequest, RunChatResponse
 
 
@@ -41,12 +42,21 @@ class RunChatService:
         self._index_cache: OrderedDict[tuple[str, str], _RunChatIndex] = OrderedDict()
         self._index_cache_lock = Lock()
 
-    def stream(self, run_id: str, payload: RunChatRequest) -> Iterator[str]:
+    def stream(
+        self,
+        run_id: str,
+        payload: RunChatRequest,
+        *,
+        owner: OwnerIdentity,
+    ) -> Iterator[str]:
         # Streaming is text/plain word-chunks of the full answer. Token-level streaming
         # would require switching the underlying answer_chain to .stream(); for now we
         # split the resolved answer into ~12-char windows so the UI shows progressive text.
-        result = self.answer(run_id, payload)
-        text = result.answer
+        result = self.answer(run_id, payload, owner=owner)
+        return self._stream_text(result.answer)
+
+    @staticmethod
+    def _stream_text(text: str) -> Iterator[str]:
         if not text:
             yield ""
             return
@@ -54,12 +64,18 @@ class RunChatService:
         for i in range(0, len(text), window):
             yield text[i : i + window]
 
-    def answer(self, run_id: str, payload: RunChatRequest) -> RunChatResponse:
+    def answer(
+        self,
+        run_id: str,
+        payload: RunChatRequest,
+        *,
+        owner: OwnerIdentity,
+    ) -> RunChatResponse:
         timeout_seconds = _positive_float(
             getattr(self.settings, "run_chat_timeout_seconds", 10.0),
             default=10.0,
         )
-        future = self._executor.submit(self._answer_impl, run_id, payload)
+        future = self._executor.submit(self._answer_impl, run_id, payload, owner)
         try:
             return future.result(timeout=timeout_seconds)
         except FutureTimeoutError as exc:
@@ -69,8 +85,13 @@ class RunChatService:
                 detail="Run chat timed out.",
             ) from exc
 
-    def _answer_impl(self, run_id: str, payload: RunChatRequest) -> RunChatResponse:
-        run = self.run_repo.get_run(run_id)
+    def _answer_impl(
+        self,
+        run_id: str,
+        payload: RunChatRequest,
+        owner: OwnerIdentity,
+    ) -> RunChatResponse:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
         if self.answer_chain is None or self.embeddings is None:
@@ -82,7 +103,7 @@ class RunChatService:
         reports = [
             report
             for report_id in run.report_ids
-            if (report := self.reports_repo.get(report_id)) is not None
+            if (report := self.reports_repo.get_for_owner(report_id, owner=owner)) is not None
         ]
         documents = self._build_documents(run, reports)
         if not documents:

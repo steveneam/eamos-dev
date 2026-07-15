@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
 from app.core.logging import get_logger
+from app.core.ownership import OwnerIdentity
 from app.schemas.draft import ReportDraftUpdatePayload
 from app.schemas.run import ReviewStatus, RunResponse
 
@@ -16,8 +17,14 @@ class ReportDraftService:
         self.run_repo = run_repo
         self.search_index_service = search_index_service
 
-    def update_report_payload(self, run_id: str, payload: ReportDraftUpdatePayload) -> RunResponse:
-        run = self.run_repo.get_run(run_id)
+    def update_report_payload(
+        self,
+        run_id: str,
+        payload: ReportDraftUpdatePayload,
+        *,
+        owner: OwnerIdentity,
+    ) -> RunResponse:
+        run = self.run_repo.get_run_for_owner(run_id, owner=owner)
         if run is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
 
@@ -35,6 +42,7 @@ class ReportDraftService:
             payload_updates=updates,
             review_note=review_note,
             updated_at=updated_at,
+            owner=owner,
         )
         self._refresh_search_index(run_id)
         return updated

@@ -8,6 +8,7 @@ from urllib.parse import quote
 from fastapi.testclient import TestClient
 
 from app.cli.eamos_search_index_backfill import run_backfill
+from app.core.ownership import OwnerIdentity
 from app.core.rate_limit import InMemoryRateLimiter
 from app.schemas.report import ExtractedCase, ExtractedVariant, UploadedReport
 from app.schemas.run import (
@@ -104,7 +105,12 @@ def _index_answer_fixture(client: TestClient) -> None:
     )
 
 
-def _save_search_fixture_report(client: TestClient, report_id: str = "report_search_local") -> None:
+def _save_search_fixture_report(
+    client: TestClient,
+    report_id: str = "report_search_local",
+    *,
+    owner_user_id: str | None = None,
+) -> None:
     report = UploadedReport(
         report_id=report_id,
         filename="search-local.pdf",
@@ -133,7 +139,12 @@ def _save_search_fixture_report(client: TestClient, report_id: str = "report_sea
         ),
         raw_extracted_text="RPE65 NM_000329.3:c.260A>G p.Asp87Gly search fixture.",
     )
-    client.app.state.reports_repo.save(report)
+    owner = (
+        OwnerIdentity(provider="eamos", user_id=owner_user_id)
+        if owner_user_id is not None
+        else None
+    )
+    client.app.state.reports_repo.save(report, owner=owner)
 
 
 def _saved_library_variant_payload(**overrides) -> dict:
@@ -255,6 +266,7 @@ def _persist_source_backed_run(
         report_payload=_source_backed_report_payload(summary=summary),
         evidence=[],
         warnings=[],
+        owner=OwnerIdentity(provider="eamos", user_id=owner_user_id),
     )
     client.app.state.search_index_service.index_run(
         run,
@@ -490,7 +502,7 @@ def test_local_search_answer_drops_model_citations_not_tied_to_returned_hits(
 
 
 def test_run_creation_indexes_new_run_for_local_search(auth_client: TestClient) -> None:
-    _save_search_fixture_report(auth_client)
+    _save_search_fixture_report(auth_client, owner_user_id=_current_user_id(auth_client))
 
     created = auth_client.post(
         "/api/v1/runs",
@@ -509,9 +521,13 @@ def test_run_creation_indexes_new_run_for_local_search(auth_client: TestClient) 
 
 
 def test_search_filters_private_run_results_by_authenticated_owner(client: TestClient) -> None:
-    owner_headers = _auth_headers(client, "search-owner")
+    owner_headers, owner_user_id = _register_user(client, "search-owner")
     other_headers = _auth_headers(client, "search-other")
-    _save_search_fixture_report(client, report_id="report_search_owner")
+    _save_search_fixture_report(
+        client,
+        report_id="report_search_owner",
+        owner_user_id=owner_user_id,
+    )
 
     created = client.post(
         "/api/v1/runs",

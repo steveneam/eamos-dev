@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
 
+from app.core.ownership import OwnerIdentity
 from app.schemas.report import (
     ExtractedCase,
     ExtractionIssue,
@@ -43,7 +44,7 @@ class IntakeService:
         upload: UploadFile,
         report_kind: ReportKind = "test",
         *,
-        owner_user_id: str | None = None,
+        owner: OwnerIdentity | None = None,
     ) -> ReportUploadResponse:
         filename = upload.filename or "report.pdf"
         if not filename.lower().endswith(".pdf"):
@@ -101,9 +102,12 @@ class IntakeService:
             raw_extracted_text=pdf_result.get("text") or None,
             extraction_warnings=warnings,
         )
-        self.reports_repo.save(report)
+        self.reports_repo.save(report, owner=owner)
         if self.search_index_service is not None:
-            self.search_index_service.index_report(report, owner_user_id=owner_user_id)
+            self.search_index_service.index_report(
+                report,
+                owner_user_id=owner.user_id if owner is not None else None,
+            )
         return ReportUploadResponse(report=report)
 
     def _build_extracted_case(

@@ -36,10 +36,10 @@ class FakeChatService:
 
 
 class FakeRunChatService:
-    def answer(self, _run_id, payload):
+    def answer(self, _run_id, payload, *, owner):
         return RunChatResponse(question=payload.question, answer="Mock run answer.")
 
-    def stream(self, _run_id, _payload):
+    def stream(self, _run_id, _payload, *, owner):
         yield "Mock run answer."
 
 
