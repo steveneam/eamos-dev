@@ -26,13 +26,14 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** STOPPED @ 2026-07-15 15:01 UTC — P1 search auth and the corrected
-  automatic verified-slice commit/push rule are pushed in PR #12. Initial PR CI
-  is green; the branch is at the explicit merge-approval gate.
+- **Codex:** STOPPED @ 2026-07-15 15:08 UTC — Steven approved PR #12; it is
+  rebase-merged at `dfc83cb`, post-merge implementation CI is green, and no
+  cloud mutation or deploy was performed. Next is the read-only `user_library`
+  migration preflight.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 15:01 +0000 · Codex (PR #12 pushed; locks released)
+UNLOCKED · 2026-07-15 15:08 +0000 · Codex (PR #12 merge recorded)
 
 ## Shared File Locks
 
@@ -41,24 +42,23 @@ UNLOCKED · 2026-07-15 15:01 +0000 · Codex (PR #12 pushed; locks released)
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 15:01 +0000 · Codex PR 12 merge gate
+# Resume prompt · 2026-07-15 15:08 +0000 · Codex user-library migration preflight
 Read CURRENT.md, agent_handoff/README.md, then docs/repo-structure/audit-2026-07-15.md.
-PR #12 contains P1 search dual-provider auth plus the verified-slice git rule correction.
-Branch: codex/p1-search-auth-principal; all owned work is pushed.
-Search query/answer accept local + Supabase JWTs and retain owner-scoped filtering.
-Tests cover ES256/JWKS, local compatibility, and cross-user private isolation.
-The initial PR run 29425995342 is fully green; recheck the latest run before merge.
-Verified scoped work now commits/pushes automatically; do not ask Steven again for that.
-PR merge still requires Steven's explicit approval and a green rebased head.
-The live Supabase migration, deploy hook, M-013, and all cloud mutations remain founder-gated.
-Safe to clear: yes — PR #12 is pushed and the only next action is the merge gate.
+PR #12 is rebase-merged at dfc83cb; post-merge run 29426486423 is green.
+Search now accepts local + Supabase JWTs with owner-scoped filtering intact.
+Verified scoped work commits/pushes automatically; do not ask Steven again for that.
+Start the read-only missing user_library preflight from the audit and migration SQL.
+Reconfirm live table absence and migration-ledger identity; run only bounded read-only smokes.
+Review SQL and produce rollback plus verification steps before proposing an apply.
+Applying the migration, invoking a deploy hook, M-013, and all cloud mutations remain founder-gated.
+Safe to clear: yes — main is clean, PR #12 is merged, and the next preflight is read-only.
 ```
 
 ## Pointer
 
-- PR: `#12` from `codex/p1-search-auth-principal` into `main`.
-- Implementation: `0308716`; governance correction: `0f9cc67`.
-- Initial green run: `29425995342`; latest PR head must be rechecked before merge.
+- Merged target: PR #12 at `dfc83cb` on `main`.
+- Rebased commits: implementation `ea189ee`; governance correction `0329a5a`.
+- Final PR run `29426282277` and post-merge run `29426486423` are green.
 
 ## Delta
 
@@ -74,11 +74,13 @@ Safe to clear: yes — PR #12 is pushed and the only next action is the merge ga
   Vercel preview. Exact timings and non-mutation scope are in `PROGRESS.md`.
 - Eamos now matches Thalon/Swordfish: verified scoped work commits and pushes
   without repeat permission; merge and hazardous actions remain gated.
+- No deploy hook or Supabase mutation ran; the live signed-in search smoke and
+  missing `user_library` apply remain separate gated operations.
 
 ## Next Action
 
-- Founder gate: Steven must explicitly approve merging PR #12.
-- Before merge, the lead rechecks scope, rebases onto latest `main` if needed,
-  waits for every required check to pass, then merges only on Steven's go.
-- Do not apply the missing live Supabase migration or invoke a deploy hook in
-  this lane. M-013 and all Render/Supabase/VPS mutations remain separately gated.
+- Perform the read-only `user_library` preflight: reconcile local/remote
+  migration identity, confirm the live table state, review the SQL, and write
+  rollback plus bounded verification steps.
+- Stop for Steven's explicit approval before applying any migration or invoking
+  a deploy hook. M-013 and all Render/Supabase/VPS mutations remain gated.

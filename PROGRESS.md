@@ -2,7 +2,7 @@
 
 ## 2026-07-15 14:48 +0000 - Codex - P1 search dual-provider authentication
 
-Section updated: 2026-07-15 15:01 +0000 · Codex after push and PR CI.
+Section updated: 2026-07-15 15:08 +0000 · Codex after PR merge and main CI.
 
 Completed the P1 active-search authentication correction from the 2026-07-15
 whole-repo audit, without changing the search response contract or the
@@ -49,6 +49,16 @@ Integration and governance correction:
   Supabase mutations, and other named founder gates remain separate.
 - PR run `29425995342` passed backend shards in 1m52s / 2m17s, the stable
   backend aggregator in 3s, web in 1m11s, frontend in 35s, and Vercel preview.
+- The final PR head run `29426282277` passed backend shards in 2m00s / 2m02s,
+  the aggregator in 3s, web in 1m01s, frontend in 31s, and Vercel preview.
+- Steven explicitly approved the merge. PR #12 was admin rebase-merged as
+  `dfc83cb` (implementation `ea189ee`, governance `0329a5a`). Post-merge main
+  run `29426486423` passed backend shards in 1m59s / 2m28s, the aggregator in
+  3s, web in 1m06s, and frontend in 28s.
+- No deploy hook was invoked, so the live backend search smoke remains a
+  separately gated post-deploy proof. The next safe item is the read-only
+  `user_library` migration reconciliation and rollback-ready apply plan; no
+  live Supabase mutation is authorized.
 
 ## 2026-07-15 14:19 +0000 - Codex - Backend CI cache hermeticity and stable sharding
 
