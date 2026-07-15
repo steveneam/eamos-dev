@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -8,6 +9,43 @@ import pytest
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    group = parser.getgroup("eamos-ci")
+    group.addoption(
+        "--eamos-shard-count",
+        type=int,
+        default=1,
+        help="Split the collected backend tests into this many stable CI shards.",
+    )
+    group.addoption(
+        "--eamos-shard-index",
+        type=int,
+        default=0,
+        help="Run this zero-based Eamos CI shard.",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    shard_count = config.getoption("--eamos-shard-count")
+    shard_index = config.getoption("--eamos-shard-index")
+    if shard_count < 1:
+        raise pytest.UsageError("--eamos-shard-count must be at least 1")
+    if not 0 <= shard_index < shard_count:
+        raise pytest.UsageError("--eamos-shard-index must be between 0 and --eamos-shard-count - 1")
+    if shard_count == 1:
+        return
+
+    selected: list[pytest.Item] = []
+    deselected: list[pytest.Item] = []
+    for item in items:
+        digest = hashlib.sha256(item.nodeid.encode("utf-8")).digest()
+        assigned_shard = int.from_bytes(digest[:8], byteorder="big") % shard_count
+        (selected if assigned_shard == shard_index else deselected).append(item)
+
+    config.hook.pytest_deselected(items=deselected)
+    items[:] = selected
 
 
 @pytest.fixture(autouse=True)

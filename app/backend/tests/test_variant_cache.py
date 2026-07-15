@@ -31,6 +31,8 @@ from app.schemas.run import (
     GeneContextVariantProjection,
 )
 from app.schemas.protein_annotation import ProteinDomainTrack, ProteinDomainTrackFeature
+from app.services.clinical_consensus import ClinicalConsensusBuilder
+from app.services.gene_context_snapshot import GeneContextSnapshotService
 from app.services.lookup_service import (
     FUNCTIONAL_EVIDENCE_CACHE_VERSION,
     GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
@@ -43,6 +45,7 @@ from app.services.lookup_service import (
     STRICT_GENOMIC_CACHE_VERSION,
     LookupService,
 )
+from app.services.search_input_resolver import EamosSearchInputResolver
 from app.tools.base import ToolResult
 
 
@@ -171,6 +174,18 @@ class _NoopFunctionalEvidenceExtractor:
     def build_for_lookup(self, *args, **kwargs) -> FunctionalEvidenceSummary:
         self.calls += 1
         return self.summary
+
+
+def _hermetic_lookup_service(tool_registry, rule_engine, **kwargs) -> LookupService:
+    """Exercise live-cache behavior without coordinate-provider requests."""
+    kwargs.setdefault("clinical_consensus_builder", ClinicalConsensusBuilder(settings=None))
+    kwargs.setdefault("gene_context_snapshot", GeneContextSnapshotService(settings=None))
+    service = LookupService(tool_registry, rule_engine, **kwargs)
+    service.search_input_resolver = EamosSearchInputResolver(
+        settings=kwargs.get("settings"),
+        resolve_coordinates=False,
+    )
+    return service
 
 
 def _report_cache_identity(query: str) -> dict:
@@ -313,7 +328,7 @@ def test_unresolved_lookup_is_not_persisted_or_served_from_cache(tmp_path: Path)
         "clinical_trials": _ClinicalTrialsTool(),
     }
     functional_evidence = _NoopFunctionalEvidenceExtractor()
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -421,7 +436,7 @@ def test_resolved_lookup_reuses_cached_publication_data(tmp_path: Path) -> None:
             ],
         )
     )
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -522,7 +537,7 @@ def test_resolved_lookup_reuses_cached_gene_context_snapshot(tmp_path: Path) -> 
         "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -611,7 +626,7 @@ def test_lookup_summary_reuses_prepared_report_shell_without_provider_calls(
         ),
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -692,7 +707,7 @@ def test_lookup_summary_reads_legacy_publication_data_shell_when_table_repo_miss
             },
         },
     )
-    service = LookupService(
+    service = _hermetic_lookup_service(
         {},
         ClinicRules(),
         variant_cache_repo=repo,
@@ -755,7 +770,7 @@ def test_lookup_sections_reuses_prepared_envelopes_without_provider_calls(
         ),
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -837,7 +852,7 @@ def test_lookup_sections_reads_legacy_publication_data_sections_when_table_repo_
             },
         },
     )
-    service = LookupService(
+    service = _hermetic_lookup_service(
         {},
         ClinicRules(),
         variant_cache_repo=repo,
@@ -899,7 +914,7 @@ def test_lookup_sections_publication_miss_builds_only_publication_sources(
         ),
         "clinical_trials": trial_tool,
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -961,7 +976,7 @@ def test_lookup_sections_trials_miss_builds_only_trials_source(
         "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
         "clinical_trials": trial_tool,
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1027,7 +1042,7 @@ def test_lookup_sections_trials_uses_cached_snapshot_without_provider_calls(
         "litvar2": _StaticTool("litvar2"),
         "clinical_trials": trial_tool,
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1095,7 +1110,7 @@ def test_lookup_report_uses_cached_trials_snapshot_on_first_payload(
         "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
         "clinical_trials": trial_tool,
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1173,7 +1188,7 @@ def test_lookup_sections_computational_miss_uses_source_result_cache_without_pro
             {"predictors": [{"name": "CADD PHRED", "score": 12.0}]},
         ),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1254,7 +1269,7 @@ def test_lookup_sections_computational_miss_builds_only_computational_source(
             },
         ),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1326,7 +1341,7 @@ def test_lookup_sections_clingen_miss_builds_only_clinvar_and_clingen_sources(
         "clinical_trials": _CountingClinicalTrialsTool(),
         "computational_annotations": _StaticTool("computational_annotations"),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1467,7 +1482,7 @@ def test_legacy_cached_functional_evidence_rebuilds_and_refreshes_cache(
         "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1554,7 +1569,7 @@ def test_legacy_strict_genomic_cache_rebuilds_and_refreshes_cache(tmp_path: Path
         "litvar2": _StaticTool("litvar2", {"articles": [], "total_publications": 0}),
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,
@@ -1684,7 +1699,7 @@ def test_legacy_cached_ep_vlex_without_scope_counts_rebuilds_response_counts(
         "litvar2": litvar_tool,
         "clinical_trials": _ClinicalTrialsTool(),
     }
-    service = LookupService(
+    service = _hermetic_lookup_service(
         tools,
         ClinicRules(),
         variant_cache_repo=repo,

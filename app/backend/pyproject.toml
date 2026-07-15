@@ -5,7 +5,7 @@ description = "Eamos genomic intelligence platform — FastAPI backend"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
-# -n auto parallelizes the ~1166-test suite across all cores (pytest-xdist).
+# -n auto parallelizes the backend suite across all available cores (pytest-xdist).
 # For a quick single-file run without worker spawn overhead, add -n0.
 addopts = "-q -n auto"
 testpaths = ["tests"]

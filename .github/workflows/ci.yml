@@ -50,9 +50,17 @@ jobs:
       - run: npm run lint
       - run: npm run test
 
-  backend:
-    name: backend (pytest)
+  backend_tests:
+    name: backend tests (shard ${{ matrix.shard_label }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard_index: 0
+            shard_label: 1/2
+          - shard_index: 1
+            shard_label: 2/2
     defaults:
       run:
         working-directory: app/backend
@@ -66,4 +74,15 @@ jobs:
           cache: pip
           cache-dependency-path: app/backend/requirements.txt
       - run: pip install -r requirements.txt
-      - run: pytest -q
+      - run: pytest -q --eamos-shard-count=2 --eamos-shard-index=${{ matrix.shard_index }}
+
+  backend:
+    name: backend (pytest)
+    if: ${{ always() }}
+    needs: backend_tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm all backend shards passed
+        env:
+          SHARD_RESULT: ${{ needs.backend_tests.result }}
+        run: test "$SHARD_RESULT" = "success"
