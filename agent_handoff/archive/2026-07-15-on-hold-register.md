@@ -1,3 +1,9 @@
+> ARCHIVED 2026-07-15 11:19 UTC by Codex - the stale pause register was
+> retired; live founder gates now remain in `RISKS.md`. Original content
+> follows verbatim.
+
+---
+
 # On-Hold And Pause Register
 
 Last updated: 2026-06-03 22:54 +1000 - Claude (Tier-3 report visuals parked: AlphaFold 3D + PDBe-Molstar)

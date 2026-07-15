@@ -1,3 +1,9 @@
+> ARCHIVED 2026-07-15 11:19 UTC by Codex - the stale `on_hold/` index was
+> retired; live founder gates now remain in `RISKS.md`. Original content
+> follows verbatim.
+
+---
+
 # On-Hold And Pause Register
 
 This folder keeps dated, prioritized pause state that both Claude and Codex can

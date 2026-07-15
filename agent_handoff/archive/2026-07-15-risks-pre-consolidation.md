@@ -1,33 +1,182 @@
+> ARCHIVED 2026-07-15 11:19 UTC by Codex - verbatim pre-consolidation
+> snapshot. Resolved incidents and obsolete Windows-only guardrails were
+> removed from the live `RISKS.md`; this copy preserves the complete source.
+
+---
+
 # Agent Risks And Guardrails
 
-Consolidated: 2026-07-15 11:19 UTC by Codex. The complete pre-consolidation
-ledger is preserved at
-`agent_handoff/archive/2026-07-15-risks-pre-consolidation.md`.
+## 1e86a78 Protein Annotation — Render OOM + Protein-Feature Regression (→ Codex)
 
-## AI Gateway Chat - Live Security Boundary
+Section added: 2026-06-15 22:08 +1000 · Claude (prod incident the moment `1e86a78`
+went live). **Owner: Codex (backend lane).**
 
-Section reconciled: 2026-07-15 11:19 UTC by Codex against the shipped route
-guards, `docs/ai-gateway/pre-launch-security.md`, and the live handoff.
+**✅ RESOLVED 2026-06-15 23:30 +1000 (Claude — verified on prod SG).** Codex's
+`a9de024` (`fix(protein): guard large annotation cache misses` — release-keyed
+protein-annotation cache restore + oversized-protein HMMER-on-cache-miss guard) +
+`dd3b71d` (Render hook helper) are live on SG (deploy `dep-d8nvaac8aovs739ka7p0`,
+status `live`). USH2A `POST /api/v1/lookup` now returns 200 in ~34s with
+`protein_domain_track.status=cache_hit` and 248 restored source hits; Render memory
+held **flat ~1.21 GB** on the new instance during the call (no spike toward the 2 GB
+cap; the OOM'd instance idled ~1.53 GB). Both regressions cleared: the **MED**
+feature loss is fixed via the Pfam/HMMER cache fallback (the UniProt flag stayed
+`uniprot_features_enabled=false` — no index seeding needed), and the **HIGH** OOM is
+prevented because a cache hit skips fresh HMMER on the 5,202 aa protein (and the new
+guard skips it on a miss too). Original write-up retained below for history.
+Follow-up (backlog, not blocking): the 248 are raw hmmscan hits including
+promiscuous cross-fold noise (Purple acid Phosphatase, Chitinase, ConA-clan over
+LamG) curated only at the FE — consider a backend e-value/overlap threshold so we
+don't ship garbage hits (e.g. an e=85 ConA call) over the wire.
 
-Ask-Eamos is live with server-side `LLM_PROVIDER=gateway`. The original launch
-HIGH is met: both chat endpoints require an authenticated principal, enforce a
-per-user burst limit, enforce the enabled 10-request per-user daily cap, and
-retain the global daily backstop. Do not revert those controls or treat
-`NEXT_PUBLIC_AI_CHAT_ENABLED` as a security boundary.
+Commit `1e86a78` (`fix(protein): hydrate curated feature architecture` —
+`protein_annotation.py` +379, `ReportGeneViewer.tsx` +359, new
+`eamos_uniprot_feature_index` CLI) reached prod for the FIRST time on 2026-06-15
+~21:58 +1000 — its original auto-deploy was a dropped GitHub→Vercel webhook, so it
+was never live-verified on Vercel until Claude re-triggered it via `50d9dc8`. Render
+SG had already been on `1e86a78` (Codex). Two regressions surfaced immediately:
 
-Residual guardrails:
+- **HIGH — Render SG out-of-memory.** Render event: instance `8wqsn` "Ran out of
+  memory (used over 2GB) while running your code" at 2026-06-15 22:00 +1000, then
+  "Service recovered" (auto-restart). SG is the Standard **2 GB** instance — 2 GB is
+  the hard ceiling. Almost certainly the USH2A protein annotation (5,202 aa) through
+  `1e86a78`'s reworked `protein_annotation.py`. While OOMing, the backend returned a
+  degraded `/viewer` payload and the report's "Gene & Locus context" briefly rendered
+  raw SVG as text; it self-corrected after the instance recovered. **→ Codex: profile
+  `protein_annotation` memory on large proteins, look for a leak / unbounded
+  buffering (full feature-table parse, HMMER, or live UniProt fetch held whole in
+  memory), stream/cap it. Inefficient coding / memory leak suspected.**
+- **MED — protein features regressed vs the previously-shipped view.** The new
+  UniProt-first "curated feature architecture" path needs `uniprot_features_enabled=true`
+  + a **seeded UniProt feature index on Render**, both OFF/not-ready
+  (`uniprot_features_enabled=false`, `uniprot_feature_index.ready=false`, per Codex's
+  own handoff). With the index unavailable, fewer features surface than Codex's earlier
+  verified state ("50 architecture blocks, 248 source hits, FN3 ranges"); the new FE
+  also hides "sites" by default behind category filters. Net: features Codex previously
+  added read as missing in prod. **→ Codex: either provision/seed the Render UniProt
+  feature index and flip the flag, or make the flag-off path fall back to the full prior
+  Pfam/HMMER architecture without dropping features.**
 
-- The daily counters are in-process. They reset on deploy and would not be
-  coherent across multiple backend instances; move them to a private durable
-  store before multi-instance scaling or stronger billing guarantees.
-- M-006, the single metered gateway choke point, remains deferred. Until it
-  lands, preserve the route-level auth and cap ordering on every paid chat path.
-- Keep provider keys backend-only, retain a hard provider spend cap, and do not
-  rely on provider billing lag as the application budget.
-- Keep the evidence-only outbound allowlist, separate system/user messages, no
-  user-facing tool access, escaped-text rendering, and the fixed gateway URL.
-- The transcript-exposed key was rotated on 2026-06-20. Rotate again on any new
-  exposure signal; never record key material in handoff or deployment docs.
+Mitigation (Steven's call): roll back prod to the last verified-good deploy
+(`1c2df8b` FE + matching backend) until `1e86a78` is fixed, or keep it live and fix
+forward. Vercel rollback target = `dpl_4FZS9XtQxjrvXmDFyCNGtPPpvpfc` (1c2df8b,
+rollback-candidate).
+
+## Backend Stability — Systemic OOM-Class Findings (Epic A)
+
+Section added: 2026-06-16 00:59 +1000 · Claude (from the multi-agent adversarial
+stability/memory audit, run `wf_476b5cd6-83c`, 35 agents; full report
+`docs/stability-audit/findings.md`). **Owner: Codex (backend lane); Claude owns A10 (FE).**
+
+**✅ A1–A9 SHIPPED + PROD-VERIFIED 2026-06-16 19:46 +1000 (commit `0a209a1`, Render SG
+deploy `dep-d8ohirp194ac73c0nda0` live; Vercel FE 200).** Codex authored the backend
+fixes; Claude adversarially re-reviewed all nine against the audit (read the
+working-tree code), ran the full backend pytest suite green, then committed/pushed/
+deployed and live-verified. The request-reachable OOM/crash class is closed: the
+unauthenticated batch-upload gzip-bomb (A2) now returns 401; the USH2A protein path
+(A1) serves `cache_hit` with `allow_run=False` (no in-request hmmscan) at ~571 MB RSS
+(no spike toward the 2 GB cap). **✅ A10 (FE viewer/heatmap virtualization) SHIPPED
+2026-06-16 20:42 +1000 (commit `858a036`, FE-only; Vercel `dpl_5g1mV9EhYnz8i7cyrMwarnMw9KWr`):
+FullLocusViewer windowed + `.fl-scroller` bounded to an internal-scroll pane (RPE65 full-gene
+265→~54 rows mounted; CFTR/ABCA4 = same bounded path → no browser crash); AlphaMissense band
+→ ≤800 mean-score bins (was ~5,200 rect+title/residue); CodonDetail O(n²) scans → useMemo
+Set/Map; `onRestrictionSelect` → useCallback. tsc + eslint + 33/33 Node-equivalence + live
+browser verified. The request-reachable OOM/crash class (A1–A10) is now closed. **✅ A11
+(infra: instance + disk budget) CLOSED 2026-06-16 21:27 +1000 (Claude) — documentation +
+sizing decision; guards already enforced by A1/A2. Doc: `docs/stability-audit/a11-render-budget.md`.
+Decisions (grounded in measured prod RSS, not round numbers): KEEP Render Standard 2 GB (idle
+~0.57 GB / 2 GB ~27% post-A1–A9; hmmscan off the request path via cache-or-fail-closed +
+`BoundedSemaphore(1)` + `RLIMIT_AS` 1536 MB + residue cap 5000-safe-on-0; 20 MB upload + 20 MB
+gzip-decompress ceiling; batch registry LRU 128/256 TTL 3600s) — no upsize, no dedicated worker.
+KEEP the 60 GB disk: right-sized (NOT over-provisioned) for the local-first destination — durable
+Supabase already holds dbSNP ~29.6 GB + phyloP ~9.9 GB; full stack ~50–55 GB; currently ~5–6 GB
+(~10%) materialized; Render disks can't shrink. One residual (server-side viewer window-width
+ceiling is FE-only today) = Codex-lane follow-up, non-blocking. A12 (build-time/operator
+materialization memory) COMPLETE locally 2026-06-16 22:08 +1000 (Codex) - compact-index
+artifact rows stream, PubMed XML root-clears during iterparse, source-download/storage/
+AlphaMissense operator HTTP clients have finite streaming-safe timeouts, coordinate asset
+downloads use explicit 1 MiB chunks, RepeatMasker fixture/hash/index queries are bounded, and
+`SourceFieldPolicy.filter_payload()` fail-closes on depth/node budget. **✅ A2 polish + A12
+COMMITTED + DEPLOYED + PROD-VERIFIED 2026-06-16 22:30 +1000 (Claude commit-driver): code commit
+`a8710cf` (18 backend files), Render SG deploy `dep-d8ok50kvikkc73f8elhg` LIVE + verified
+(`/healthz` 200 mock, hmmer/AlphaMissense ready + gene_view/protein_pfam intact, A2 unauth batch
+upload → 401, memory ~126 MB fresh instance no spike, Vercel FE 200). Epic A A1–A12 + A11 infra is
+now fully shipped + on prod.**
+
+**Epic A polish/residuals (follow-up, not a re-fix):**
+- **A2 - RESOLVED locally 2026-06-16 20:12 +1000 (Codex):** in-process
+  `_uploads`/`_jobs` in `services/batch.py` are now settings-backed bounded
+  ordered registries (`BATCH_UPLOAD_REGISTRY_MAX_ENTRIES`,
+  `BATCH_JOB_REGISTRY_MAX_ENTRIES`, `BATCH_REGISTRY_TTL_SECONDS`) with LRU
+  eviction + TTL pruning. Upload snapshots now stream JSONL writes instead of
+  building one joined string. Focused tests cover LRU and TTL expiry.
+- **A4 - VERIFIED locally 2026-06-16 20:12 +1000 (Codex):** the `/health`
+  compact-index path already passes `load_records=False`; `test_health_api.py`
+  includes a guard that fails if provider-cache health full-loads the compact index.
+- **A4 - PRODUCT DECISION LEFT OPEN:** `/lookup/parse` remains public,
+  server-derives `resolve_coordinates=False`, and is rate-limited. The heavy path
+  is closed; auth-gating the public parse box should be an explicit product call.
+- **A3 - OPTIONAL:** `/lookup/summary` + `/lookup/sections` may still each call
+  `lookup()` (redundant *light* work now that the snapshot is cached; not the OOM
+  amplifier). A shared cross-request `LookupResponse` assembly cache was not added
+  in the A2 polish pass because it is a broader behavior/cache-invalidation change.
+- **A8 - VERIFIED locally 2026-06-16 20:12 +1000 (Codex):** `save_variants`
+  bulk-upsert batching is covered for both SQLite and Supabase repos, and the
+  representative payload caps are present (`ReportPayload` list `max_length`
+  fields, screening-primer `sites` `max_length=50`). Focused API/repo/contract
+  tests are green.
+- **A12 - RESOLVED locally 2026-06-16 22:08 +1000 (Codex):** build-time/operator
+  materialization memory hazards are bounded without runtime/provider flips:
+  compact-coordinate-index artifact rows stream instead of accumulating the full
+  output row list; PubMed XML iterparse root-clears finished records; source
+  downloads, REST storage uploads, and AlphaMissense runtime materialization use
+  finite streaming-safe HTTP timeouts; coordinate asset materialization uses an
+  explicit 1 MiB chunk; RepeatMasker streams fixture rows and chunk-hashes files,
+  with per-contig `bisect` interval lookup; and `SourceFieldPolicy.filter_payload`
+  now fail-closes on depth/node budget. Focused pytest, py_compile, Ruff, Black,
+  diff-check, and `graphify update .` passed.
+
+**Verdict: SYSTEMIC.** The USH2A protein OOM was the acute instance of a repo-wide
+pattern — heavy compute / whole-asset reads / unbounded result sets executed
+synchronously on the FastAPI request thread — confirmed across ~8 subsystems.
+**89 findings confirmed** after adversarial verification (2 CRITICAL, ~13 HIGH; 63
+request-reachable). Codex's `a9de024` residue cap stops USH2A (5,202 aa) but is a
+request-time patch, not architectural: proteins ≤5,000 aa still run synchronous
+`hmmscan` in-request from THREE routes (`/viewer`, `/protein/annotate`, and every
+`/lookup` via `gene_context_snapshot`, which rebuilds even on a full variant-cache hit).
+
+**NEW CRITICAL (worse than the protein OOM) — fix first:** the `POST` batch VCF upload
+(`api/routes/batch.py` → `services/vcf_ingest.py`) is **unauthenticated, has no size cap,
+no rate limit**, and `gzip.decompress()`es the whole body with no decompressed-size
+ceiling. A <20 MB gzip bomb expands to multiple GB → a single unauthenticated request
+OOMs the 2 GB instance, no warm asset or login required. → Epic A task **A2** (Codex).
+
+Architectural remedy (Epic A, Codex-led): move heavy compute off the request thread
+(cache-or-fail-closed web tier + background warmer + concurrency/RSS caps), stream
+instead of whole-file/whole-table reads, bound every externally-driven result set, open
+big read-only assets once per worker, right-size the Render instance. Full ranked task
+list **A1–A12** in `docs/stability-audit/findings.md` and `~/.claude/plans/next-session-eamos.md`.
+
+## AI Gateway Chat — Pre-Launch Security Gate
+
+Section edited: 2026-06-12 02:22 +1000 · Claude (from the vibe-security audit of
+the variant-chat gateway foundation).
+
+**Do not enable the `/report` variant chat against the live gateway in production
+until these are addressed.** Full detail + fixes: `docs/ai-gateway/pre-launch-security.md`.
+
+- **The real on/off switch is server-side `LLM_PROVIDER`** — keep production on
+  `mock` (do not set `gateway`) until the items below are done. The frontend
+  `NEXT_PUBLIC_AI_CHAT_ENABLED` flag is a UX gate only and is client-bypassable.
+- **HIGH — `POST /api/v1/chat/stream` is unauthenticated, rate-limit-only**
+  (`RATE_LIMIT_CHAT`, 10/window/IP). Wired to the paid gateway this is a cost-abuse
+  vector; the `$50/mo` key cap bounds but can be exhausted (also a DoS for real
+  users). Before prod-enabling: add **auth** (decide if `/report` chat should require
+  login — product call) **and/or a per-user/tier daily token budget**, server-side.
+  Do not rely on the provider cap alone.
+- Companion launch items: **re-mint the gateway key** (it passed through a session
+  transcript) and **top up paid credits** (free tier rate-limits `meta/llama-3.3-70b`).
+- Audit found no Critical issues; secret handling, prompt-injection guards, the
+  evidence-only outbound allowlist, no-XSS rendering, and no-SSRF were all clean.
 
 ## Dirty Worktree
 
@@ -233,27 +382,35 @@ Current interpretation:
 
 ## Shared Files
 
-Section reconciled: 2026-07-15 11:19 UTC by Codex.
-
 High-conflict files:
 
 - `CHANGELOG.md`
 - `PROGRESS.md`
 - `ROADMAP.md`
 - `CLAUDE.md`
-- `CODEX.md`
-- `agent_handoff/*`
 - `plans/*`
-- `app/web/lib/backend.ts`
 - `app/frontend/src/lib/backend.ts`
 - backend Pydantic schema files when frontend contract work is active
 
 Guardrail:
 
-- Claim the lock in `agent_handoff/CURRENT.md` before editing these surfaces.
-  Update shared docs at task boundaries, not while another agent is actively
-  editing adjacent work. Full mechanics live in `agent_handoff/README.md`.
+- Update shared docs at task boundaries, not while another agent is actively
+  editing adjacent work.
 
+## Repo Drive Relocation
+
+Section edited: 2026-05-28 23:02 +1000 - Codex.
+
+The removable `E:` drive reports `HealthStatus=Warning` /
+`OperationalStatus=Full Repair Needed` and should not remain the Eamos repo
+drive. The coordinated mitigation is relocation to internal `D:`. Once the
+repo is moved and verified on `D:`, Eamos does not require `E:` repair; leave
+`E:` as an unresolved hardware/media issue outside the repo workflow.
+
+Residual risk: `E:\` removable drive Full Repair Needed flag never resolved;
+repo relocated 2026-05-28 to `D:\` to avoid working off failing media. `E:\`
+retained as cold backup until both agents verified on `D:\` across at least
+one full session.
 
 ## Private Source Storage Upload Limits
 
@@ -283,27 +440,22 @@ Current guardrails:
   as non-actionable Supabase listing residue unless they persist beyond the
   provider cleanup window or block future operations.
 
-## Private Database And Storage Boundary
+## WSL / Linux RAM Guardrail
 
-Section consolidated: 2026-07-15 11:19 UTC by Codex from the retired
-`database_webserver/` handoff.
+Section edited: 2026-05-31 19:49 +1000 - Codex.
 
-- Never record service-role keys, database URLs, JWT secrets, S3 credentials,
-  signed URLs, or deployment tokens in tracked docs or frontend configuration.
-- `eamos_private` tables and source assets are backend-owned. Keep RLS enabled,
-  revoke browser roles, and grant DML only to `service_role`.
-- Frontend and Vercel code must use backend endpoints for source/cache data;
-  never query private tables or raw object paths from the browser.
-- Keep genomic, protein, and source-data buckets private. Backend readers must
-  verify approval state, size, and checksum before accepting a materialization.
-- After DDL, import, policy, or Storage changes, run Supabase security and
-  performance advisors plus a bounded smoke query. Durable project, migration,
-  and table inventory lives in `docs/db/supabase-inventory.md`.
+The post-move WSL `/mnt/d` proof path triggered a host crash when `vmmemWSL`
+consumed available RAM. Do not launch WSL/Linux for routine Eamos work.
+Windows-native checks are the default. If WSL-native proof work is explicitly
+approved later, first confirm `%USERPROFILE%\.wslconfig` still caps WSL2 at
+`memory=4GB`, `processors=2`, `swap=2GB`, and `guiApplications=false`; shut
+WSL down immediately after the run.
+
+Codex used this guarded path on 2026-05-31 for the dbSNP/ClinVar/phyloP native
+reader proof after Steven's explicit approval. The cap was confirmed first, the
+proof completed, and `wsl.exe --shutdown` was run afterward.
 
 ## Gated Work
-
-Section consolidated: 2026-07-15 11:19 UTC by Codex from the retired
-pause register.
 
 Do not start without explicit user direction:
 
@@ -311,12 +463,6 @@ Do not start without explicit user direction:
 - FE-7
 - FE-8
 - M-002 real engines
-- Patient Report Pipeline (`/runs`, PDF upload/intake/clinician review). Do not
-  extend the demo auth or upload/review/approve/chat/PDF-preview flow until the
-  founder explicitly reopens it.
-- AlphaMissense display/integration. Keep its assets and contract literals, but
-  do not surface, remove, re-enable, or refactor them until the founder explicitly
-  reopens that lane.
 - branch surgery / destructive git ops (reset, clean, force-push, lineage
   rewrite) — Claude *commits* are no longer gated (see Dirty Worktree)
 - broad cleanup/refactors

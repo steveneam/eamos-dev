@@ -1,3 +1,10 @@
+> ARCHIVED 2026-07-15 11:19 UTC by Codex - this operational narrative was
+> superseded after the Singapore backend upgrade and Oregon deletion. Durable
+> inventory moved to `docs/db/supabase-inventory.md`; original content follows
+> verbatim.
+
+---
+
 # Database / Webserver Current State
 
 Last updated: 2026-06-01 01:31 +1000 by Codex.
