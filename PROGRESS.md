@@ -32,9 +32,11 @@ Coordination:
 
 - Released the `app/backend/app/core/db.py` and `PROGRESS.md` shared-file locks
   at the verified milestone.
-- P0 was committed as `bb37345`; the Python pin as `97c6e00`; branch
-  `codex/p0-run-report-authorization` was pushed and PR #10 opened. No merge,
-  deploy, provider/flag change, Supabase/Render mutation, or other cloud action.
+- P0 was rebase-merged through PR #10 after Steven's explicit approval as
+  `5c3e2ee`; the Python pin landed as `bda710e`; the handoff landed as
+  `5d8b76b`. Post-merge main CI run `29421304052` passed backend (3m35s), web
+  (1m07s), and frontend (34s). No deploy, provider/flag change,
+  Supabase/Render mutation, or other cloud action.
 - Python 3.15 was not adopted: on 2026-07-15 it is still beta 3, with final
   release scheduled for 2026-10-01. Steven confirmed Eamos should stay on
   Python 3.12; Black is now explicitly pinned to `py312`, matching current CI,

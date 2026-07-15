@@ -26,13 +26,13 @@
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane. Last work was PR
   #7 / the Linux-host hook and MCP cleanup recorded in its rolling log.
-- **Codex:** REVIEW @ 2026-07-15 13:49 UTC — lead for PR #10, the verified
-  serial P0 run/report object-authorization gate. CI watch is active; merge is
-  paused for Steven's explicit approval. No deploy or cloud mutation authorized.
+- **Codex:** ACTIVE @ 2026-07-15 13:59 UTC — PR #10 is merged and post-merge
+  main is green. Starting the queued backend CI optimization: hermetic cache
+  tests, then xdist work-steal benchmark. No deploy or cloud mutation authorized.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-15 13:50 +0000 · Codex (PR-10 handoff reconciled; locks released)
+UNLOCKED · 2026-07-15 13:59 +0000 · Codex (PR-10 merge recorded; locks released)
 
 ## Shared File Locks
 
@@ -41,41 +41,42 @@ UNLOCKED · 2026-07-15 13:50 +0000 · Codex (PR-10 handoff reconciled; locks rel
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 13:49 +0000 · Codex PR-10 review
+# Resume prompt · 2026-07-15 13:59 +0000 · Codex backend-CI optimization
 Read CURRENT.md, agent_handoff/README.md, then audit-2026-07-15.md.
-Branch codex/p0-run-report-authorization; PR #10 is open against main.
-P0 now stores and enforces (provider, user_id) owners for reports/runs,
-adds fail-closed legacy upgrades/backfill, and proves two-user denials.
-Commits: bb37345 security gate; 97c6e00 Black py312 pin.
-Full backend pytest, Ruff/Black, contract and boundary guards passed locally.
-Python stays on 3.12 by Steven's direction; 3.15 beta was not adopted.
-Check PR #10 CI/review; fix red only. Do not merge without Steven approval.
-After approved merge, run post-merge verification, then start backend CI work.
-Safe to clear: yes — branch pushed, PR open, worktree handoff only.
+PR #10 is rebase-merged at 5d8b76b; P0 run/report ownership is complete.
+Post-merge main CI 29421304052 is green; Python remains 3.12.
+Profile cache-test live-network waits and make those tests hermetic first.
+Then benchmark current xdist scheduling against --dist=worksteal.
+Add duration-balanced shards only if the verified backend gate stays >90s.
+Preserve test coverage and production live-resolution behavior.
+M-013 branch-policy repair and all cloud mutations remain founder-gated.
+Safe to clear: yes — main is clean and the next benchmark is reproducible.
 ```
 
 ## Pointer
 
-- Review target: PR #10, `codex/p0-run-report-authorization` → `main`.
-- Implementation commits: `bb37345` and `97c6e00`.
+- Merged target: PR #10 at `5d8b76b`; post-merge CI `29421304052`.
+- Implementation commits on main: `5c3e2ee` and `bda710e`.
 - Source audit and later lanes: `docs/repo-structure/audit-2026-07-15.md`.
 
 ## Delta
 
-- PR #10 persists server-derived owner provider/user IDs and scopes every
+- PR #10 now persists server-derived owner provider/user IDs and scopes every
   mounted run read/mutation at both service and repository boundaries.
 - Ownerless rows fail closed; startup upgrades both SQLite/Postgres and only
   backfill unambiguous legacy local owners. Duplicate review route removed.
 - Focused affected sweep: 98 passed. Full backend pytest and all structural,
   frontend-contract, Ruff, Black, and diff checks passed.
 - Steven chose Python 3.12; Black is pinned to `py312` with no warning.
+- Thalon, Swordfish, and Eamos all use chat approval plus admin merge override;
+  no second GitHub reviewer account will be added.
 - Durable milestone evidence is recorded at the top of `PROGRESS.md`.
 
 ## Next Action
 
-- Watch PR #10 checks, inspect scope, and resolve only genuine red findings.
-- Pause for Steven's explicit approval before merge; never merge on red.
-- After merge, verify `main`, then make cache tests hermetic and benchmark
-  xdist `--dist=worksteal`; shard only if the backend gate remains over 90s.
+- Make cache tests hermetic, then benchmark xdist `--dist=worksteal`; shard only
+  if the backend gate remains over 90s after the fix.
+- Preserve production live-source behavior and test assertions; optimize only
+  redundant network waiting and scheduling overhead.
 - M-013 required-check policy and all Render/Supabase/VPS mutations remain
   separately founder-gated.
