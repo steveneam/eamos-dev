@@ -563,7 +563,7 @@ Requires Steven-specific approval or environment access:
 - Render deploys and environment mutations.
 - Vercel project commands.
 - Supabase schema migrations or remote data mutations.
-- Multi-GB artifact syncs or semantic graphify passes.
+- Multi-GB artifact syncs or LLM-backed repository semantic passes.
 - Production PubMed/clinical-trials materialization jobs.
 
 Acceptance criteria:

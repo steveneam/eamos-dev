@@ -79,7 +79,7 @@ add Eamos's local queue now with the open M-013 branch-protection/CI decision.
 Swordfish's dashboard currently reads only its own queue; ask Swordfish through
 the pinned outbound channel to add peer queue ingestion or confirm the fleet
 collector pattern. Dashboard ingestion is follow-up work and does not block the
-Eamos layout or the already-approved Graphify retirement.
+Eamos layout or the already-approved tooling retirement.
 
 ## Verification / done-criteria
 

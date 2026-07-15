@@ -252,7 +252,7 @@ Frontend:
 Repository:
 
 - `git diff --check`.
-- `python -m graphify update .`.
+- Structural boundary guards.
 
 ## Out of Scope
 
@@ -260,4 +260,4 @@ Repository:
 - Live SG verification before the code is reviewed and deployed later.
 - Supabase migrations unless the term registry is explicitly moved out of fixtures.
 - Patient eligibility recommendations.
-- Semantic graphify extraction.
+- LLM-backed repository semantic extraction.

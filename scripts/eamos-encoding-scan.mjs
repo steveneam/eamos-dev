@@ -31,7 +31,6 @@ const SKIP_DIRS = new Set([
   '__pycache__',
   'dist',
   'node_modules',
-  'graphify-out',
 ])
 const TEXT_EXTS = new Set([
   '.css',

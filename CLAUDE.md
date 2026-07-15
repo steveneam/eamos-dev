@@ -164,19 +164,13 @@ Two disciplines:
 
 (Converged Claude + Codex, 2026-06-20.)
 
-## graphify
+## Repository ratchets and attribution
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Executable structural guards are the cross-code wiring source of truth. Keep
+`app/backend/tests/test_boundary.py`, `scripts/eamos-web-boundary.mjs`, and the
+frontend-contract canary green when changing boundaries or package structure.
 
-Rules:
-- For codebase questions, first run `python -m graphify query "<question>"` when graphify-out/graph.json exists. Use `python -m graphify path "<A>" "<B>"` for relationships and `python -m graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `python -m graphify update .` to keep the graph current (AST-only, no API cost).
-
-Maintenance practice:
-- Follow the Selom-style maintenance model: use cheap AST updates routinely, and run semantic extraction only when Steven explicitly asks or at deliberate release/handoff checkpoints.
-- Before any semantic pass, resolve and pin the graphify Python interpreter in `graphify-out/.graphify_python`, then run corpus detection and sanity-check the file/word counts. Keep multi-GB references, fixtures, generated payloads, screenshots, archives, `.tools/`, and vendored/tooling docs out via `.graphifyignore`.
-- Do not treat the semantic pass as covered by `graphify update .`; update is AST-only and free, while semantic extraction is LLM-backed and should be occasional.
-- Eamos is above graphify's default 5,000-node HTML visualization threshold. Default `graphify export html` may produce an aggregated community view; when Steven wants the Selom-style full raw HTML, use `graphify export html --graph graphify-out/graph.json --node-limit 20000`.
-- Full raw HTML can be large/heavy; verify it in Chrome after export when changing visualization output.
+Commits and PRs carry no AI attribution: no `Co-Authored-By` trailers and no
+"Generated with" footer. The tracked `.claude/settings.json` attribution block
+is the harness-side enforcement; strip any attribution that still appears
+before merge.

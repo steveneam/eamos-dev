@@ -701,4 +701,4 @@ Out of scope:
 - No public buckets or frontend-readable private source paths.
 - No Render env mutation without a phase-specific flip recipe and rollback.
 - Every phase must include no-path/no-secret/no-object-URI verification.
-- After code changes, run `python -m graphify update .`.
+- After code changes, run the relevant structural boundary guards.

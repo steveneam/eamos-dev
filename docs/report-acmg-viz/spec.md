@@ -173,7 +173,7 @@ Fast-follow       Codex: ClinVar P/B reference precompute (B7) + forest calibrat
                   Claude: Explore drag card; B1/B2/B3/B4/B6/B7.
 ```
 
-**Coordination rules (per `agent_handoff/README.md`):** backend-led contract; explicit pathspecs only; `graphify update` is Codex's lane; LLM stays `mock`; no flag flips. The contract freeze (Step 0) is the one thing that must be agreed before parallel work starts.
+**Coordination rules (per `agent_handoff/README.md`):** backend-led contract; explicit pathspecs only; structural boundary guards stay with the lead; LLM stays `mock`; no flag flips. The contract freeze (Step 0) is the one thing that must be agreed before parallel work starts.
 
 ---
 

@@ -168,7 +168,7 @@ Frontend:
 Operations:
 
 - `git diff --check`
-- `python -m graphify update .` with long timeout after code changes.
+- Structural boundary guards after code changes.
 
 ## Out of Scope
 

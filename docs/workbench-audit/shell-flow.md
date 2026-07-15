@@ -4,7 +4,7 @@
 > ([[feedback_subagent_recommendations_not_authorization]]). Lane 4 of the 2026-06-09 4-scout
 > workbench audit (frontend-design + ui-ux-pro-max). Persisted by the main agent.
 
-Auditor lane: the **shell + rail + global flow**, plus **further-optimising Task A** (the two gated specs). Audit only — every recommendation gated on Steven. graphify + ui-ux-pro-max (`--domain ux`) + frontend-design run; all findings carry `file:line` + the token to use.
+Auditor lane: the **shell + rail + global flow**, plus **further-optimising Task A** (the two gated specs). Audit only — every recommendation gated on Steven. Direct source reads + ui-ux-pro-max (`--domain ux`) + frontend-design run; all findings carry `file:line` + the token to use.
 
 ## 1. Snapshot
 

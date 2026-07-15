@@ -142,8 +142,8 @@ Next task:
   - TIDE observed-only source line.
   - Align reference source line after `/align/reference` resolution.
   - Narrow viewport no-overflow and clean console/issues.
-- Then run `python -m graphify update .` with the required long timeout after
-  any browser-proof fixes or final doc edits.
+- Then run the structural boundary guards after any browser-proof fixes or
+  final doc edits.
 - Decide whether signed-in Batch browser proof remains deferred or should use
   an existing approved Supabase session / Steven-approved Auth test mutation.
 
@@ -250,8 +250,8 @@ desktop and mobile flows. Do not use Vercel commands.
   signed-out auth-required failure, panel empty-state/stale notice, warning
   labels, and narrow viewport no-overflow. Screenshots were saved under
   `.tmp/batch-sprintb-*final.png`.
-- `python -m graphify update .` passed with the required long timeout; HTML viz
-  export was skipped because the graph is above graphify's default node limit.
+- The then-required repository index refresh passed; its oversized visualization
+  export was skipped.
 - `cd app/web; npm run build` was attempted earlier and timed out; not counted
   as passed.
 
@@ -271,7 +271,7 @@ desktop and mobile flows. Do not use Vercel commands.
   because this local workspace reports
   `source_assets.clinvar_gene_distribution_index.ready=true` while that test
   expects it missing.
-- `python -m graphify update .` passed with the required long timeout.
+- The then-required repository index refresh passed.
 - `git commit` created `d5ee212 feat(prelaunch): disclose workbench and batch launch states`.
 - `git push origin main` pushed `d5ee212` to GitHub.
 - Render deploy hook triggered SG deploy `dep-d91k7d6q1p3s73c493cg`; Render
@@ -301,9 +301,9 @@ Important review findings to preserve:
 - Current panels are warning-labeled local launch panels; build a source-backed generated SQLite panel catalog only if Steven decides it is a launch blocker.
 - Workbench truth to preserve: Primer and CRISPR guide design are live local/provider paths when Workbench live design is enabled; ssODN is source-backed for local MANE/hg38 or resolved sequence-context inputs and labelled fallback for mock windows; off-target enumeration is source-backed only with the GRCh38 SpCas9 SQLite index; screening primers are source-backed only with real windows/templates; TIDE is live observed-only and not Lindel/NKI-TIDE decomposition; Align reference/align backend paths are gene/variant agnostic through sequence context while the browser keeps the multi-read client-side alignment UX.
 
-Verification from the latest Sprint C slice: Workbench API/frontend-contract pytest passed; Workbench preflight/render-approval pytest passed; Batch/Panel pytest passed; Ruff passed; targeted Black on touched backend files passed; web TypeScript passed; web lint passed; web `npm run build` passed; focused diff-check passed; graphify update passed; SG Render deploy and live backend/Vercel HTTP smokes passed. Combined Batch/Panel/Health sweep failed only on local health-test environment drift where `clinvar_gene_distribution_index.ready=true` but the test expects it missing. Browser proof is still pending because Selom was using the browser.
+Verification from the latest Sprint C slice: Workbench API/frontend-contract pytest passed; Workbench preflight/render-approval pytest passed; Batch/Panel pytest passed; Ruff passed; targeted Black on touched backend files passed; web TypeScript passed; web lint passed; web `npm run build` passed; focused diff-check passed; the then-required repository index refresh passed; SG Render deploy and live backend/Vercel HTTP smokes passed. Combined Batch/Panel/Health sweep failed only on local health-test environment drift where `clinvar_gene_distribution_index.ready=true` but the test expects it missing. Browser proof is still pending because Selom was using the browser.
 
-Guardrails: no Vercel command, Render env mutation, provider/flag flip, raw source download, Supabase metadata mutation, Supabase Storage mutation, one-off live runtime script, runtime seed/sync, destructive git, commit, or push unless Steven approves that exact action. Do not edit shared handoff/current/progress files without the edit-lock protocol. After code changes, run `python -m graphify update .` with at least 360s timeout.
+Guardrails: no Vercel command, Render env mutation, provider/flag flip, raw source download, Supabase metadata mutation, Supabase Storage mutation, one-off live runtime script, runtime seed/sync, destructive git, commit, or push unless Steven approves that exact action. Do not edit shared handoff/current/progress files without the edit-lock protocol. After code changes, run the structural boundary guards.
 
-Next action unless Steven redirects: when the browser is free, run local `/workbench` browser proof for source labels across Primer, CRISPR design, ssODN, off-targets, screening primers, TIDE, and Align reference, plus narrow viewport and clean console/issues. Then run `python -m graphify update .` with a long timeout, refresh this handoff if needed, and decide whether signed-in Batch browser proof remains deferred or should use an approved session/test mutation.
+Next action unless Steven redirects: when the browser is free, run local `/workbench` browser proof for source labels across Primer, CRISPR design, ssODN, off-targets, screening primers, TIDE, and Align reference, plus narrow viewport and clean console/issues. Then run the structural boundary guards, refresh this handoff if needed, and decide whether signed-in Batch browser proof remains deferred or should use an approved session/test mutation.
 ```

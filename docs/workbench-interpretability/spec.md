@@ -7,7 +7,7 @@
 > Active surface: `app/web` (Next.js 16, custom CSS + `globals.css` tokens). The
 > `app/frontend/**` Vite copies are read-only reference and are **out of scope** —
 > there is a second `CrisprPanel.tsx` at `app/frontend/src/components/workbench/crispr/`
-> (graphify community 537); **do not touch it.**
+> (a duplicate reference copy); **do not touch it.**
 >
 > Each of the three items is **independently shippable + browser-verifiable** and
 > can land as its own gated, verified commit. Recommended order: **D-1 score

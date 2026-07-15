@@ -1,27 +1,13 @@
-## graphify
+## Repository ratchets and attribution
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Executable structural guards are the cross-code wiring source of truth. Keep
+`app/backend/tests/test_boundary.py`, `scripts/eamos-web-boundary.mjs`, and the
+frontend-contract canary green when changing boundaries or package structure.
 
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
-
-Rules:
-- For codebase questions, first run `python -m graphify query "<question>"` when graphify-out/graph.json exists. Use `python -m graphify path "<A>" "<B>"` for relationships and `python -m graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `python -m graphify update .` to keep the graph current (AST-only, no API cost).
-- `python -m graphify update .` routinely exceeds short/default command ceilings on
-  this repo. Run it with a long timeout (at least 360 seconds) the first time;
-  do not burn a short timeout before rerunning.
-- For routine codebase searches, scope `rg` to the current handoff/docs/source
-  files and avoid `agent_handoff/archive/` unless historical context is required.
-
-Maintenance practice:
-- Follow the Selom-style maintenance model: use cheap AST updates routinely, and run semantic extraction only when Steven explicitly asks or at deliberate release/handoff checkpoints.
-- Before any semantic pass, resolve and pin the graphify Python interpreter in `graphify-out/.graphify_python`, then run corpus detection and sanity-check the file/word counts. Keep multi-GB references, fixtures, generated payloads, screenshots, archives, `.tools/`, and vendored/tooling docs out via `.graphifyignore`.
-- Do not treat the semantic pass as covered by `graphify update .`; update is AST-only and free, while semantic extraction is LLM-backed and should be occasional.
-- Eamos is above graphify's default 5,000-node HTML visualization threshold. Default `graphify export html` may produce an aggregated community view; when Steven wants the Selom-style full raw HTML, use `graphify export html --graph graphify-out/graph.json --node-limit 20000`.
-- Full raw HTML can be large/heavy; verify it in Chrome after export when changing visualization output.
+Commits and PRs carry no AI attribution: no `Co-Authored-By` trailers and no
+"Generated with" footer. The tracked `.claude/settings.json` attribution block
+is the harness-side enforcement; strip any attribution that still appears
+before merge.
 
 ## Parallel-agent workflow
 
@@ -55,6 +41,15 @@ Guidance:
   worktree-subagent lanes. Use Mode B for larger work where lanes need independent
   runtime context, longer verification, backend/cloud caution, or more than about
   three lanes. This is guidance, not a hard threshold.
+- Treat contract-window/schema work as the serial first lane, then fork
+  dependency-ordered waves. Allow only one web writer per wave; any additive
+  out-of-glob edit must be enumerated in the approved lane contract.
+- Each lane/subagent launch needs fresh per-session Steven approval covering the
+  named runs. Mode B is preferred for larger work; inspect and salvage a dead
+  lane's worktree before replacing it.
+- The lead owns review, rebase, PR creation, CI watch, merge, and post-merge
+  verification end-to-end. Take cheap provably non-breaking speedups in-run,
+  without trading correctness or widening the approved scope.
 - Freeze the shared contract before lanes fork. A lane needing to edit the frozen
   contract means re-plan, not ad-hoc drift.
 - Review lane scope before merge (`git log --name-only main..lane`); conflicts

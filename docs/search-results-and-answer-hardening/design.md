@@ -161,7 +161,7 @@ flip, or Render deploy from lanes.
 2. Fork lanes from frozen `main`.
 3. Merge CI ratchets first, then answer tests, then frontend results.
 4. Run focused backend tests, web lint/typecheck, browser verification, and
-   graphify AST update.
+   structural boundary guards.
 5. Deploy only after main is green and Steven approves the merge/deploy seam.
 
 Backout: revert the frontend route/submit wiring to restore old `/report?q=...`

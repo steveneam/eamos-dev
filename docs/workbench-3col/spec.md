@@ -5,7 +5,7 @@
 **Scope:** Frontend-only, `/workbench`. Token-first (reuse `--cls-*`, the airy `.wr-section` grammar, the `Icon.tsx` 1.75 family, `--dur-*`/`--ease-*`, `--report-subpanel-*`). Reuse the existing `WorkRail` collapse/drawer machinery over inventing a parallel system.
 
 **Method run (owner standing rules):**
-- **graphify first** — `query "work rail collapse drawer"` surfaced the canonical machinery: `WorkRail.tsx` (`readCollapsed`/`storageKey`/`initialCollapsed`/`subscribeCompact`/`getServerCompactSnapshot`, the `--rail-live-w` custom prop, `mode-drawer`/`mode-inline`/`is-collapsed`/`is-open`), `WorkRailSection`, `LibrarySection`. `explain WorkbenchShell` + direct reads confirmed the compose path.
+- **Repository/source inspection** — surfaced the canonical machinery: `WorkRail.tsx` (`readCollapsed`/`storageKey`/`initialCollapsed`/`subscribeCompact`/`getServerCompactSnapshot`, the `--rail-live-w` custom prop, `mode-drawer`/`mode-inline`/`is-collapsed`/`is-open`), `WorkRailSection`, `LibrarySection`. Direct reads confirmed the compose path.
 - **ui-ux-pro-max** — `--domain ux` searches for split-pane/collapsible/three-column, progressive disclosure, z-index/affordance/breakpoints. Cited inline.
 - **Reference screenshot** (`Screenshot 2026-06-08 211055.png`) — a 3-pane SaaS shell: narrow left nav rail · center content canvas with its own collapse chevron · right "Workspace" panel that is *tabbed* (Conversations / Memory) and itself collapsible. Grounds proportions + the "center has a collapse handle, right panel is a peer rail" pattern.
 - **DESIGN.md** motion table + **`docs/workbench-report-sweep/workbench-chrome.md`** (z-index-scale finding, the `.viewer` layout-animation finding).

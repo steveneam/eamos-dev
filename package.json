@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "prepare": "node scripts/install-hooks.mjs"
+  },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",
     "vite": "^8.0.11"

@@ -48,4 +48,4 @@ Relevant files: `PROGRESS.md`, `agent_handoff/CURRENT.md`, `docs/prelaunch-batch
 
 Acceptance criteria: handoff states which Workbench outputs are live local providers, which are source-backed only with artifacts, and which remain fixture/fallback/gated.
 
-Verify: `python -m graphify update .` and final handoff review.
+Verify: run the structural boundary guards and complete the final handoff review.

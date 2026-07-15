@@ -368,7 +368,7 @@ contract before any real materialization or upload is approved.
 
 ## Next Recommended Move
 
-Verify the local Task A/B/F/G artifacts, update graphify, then stop before any
+Verify the local Task A/B/F/G artifacts and structural boundary guards, then stop before any
 Task E deploy closeout, remote Supabase action, source download, corpus
 materialization, or DuckDB/Parquet Phase 2 work unless Steven explicitly
 approves that exact next action.
