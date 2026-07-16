@@ -30,7 +30,7 @@
 
 ## Log Edit-Lock
 
-RELEASED: 2026-07-16 07:29 +0000 · Codex (PR #14 post-merge boundary clear-safe)
+RELEASED: 2026-07-16 07:34 +0000 · Codex (post-merge pointer corrected clear-safe)
 
 ## Shared File Locks
 
@@ -58,8 +58,8 @@ Safe to clear: yes — PR #14 is merged, main is synced, and the verified bounda
 - Main commits: `e932d3d` gene-viewer fold, `2a20031` review handoff, and
   `fe85bc5` population/report-shell fold.
 - CI: run `29479731408`; all repository jobs passed. Vercel preview is Ready.
-- Post-merge: `HEAD == origin/main == fe85bc5`; root guard passed and focused
-  gene-viewer/population/report-client Vitest passed 13/13.
+- Post-merge: PR code boundary `fe85bc5` is on synced local/remote `main`; root
+  guard passed and focused gene-viewer/population/report-client Vitest passed 13/13.
 - Worktree: only `agent_handoff/FROM-SWORDFISH.md` is modified; it is
   watcher-owned and was not staged, committed, or altered by this lane.
 
