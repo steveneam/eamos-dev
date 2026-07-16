@@ -11,9 +11,14 @@ import { Testimonials } from '@/components/landing/Testimonials'
 import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
 import { Pill, PillStyles } from '@/components/landing/ui/Pill'
+import { captureExampleSelection, type LandingExampleSlot } from '@/lib/product-analytics'
 import { searchHrefForQuery } from '@/lib/variant-search'
-import { parseVariantFile, stashCompareVariants } from '@/lib/variant-file'
-import { SAMPLE_VCF, SAMPLE_VCF_NAME } from '@/lib/sample-vcf'
+
+const LANDING_EXAMPLES: ReadonlyArray<{ slot: LandingExampleSlot; query: string }> = [
+  { slot: 1, query: 'USH2A c.2276G>T' },
+  { slot: 2, query: 'RPE65 c.11+5G>A' },
+  { slot: 3, query: 'BRCA1 c.5266dupC' },
+]
 
 export function LandingClient() {
   const router = useRouter()
@@ -110,19 +115,18 @@ export function LandingClient() {
             <span className="mr-1 text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--hero-ink-3)' }}>
               Try
             </span>
-            {[
-              'USH2A c.2276G>T',
-              'RPE65 c.11+5G>A',
-              'BRCA1 c.5266dupC',
-            ].map((chip) => (
+            {LANDING_EXAMPLES.map((example) => (
               <Pill
-                key={chip}
+                key={example.slot}
                 as="button"
-                onClick={() => handleSubmit(chip)}
+                onClick={() => {
+                  captureExampleSelection(example.slot)
+                  handleSubmit(example.query)
+                }}
                 fontFamily="var(--mono)"
                 style={{ fontSize: 11 }}
               >
-                {chip}
+                {example.query}
               </Pill>
             ))}
             <span
@@ -132,11 +136,7 @@ export function LandingClient() {
             />
             <Pill
               as="button"
-              onClick={() => {
-                const parsed = parseVariantFile(SAMPLE_VCF, SAMPLE_VCF_NAME)
-                stashCompareVariants(parsed, SAMPLE_VCF_NAME)
-                router.push('/compare?demo=1')
-              }}
+              onClick={() => router.push('/compare?demo=1')}
               style={{ fontSize: 11 }}
             >
               Sample VCF →

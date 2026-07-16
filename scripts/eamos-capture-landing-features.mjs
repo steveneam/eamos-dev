@@ -5,6 +5,7 @@
 //   node scripts/eamos-capture-landing-features.mjs --base-url=http://127.0.0.1:3001
 //   node scripts/eamos-capture-landing-features.mjs --check
 //   node scripts/eamos-capture-landing-features.mjs --verify-hero --base-url=http://127.0.0.1:3001
+//   node scripts/eamos-capture-landing-features.mjs --verify-pass4 --base-url=http://127.0.0.1:3001
 
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -1044,6 +1045,136 @@ async function verifyLandingPass3() {
   }
 }
 
+function assertDiscovery(value, message) {
+  if (!value) throw new Error(`Landing Pass 4 regression: ${message}`)
+}
+
+async function verifyLandingPass4() {
+  const response = await fetch(BASE_URL)
+  if (!response.ok) throw new Error(`Eamos server returned HTTP ${response.status} at ${BASE_URL}`)
+  const chrome = await spawnChrome()
+  const tab = await openTab(chrome.port)
+  const cdp = new CDP(tab.webSocketDebuggerUrl)
+  const runtimeErrors = []
+  const batchRequests = []
+  cdp.on((event) => {
+    if (event.method === 'Runtime.exceptionThrown') {
+      runtimeErrors.push(event.params?.exceptionDetails?.exception?.description ?? 'Runtime exception')
+    }
+    if (
+      event.method === 'Network.requestWillBeSent'
+      && new URL(event.params.request.url).pathname.startsWith('/api/v1/batch')
+    ) {
+      batchRequests.push(event.params.request.url)
+    }
+  })
+
+  try {
+    await cdp.ready
+    await cdp.send('Page.enable')
+    await cdp.send('Runtime.enable')
+    await cdp.send('Network.enable')
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: WIDTH,
+      height: HEIGHT,
+      deviceScaleFactor: 1,
+      mobile: false,
+    })
+
+    await navigate(
+      cdp,
+      `${BASE_URL}/`,
+      `document.querySelectorAll('[data-share-sample]').length === 2`,
+    )
+    const sharePaths = await evaluateValue(
+      cdp,
+      `Array.from(document.querySelectorAll('[data-share-sample]')).map((button) => button.dataset.shareSample)`,
+    )
+    assertDiscovery(
+      JSON.stringify(sharePaths) === JSON.stringify([
+        '/report?fixture=rpe65-negative',
+        '/compare?demo=1',
+      ]),
+      `safe share paths drifted: ${JSON.stringify(sharePaths)}`,
+    )
+    await evaluateValue(
+      cdp,
+      `(() => {
+        window.__eamosCopiedSample = '';
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: { writeText: async (value) => { window.__eamosCopiedSample = value; } },
+        });
+        return true;
+      })()`,
+    )
+    for (const path of sharePaths) {
+      const selector = `[data-share-sample=${JSON.stringify(path)}]`
+      await evaluateValue(cdp, `document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: 'center' })`)
+      await clickSelector(cdp, selector)
+      await waitFor(
+        cdp,
+        `window.__eamosCopiedSample === ${JSON.stringify(`${BASE_URL}${path}`)}`,
+        `copied ${path} sample link`,
+      )
+      const buttonText = await evaluateValue(
+        cdp,
+        `document.querySelector(${JSON.stringify(selector)})?.textContent?.trim()`,
+      )
+      assertDiscovery(buttonText === 'Link copied', `${path} has no visible copy confirmation`)
+    }
+
+    await navigate(
+      cdp,
+      `${BASE_URL}/report?fixture=rpe65-negative`,
+      `document.querySelectorAll('[data-report-section-slot]').length >= 3`,
+    )
+    const reportRoute = await evaluateValue(cdp, `location.pathname + location.search`)
+    assertDiscovery(reportRoute === '/report?fixture=rpe65-negative', 'copied report sample is not directly openable')
+
+    await evaluateValue(cdp, `sessionStorage.removeItem('eamos.compare.v1')`)
+    batchRequests.length = 0
+    await navigate(
+      cdp,
+      `${BASE_URL}/compare?demo=1`,
+      `document.body.innerText.includes('sample.vcf')
+        && document.body.innerText.includes('Generate results')`,
+    )
+    await evaluateValue(cdp, `new Promise((resolve) => setTimeout(resolve, 500))`)
+    const sample = await evaluateValue(
+      cdp,
+      `(() => {
+        const stash = JSON.parse(sessionStorage.getItem('eamos.compare.v1') || 'null');
+        const generate = Array.from(document.querySelectorAll('button'))
+          .find((button) => button.textContent.includes('Generate results'));
+        return {
+          route: location.pathname + location.search,
+          source: stash?.source ?? '',
+          sources: stash?.sources?.length ?? 0,
+          variants: stash?.variants?.length ?? 0,
+          generateVisible: Boolean(generate && generate.getClientRects().length === 1),
+          running: document.body.innerText.includes('Generating…'),
+        };
+      })()`,
+    )
+    assertDiscovery(sample.route === '/compare?demo=1', 'sample VCF permalink lost its route contract')
+    assertDiscovery(sample.source === 'sample.vcf' && sample.sources === 1, 'fresh sample route did not hydrate one bundled source')
+    assertDiscovery(sample.variants === 8, `fresh sample route hydrated ${sample.variants} variants instead of 8`)
+    assertDiscovery(sample.generateVisible && !sample.running, 'sample route did not stop at the explicit Generate decision')
+    assertDiscovery(batchRequests.length === 0, 'sample route started a Batch request without user action')
+
+    if (runtimeErrors.length > 0) {
+      throw new Error(`Browser runtime errors:\n${runtimeErrors.join('\n')}`)
+    }
+    process.stdout.write(
+      'landing Pass 4: 2 safe share links, direct sample report, and 8-variant local Batch permalink verified; 0 automatic Batch requests\n',
+    )
+  } finally {
+    cdp.close()
+    chrome.cleanup()
+  }
+}
+
 async function navigate(cdp, url, ready, scrollTarget = null) {
   await cdp.send('Page.navigate', { url })
   await waitFor(cdp, ready, url)
@@ -1306,6 +1437,14 @@ if (args['generate-social-card'] === 'true') {
     checkAssets()
   } catch (error) {
     process.stderr.write(`landing assets: ${error.message}\n`)
+    process.exitCode = 1
+  }
+} else if (args['verify-pass4'] === 'true') {
+  try {
+    await verifyLandingPass3()
+    await verifyLandingPass4()
+  } catch (error) {
+    process.stderr.write(`landing Pass 4: ${error.message}\n`)
     process.exitCode = 1
   }
 } else if (args['verify-pass3'] === 'true') {

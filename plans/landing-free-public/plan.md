@@ -1,7 +1,7 @@
 # Free-access landing and product gallery
 
-Status: Pass 3 responsive/accessibility/performance implemented and verified; Pass 4 pending.
-Stamped: 2026-07-16 14:18 +0000 · Codex.
+Status: Pass 4 free-product discovery implemented and verified; landing plan complete.
+Stamped: 2026-07-16 14:51 +0000 · Codex.
 
 ## Outcome
 
@@ -231,7 +231,7 @@ Verified: 2026-07-16 13:43 +0000 · Codex.
 - Produce a real 1200 × 630 social card from the free-public positioning and
   verify metadata previews.
 
-### Pass 4: free-product discovery loop
+### Pass 4: free-product discovery loop (complete 2026-07-16)
 
 - Make sample reports and the sample VCF flow easy to share without exposing
   account identity or genomic query parameters to analytics.
@@ -275,3 +275,43 @@ Verified: 2026-07-16 14:18 +0000 · Codex.
 - `npm run verify` passed in 252.7 seconds through the full backend suite and
   17-route production build. No source, provider, auth, payment, Supabase,
   Render, Vercel, migration, or deploy mutation ran.
+
+## Pass 4 implementation evidence
+
+Verified: 2026-07-16 14:51 +0000 · Codex.
+
+- Made `/compare?demo=1` a real permalink. A fresh browser now rebuilds one
+  eight-variant cohort from the tracked sample VCF, replaces any unrelated
+  session cohort, and stops at the explicit Generate decision. It performs zero
+  automatic Batch requests.
+- Added visible, keyboard-reachable copy actions for the fixed sample-report
+  and sample-VCF routes, with success/error text and an accessible live status.
+  The gallery's Batch CTA now opens the same self-contained sample flow.
+- Added four content-free PostHog events: example selection (numeric slot only),
+  completed report open, Workbench open, and bundled Batch sample load. A final
+  send-time allowlist rejects every other event, strips URL queries/hashes and
+  genomic/account/campaign properties, and blocks person-property writes.
+- Removed PostHog account identification. Analytics now use memory-only anonymous
+  persistence, no person profiles, no Supabase UUID, no IP-based enrichment, and
+  no campaign/referrer persistence. The Privacy Policy describes the narrower
+  runtime contract.
+- Replaced the low-priority literature-count FAQ with the question surfaced by
+  the current first-run path: what can be tried without private data. No live
+  account records, raw PostHog payloads, or genomic queries were inspected.
+- The structural boundary now owns the fixed event catalog, adapter wiring,
+  anonymous configuration, and prohibition on direct capture/identity calls.
+  Two focused tests exercise malicious query, account, campaign, and unexpected
+  event/property cases.
+- The production browser gate preserved all six Pass 3 widths and measured LCP
+  248 ms, CLS 0.0003, 444,514 JavaScript bytes, and 134,822 capture bytes. The
+  discovery slice added 870 JavaScript bytes versus Pass 3 while staying below
+  the 460 KiB budget. It also verified two copied links, a directly openable
+  sample report, eight locally loaded sample variants, and zero automatic Batch
+  requests.
+- `npm run verify` passed in 143.3 seconds through the full backend suite, 163 frontend tests,
+  structural/contract guards, and the 17-route production build. The security
+  audit found no confirmed vulnerability in the changed trust boundaries; its
+  file-upload and local audit-URL matches were pre-existing/inventory signals,
+  not reachable new sinks.
+- No source, provider, auth, payment, Supabase, Render, Vercel, migration,
+  materialization, deploy, peer-contact, or Swordfish packet action ran.

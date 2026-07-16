@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { ModePill } from '@/components/layout/ModePill'
 import { RailFoot } from '@/components/layout/RailFoot'
@@ -8,6 +9,7 @@ import { WorkRail } from '@/components/layout/WorkRail'
 import { ReportLoadingState } from '@/components/report/ReportLoadingState'
 import { SearchInterpretationPanel } from '@/components/report/SearchInterpretationPanel'
 import { VariantLibraryRail } from '@/components/report/VariantLibraryRail'
+import { captureReportOpen } from '@/lib/product-analytics'
 
 import { ReportAiPanel, ReportBody } from './report-client/ReportBody'
 import {
@@ -35,6 +37,13 @@ export function ReportClient() {
     setSearchFocused,
     summaryRequest,
   } = useReportClient()
+  const lastOpenedRequest = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (activeState.kind !== 'ready' || lastOpenedRequest.current === activeState.requestKey) return
+    lastOpenedRequest.current = activeState.requestKey
+    captureReportOpen()
+  }, [activeState])
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>

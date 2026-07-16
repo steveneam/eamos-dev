@@ -1,5 +1,37 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-16 14:51 +0000 - Codex - Landing Pass 4 privacy-safe discovery loop
+
+Completed the free-product discovery loop at a locally verified boundary without
+deploying or mutating providers, cloud services, auth, payments, sources, or
+the watcher-owned Swordfish packet.
+
+- Made `/compare?demo=1` self-contained: a fresh browser loads the tracked
+  eight-variant sample VCF locally, replaces unrelated session state, and waits
+  for an explicit Generate click. The browser gate observed zero automatic
+  Batch requests.
+- Added two visible copy actions for the safe sample-report and sample-VCF
+  permalinks, with keyboard focus plus visible and announced success/error
+  feedback. The Batch gallery CTA now opens the same sample permalink.
+- Added four fixed discovery events for example selection, completed report
+  open, Workbench open, and sample Batch load. The final send hook allowlists
+  only those events plus route-only pageviews and strips query, genomic,
+  campaign, referrer-query, and account properties.
+- Removed Supabase UUID identification from PostHog. Analytics are now
+  memory-only and anonymous, with person profiles, IP enrichment, campaign
+  persistence, referrer persistence, automatic capture, replay, page-leave,
+  surveys, and external extension loading disabled.
+- Updated the Privacy Policy and replaced the low-priority landing FAQ with
+  first-run sample guidance. No live analytics/person records were queried.
+- Extended the structural boundary and production Chrome harness. The browser
+  gate covered six widths, two copy links, the direct report fixture, eight
+  local Batch rows, and zero automatic Batch calls. It measured LCP 248 ms,
+  CLS 0.0003, 444,514 JavaScript bytes, and 134,822 feature bytes.
+- `npm run verify` passed in 143.3 seconds through the complete boundary/contract, lint, type, 8
+  coordination-test, 163-web-test, full-backend-pytest, and 17-route build gate.
+  Evidence-security triage produced only pre-existing/inventory signals in the
+  changed scope; no confirmed vulnerability was found.
+
 ## 2026-07-16 13:43 +0000 - Codex - Universal-free catalog and Landing Pass 2
 
 Steven's later universal-free decision superseded the earlier 12:30 landing

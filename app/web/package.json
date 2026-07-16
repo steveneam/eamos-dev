@@ -13,7 +13,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "audit:landing": "node ../../scripts/eamos-capture-landing-features.mjs --verify-pass3",
+    "audit:landing": "node ../../scripts/eamos-capture-landing-features.mjs --verify-pass4",
     "audit:report-performance": "node ../../scripts/eamos-report-performance-audit.mjs",
     "generate:social-card": "node ../../scripts/eamos-capture-landing-features.mjs --generate-social-card",
     "test:protein-architecture": "node ../../scripts/eamos-protein-architecture-regression.mjs",

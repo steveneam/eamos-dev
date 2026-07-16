@@ -20,11 +20,11 @@ const SECTIONS: { h: string; p: string }[] = [
   },
   {
     h: '3. What personal information we collect',
-    p: 'We collect the following categories of personal information: (a) Account identity, being your name, email address, and OAuth profile information provided when you sign in via Google, Microsoft, or LinkedIn, or when you register with an email address directly. This is managed through Supabase Auth. (b) Saved variants and evidence submissions, being any variant records you choose to save in your account, and any evidence submissions you make through the Messenger feature. (c) Usage analytics, being route-level page visits collected by PostHog to help us understand how the platform is used and improve it. Automatic interaction capture, session recording, and surveys are disabled.',
+    p: 'We collect the following categories of personal information: (a) Account identity, being your name, email address, and OAuth profile information provided when you sign in via Google, Microsoft, or LinkedIn, or when you register with an email address directly. This is managed through Supabase Auth. (b) Saved variants and evidence submissions, being any variant records you choose to save in your account, and any evidence submissions you make through the Messenger feature. (c) Usage analytics, being route-level page visits and four fixed product-discovery actions collected by PostHog: example selection, report open, Workbench open, and bundled Batch sample load. Automatic interaction capture, page-leave capture, session recording, and surveys are disabled.',
   },
   {
-    h: '4. How genomic queries are de-identified in analytics',
-    p: 'When you search for a variant, PostHog is configured to capture the route path only; the gene name, cDNA notation, and any query-string parameters are scrubbed before the event is sent. Users are identified in analytics by an opaque Supabase UUID, not by email address. As a result, your specific genomic queries are not linked to your identity in our analytics system.',
+    h: '4. How analytics remain anonymous and query-free',
+    p: 'PostHog receives the route path, never its query string or hash. The application-supplied fields for the four product-discovery actions contain only a fixed event name; example selection also carries a numeric slot from 1 to 3. A final send-time filter removes genomic-query, campaign, referrer-query, and account fields and rejects every unapproved event shape. Analytics use a memory-only anonymous browser identifier, never your Supabase user ID, name, or email, and IP-based enrichment is disabled. The anonymous identifier is not retained across a full page reload.',
   },
   {
     h: '5. Reference genomic data is not your personal data',

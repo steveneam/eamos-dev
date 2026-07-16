@@ -11,6 +11,7 @@ import {
   clearCompareStash,
   makeSourceId,
   mergeSources,
+  parseVariantFile,
   readCompareVariants,
   sourcesLabel,
   stashCompareSources,
@@ -19,6 +20,8 @@ import {
   type ImportSource,
   type ParsedVariant,
 } from '@/lib/variant-file'
+import { captureBatchSampleLoad } from '@/lib/product-analytics'
+import { SAMPLE_VCF, SAMPLE_VCF_NAME } from '@/lib/sample-vcf'
 import { applyFilters, cacheResolvedPanel, filterChipLabel, type ActiveFilter } from '@/lib/compare-filters'
 import { CLASS_RANK, classifyVerdict, summarizeCohort } from '@/lib/batch-summary'
 import type { BatchChatScope } from '@/lib/chat'
@@ -70,6 +73,7 @@ function countsFromDist(dist: Record<string, number>): Record<string, number> {
  */
 export function CompareClient() {
   const searchParams = useSearchParams()
+  const sampleDemo = searchParams.get('demo') === '1'
   const [stash, setStash] = useState<CompareStash | null>(null)
   const [hydrated, setHydrated] = useState(false)
   const [filters, setFilters] = useState<ActiveFilter[]>([])
@@ -88,11 +92,38 @@ export function CompareClient() {
   const loadedSlugs = useRef<Set<string>>(new Set())
   const uploadFilesRef = useRef<Map<string, File>>(new Map())
   const runSeq = useRef(0)
+  const hydratedDemo = useRef<boolean | null>(null)
 
   useEffect(() => {
-    setStash(readCompareVariants())
+    if (hydratedDemo.current === sampleDemo) return
+    hydratedDemo.current = sampleDemo
+
+    if (sampleDemo) {
+      // The shared URL must work in a fresh browser, not only after the landing
+      // page has staged sessionStorage. Replace any prior private cohort with
+      // the bundled sample and keep the parsed rows in memory if storage is
+      // unavailable. Loading is local; Generate remains an explicit action.
+      const variants = parseVariantFile(SAMPLE_VCF, SAMPLE_VCF_NAME)
+      const source: ImportSource = {
+        id: makeSourceId(),
+        name: SAMPLE_VCF_NAME,
+        kind: 'file',
+        variants,
+      }
+      const sources = [source]
+      stashCompareSources(sources)
+      setStash({
+        savedAt: Date.now(),
+        source: sourcesLabel(sources),
+        variants: mergeSources(sources),
+        sources,
+      })
+      captureBatchSampleLoad()
+    } else {
+      setStash(readCompareVariants())
+    }
     setHydrated(true)
-  }, [])
+  }, [sampleDemo])
 
   useEffect(() => () => {
     runSeq.current += 1
@@ -270,15 +301,6 @@ export function CompareClient() {
     setAddingSource(false)
     resetRun()
   }, [resetRun])
-
-  // Sample-VCF deep link (/compare?demo=1) — auto-generate the dropped cohort
-  // once it hydrates so the landing pill lands on a populated result.
-  const autoRan = useRef(false)
-  useEffect(() => {
-    if (autoRan.current || searchParams.get('demo') !== '1' || !hydrated || variants.length === 0) return
-    autoRan.current = true
-    runBatch([])
-  }, [searchParams, hydrated, variants.length, runBatch])
 
   // Ask-Eamos cohort scope — a bounded summary of the resolved cohort (size +
   // source/panel/filter provenance + classification mix + the most actionable

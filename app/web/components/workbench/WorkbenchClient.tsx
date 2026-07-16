@@ -4,13 +4,14 @@ import './workbench-viewer.css'
 import './workbench-side-panel.css'
 import './workbench-tools.css'
 import './workbench-designers.css'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { WorkbenchTool } from '@/lib/backend'
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { EamosSearch } from '@/components/landing/EamosSearch'
 import { ModePill } from '@/components/layout/ModePill'
+import { captureWorkbenchOpen } from '@/lib/product-analytics'
 import { ContextStrip } from './ContextStrip'
 import { WorkbenchShell } from './WorkbenchShell'
 
@@ -45,6 +46,14 @@ export function WorkbenchClient() {
   const transcript = cleanParam(params.get('transcript'))
 
   const [tool, setTool] = useState<WorkbenchTool>('viewer')
+  const lastOpenedIdentity = useRef<string | null>(null)
+
+  useEffect(() => {
+    const identity = `${gene}\u0000${cdna}\u0000${transcript ?? ''}`
+    if (lastOpenedIdentity.current === identity) return
+    lastOpenedIdentity.current = identity
+    captureWorkbenchOpen()
+  }, [cdna, gene, transcript])
 
   // A gene/variant lookup stays on the workbench (loads the new sequence); a
   // free-text or unparseable query hands off to the report search resolver.

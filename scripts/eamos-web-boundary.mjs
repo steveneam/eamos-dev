@@ -18,8 +18,9 @@
 //      engine catalog stays visible, and REVEL + SpliceAI remain in product copy.
 //   5. Landing trust contract: bundled hero identities match tracked backend
 //      evidence, source states stay explained, and audited overclaims stay gone.
-//   6. Analytics privacy: only explicit route-level pageviews are enabled;
-//      automatic interaction, page-leave, replay, and survey capture stay off.
+//   6. Analytics privacy: only explicit route-level pageviews and four fixed,
+//      content-free discovery events are enabled; identity, query strings, and
+//      automatic interaction/page-leave/replay/survey capture stay out.
 //
 // Usage:
 //   node scripts/eamos-web-boundary.mjs           # scan app/web
@@ -335,8 +336,9 @@ for (const retiredSpecimenClaim of ['Low Frequency', '3 Unique']) {
 
 // 6) The route-only analytics claim is an executable client boundary. Automatic
 // capture can include rendered variant text or a full query URL, so every
-// implicit PostHog channel stays disabled until a separately reviewed event is
-// instrumented with content-free properties.
+// implicit PostHog channel stays disabled. Pass 4 permits only four named
+// discovery events behind a final send-time scrubber and anonymous memory-only
+// persistence; ad-hoc capture sites and account identification remain blocked.
 const providersRel = 'app/web/app/providers.tsx'
 const providersText = existsSync(join(REPO_ROOT, providersRel))
   ? readFileSync(join(REPO_ROOT, providersRel), 'utf8')
@@ -346,6 +348,10 @@ const requiredAnalyticsGuards = [
   [/autocapture:\s*false/, 'automatic interaction capture'],
   [/disable_session_recording:\s*true/, 'session recording'],
   [/disable_surveys:\s*true/, 'survey extension loading'],
+  [/persistence:\s*'memory'/, 'memory-only analytics identity'],
+  [/person_profiles:\s*'never'/, 'disabled PostHog person profiles'],
+  [/ip:\s*false/, 'disabled analytics IP capture'],
+  [/before_send:\s*scrubAnalyticsEvent/, 'final send-time analytics scrubber'],
   [/\$current_url:\s*window\.location\.origin\s*\+\s*pathname/, 'route-only pageview URL'],
 ]
 for (const [pattern, boundary] of requiredAnalyticsGuards) {
@@ -355,6 +361,82 @@ for (const [pattern, boundary] of requiredAnalyticsGuards) {
       file: providersRel,
       line: 0,
       detail: `${boundary} no longer preserves the route-only analytics contract`,
+    })
+  }
+}
+
+const analyticsRel = 'app/web/lib/product-analytics.ts'
+const analyticsText = existsSync(join(REPO_ROOT, analyticsRel))
+  ? readFileSync(join(REPO_ROOT, analyticsRel), 'utf8')
+  : ''
+for (const eventName of [
+  'eamos_free_example_selected',
+  'eamos_free_report_opened',
+  'eamos_free_workbench_opened',
+  'eamos_free_batch_sample_loaded',
+]) {
+  if (!analyticsText.includes(eventName)) {
+    violations.push({
+      kind: 'analytics-discovery-contract-drift',
+      file: analyticsRel,
+      line: 0,
+      detail: `${eventName} is missing from the fixed content-free event catalog`,
+    })
+  }
+}
+for (const [pattern, boundary] of [
+  [/ALLOWED_EVENTS/, 'event-name allowlist'],
+  [/stripQueryAndHash/, 'query/hash URL scrubber'],
+  [/SENSITIVE_PROPERTY/, 'genomic and account property scrubber'],
+  [/\$process_person_profile:\s*false/, 'per-event person-profile opt-out'],
+]) {
+  if (!pattern.test(analyticsText)) {
+    violations.push({
+      kind: 'analytics-discovery-contract-drift',
+      file: analyticsRel,
+      line: 0,
+      detail: `${boundary} is missing from the product analytics boundary`,
+    })
+  }
+}
+
+for (const [rel, pattern, boundary] of [
+  ['app/web/components/landing/LandingClient.tsx', /captureExampleSelection\(example\.slot\)/, 'landing example selection'],
+  ['app/web/components/report/ReportClient.tsx', /captureReportOpen\(\)/, 'completed report open'],
+  ['app/web/components/workbench/WorkbenchClient.tsx', /captureWorkbenchOpen\(\)/, 'Workbench open'],
+  ['app/web/components/compare/CompareClient.tsx', /captureBatchSampleLoad\(\)/, 'bundled Batch sample load'],
+]) {
+  const text = existsSync(join(REPO_ROOT, rel)) ? readFileSync(join(REPO_ROOT, rel), 'utf8') : ''
+  if (!pattern.test(text)) {
+    violations.push({
+      kind: 'analytics-discovery-wiring-drift',
+      file: rel,
+      line: 0,
+      detail: `${boundary} is no longer wired to the fixed product analytics adapter`,
+    })
+  }
+}
+
+for (const rel of files) {
+  const text = readFileSync(join(REPO_ROOT, rel), 'utf8')
+  if (/posthog\.(?:identify|alias|group|register)\s*\(/.test(text)) {
+    violations.push({
+      kind: 'analytics-account-identity',
+      file: rel,
+      line: 0,
+      detail: 'PostHog account/person identity calls are forbidden',
+    })
+  }
+  if (
+    /posthog\.capture\s*\(/.test(text) &&
+    rel !== providersRel &&
+    rel !== analyticsRel
+  ) {
+    violations.push({
+      kind: 'analytics-direct-capture',
+      file: rel,
+      line: 0,
+      detail: 'product events must go through app/web/lib/product-analytics.ts',
     })
   }
 }

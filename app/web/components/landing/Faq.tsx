@@ -21,8 +21,8 @@ interface QA {
 
 const ITEMS: QA[] = [
   {
-    q: 'Where does the functional literature count come from?',
-    a: 'When a literature count is shown, it comes from source-backed publication rows. Eamos deduplicates stable publication identifiers and keeps the source status beside the result.',
+    q: 'What can I try before using my own data?',
+    a: 'Choose any example under the search bar to open a variant report, or load the bundled sample VCF to explore Batch. The sample links work in a fresh browser and contain no account details or patient records.',
   },
   {
     q: 'Does Eamos store private patient data?',

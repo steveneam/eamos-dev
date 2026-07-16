@@ -1,5 +1,8 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState } from 'react'
 import { Reveal } from '@/components/landing/Reveal'
 import { LandingH2, LandingH3 } from '@/components/landing/ui/LandingHeading'
 import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
@@ -16,6 +19,8 @@ const FEATURES = [
     route: '/report?fixture=rpe65-negative',
     href: '/report?fixture=rpe65-negative',
     action: 'Open the sample report',
+    sharePath: '/report?fixture=rpe65-negative',
+    shareLabel: 'Copy sample link',
   },
   {
     index: '02',
@@ -28,6 +33,8 @@ const FEATURES = [
     route: '/workbench · RPE65',
     href: '/workbench?gene=RPE65&cdna=c.260A%3EG&transcript=NM_000329.3',
     action: 'Explore the Workbench',
+    sharePath: null,
+    shareLabel: null,
   },
   {
     index: '03',
@@ -38,8 +45,10 @@ const FEATURES = [
     src: '/features/compare-demo.webp',
     alt: 'Eamos batch comparison screen with the bundled sample VCF loaded and ready to generate.',
     route: '/compare · sample.vcf',
-    href: '/compare',
-    action: 'Open batch comparison',
+    href: '/compare?demo=1',
+    action: 'Load the sample VCF',
+    sharePath: '/compare?demo=1',
+    shareLabel: 'Copy sample flow',
   },
 ] as const
 
@@ -113,18 +122,23 @@ export function FeaturesGrid() {
                     >
                       {feature.description}
                     </p>
-                    <Link
-                      href={feature.href}
-                      className="feature-product-link"
-                      style={{
-                        color: 'var(--em-bright)',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      {feature.action} <span aria-hidden>→</span>
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <Link
+                        href={feature.href}
+                        className="feature-product-link"
+                        style={{
+                          color: 'var(--em-bright)',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        {feature.action} <span aria-hidden>→</span>
+                      </Link>
+                      {feature.sharePath && feature.shareLabel && (
+                        <CopySampleLink path={feature.sharePath} label={feature.shareLabel} />
+                      )}
+                    </div>
                   </div>
 
                   <figure
@@ -198,12 +212,85 @@ export function FeaturesGrid() {
           transition: text-decoration-color var(--dur-1) var(--ease-standard);
         }
         .feature-product-link:hover { text-decoration-color: currentColor; }
-        .feature-product-link:focus-visible {
+        .feature-share-link {
+          appearance: none;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--hero-ink-3);
+          font-family: var(--body);
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          text-decoration-line: underline;
+          text-decoration-color: transparent;
+          text-decoration-thickness: 1.5px;
+          text-underline-offset: 5px;
+          transition: color var(--dur-1) var(--ease-standard),
+                      text-decoration-color var(--dur-1) var(--ease-standard);
+        }
+        .feature-share-link:hover {
+          color: var(--hero-ink);
+          text-decoration-color: var(--em-bright);
+        }
+        .feature-product-link:focus-visible,
+        .feature-share-link:focus-visible {
           outline: 2px solid color-mix(in oklab, var(--em) 55%, transparent);
           outline-offset: 5px;
           border-radius: 2px;
         }
       `}</style>
     </section>
+  )
+}
+
+function CopySampleLink({ path, label }: { path: string; label: string }) {
+  const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle')
+
+  const copy = async () => {
+    const url = new URL(path, window.location.origin).toString()
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+      } else {
+        const field = document.createElement('textarea')
+        field.value = url
+        field.setAttribute('readonly', '')
+        field.style.position = 'fixed'
+        field.style.opacity = '0'
+        document.body.appendChild(field)
+        let copied = false
+        try {
+          field.select()
+          copied = document.execCommand('copy')
+        } finally {
+          field.remove()
+        }
+        if (!copied) throw new Error('clipboard unavailable')
+      }
+      setStatus('copied')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  return (
+    <span>
+      <button
+        type="button"
+        className="feature-share-link"
+        data-share-sample={path}
+        onClick={() => void copy()}
+      >
+        {status === 'copied' ? 'Link copied' : status === 'error' ? 'Copy unavailable' : label}
+      </button>
+      <span className="sr-only" aria-live="polite">
+        {status === 'copied'
+          ? 'Safe sample link copied to the clipboard.'
+          : status === 'error'
+            ? 'The sample link could not be copied.'
+            : ''}
+      </span>
+    </span>
   )
 }

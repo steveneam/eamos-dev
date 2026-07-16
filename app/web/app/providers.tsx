@@ -1,10 +1,11 @@
 'use client'
 import posthog from 'posthog-js'
 import { PostHogProvider } from 'posthog-js/react'
-import { Suspense, useEffect, useRef } from 'react'
+import { Suspense, useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { AuthProvider, useAuth } from '@/components/auth/AuthProvider'
+import { AuthProvider } from '@/components/auth/AuthProvider'
 import { LibrarySync } from '@/components/library/LibrarySync'
+import { scrubAnalyticsEvent } from '@/lib/product-analytics'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Initialize PostHog once, inside the React lifecycle. Env-gated: with no
@@ -27,7 +28,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
       autocapture: false,
       disable_session_recording: true,
       disable_surveys: true,
-      person_profiles: 'identified_only',
+      disable_external_dependency_loading: true,
+      advanced_disable_flags: true,
+      // Aggregate product discovery only. Memory persistence gives one
+      // anonymous browser-page identity and never reads a previously stored
+      // account-linked UUID from PostHog cookies/localStorage.
+      persistence: 'memory',
+      person_profiles: 'never',
+      ip: false,
+      save_campaign_params: false,
+      save_referrer: false,
+      respect_dnt: true,
+      before_send: scrubAnalyticsEvent,
     })
   }, [])
 
@@ -37,7 +49,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <Suspense fallback={null}>
           <PostHogPageView />
         </Suspense>
-        <PostHogIdentify />
         <LibrarySync />
         {children}
       </AuthProvider>
@@ -57,24 +68,5 @@ function PostHogPageView() {
     // still counts as a view, but its value is never transmitted.
     posthog.capture('$pageview', { $current_url: window.location.origin + pathname })
   }, [pathname, searchParams])
-  return null
-}
-
-/** Tie analytics identity to the Supabase user; reset on sign-out. */
-function PostHogIdentify() {
-  const { user } = useAuth()
-  const prevId = useRef<string | null>(null)
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return
-    if (user) {
-      // Privacy: identify by opaque Supabase UUID only — no email/PII to analytics.
-      posthog.identify(user.id)
-      prevId.current = user.id
-    } else if (prevId.current) {
-      // Real sign-out (not the initial anonymous load) → drop the identity.
-      posthog.reset()
-      prevId.current = null
-    }
-  }, [user])
   return null
 }
