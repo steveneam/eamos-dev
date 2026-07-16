@@ -27,8 +27,8 @@ const REPRESENTATIONS = [
   {
     key: 'evidence',
     label: 'Evidence',
-    context: 'Full evidence stack',
-    value: 'ClinVar · REVEL · SpliceAI',
+    context: 'Cited sources · returned scores',
+    value: 'ClinVar · 11 predictor engines',
     marker: '11 engines',
   },
 ] as const
@@ -146,13 +146,20 @@ export function HeroVariantMap() {
             className="hero-variant-marker"
             onClick={advance}
             aria-label={`Current view: ${active.label}, ${active.value}. Show next representation.`}
+            aria-controls="hero-variant-readout"
             title="Cycle through genomic, transcript, protein, and evidence views"
           >
             <span>{active.marker}</span>
             <small>{active.label}</small>
           </button>
 
-          <div className="hero-variant-readout" aria-live="polite">
+          <div
+            id="hero-variant-readout"
+            className="hero-variant-readout"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <span>{active.context}</span>
             <strong>{active.value}</strong>
           </div>
@@ -168,6 +175,7 @@ export function HeroVariantMap() {
                 className="hero-variant-step"
                 data-selected={selected ? '' : undefined}
                 aria-pressed={selected}
+                aria-controls="hero-variant-readout"
                 onClick={() => setActiveIndex(index)}
               >
                 <span>{String(index + 1).padStart(2, '0')}</span>
@@ -178,7 +186,7 @@ export function HeroVariantMap() {
         </div>
 
         <p className="hero-variant-note">
-          The same bundled demo, normalized across genome, transcript, protein, and the full evidence stack.
+          The same bundled demo, normalized across genome, transcript, protein, and its available evidence.
         </p>
       </div>
 

@@ -3,9 +3,9 @@
 /**
  * Specimen strip — the "open page" of an Eamos variant report on the landing.
  *
- * Source-backed USH2A c.2276G>T specimen captured from lookup-summary
- * output on 2026-06-01. The cream landing is the journal cover; this inset is
- * an open page from inside.
+ * Documented USH2A c.2276G>T lookup snapshot captured on 2026-06-01.
+ * Population facts are independently recorded by the Eamos press truth-printer
+ * contract. The cream landing is the journal cover; this inset is an open page.
  */
 
 import { LandingH2 } from '@/components/landing/ui/LandingHeading'
@@ -41,10 +41,10 @@ const SPECIMEN_CARDS: SpecimenCard[] = [
   {
     card_id: 'population_frequency',
     title: 'Population Frequency',
-    primary_label: 'Low Frequency',
+    primary_label: 'Max AF 0.182%',
     support_badges: [
-      { kind: 'metric', text: 'Max AMR 0.182%' },
-      { kind: 'metric', text: 'AC 2357' },
+      { kind: 'metric', text: 'AMR maximum' },
+      { kind: 'metric', text: 'AC 2,357' },
       { kind: 'source', text: 'gnomAD v4' },
     ],
     provenance: ['gnomAD v4'],
@@ -63,10 +63,10 @@ const SPECIMEN_CARDS: SpecimenCard[] = [
   {
     card_id: 'lab_functional',
     title: 'Lab & Functional',
-    primary_label: 'Functional Deficit',
+    primary_label: 'PS3 Supporting',
     support_badges: [
-      { kind: 'acmg', text: 'PS3 Supporting' },
-      { kind: 'metric', text: '3 Unique' },
+      { kind: 'acmg', text: 'Source assertion' },
+      { kind: 'source', text: 'Functional evidence' },
     ],
     provenance: ['functional evidence'],
     source_status: 'cache',
@@ -117,8 +117,8 @@ export function MetricBelt() {
             className="md:max-w-[380px] md:text-right"
             style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--hero-ink-2)' }}
           >
-            Four call cards at the top of every report: clinical consensus, population
-            frequency, computational, functional. Each citing the source it came from.
+            The report opens with four call cards: clinical consensus, population frequency,
+            computational, and functional. Provenance or source status stays visible on each.
           </p>
         </header>
 
@@ -178,7 +178,7 @@ export function MetricBelt() {
               </span>
             )}
             <span className="ml-auto" style={{ fontSize: 11, color: 'var(--ink-4)' }}>
-              Demo snapshot · sourced
+              Static snapshot · source states shown
             </span>
           </div>
 
@@ -265,8 +265,8 @@ export function MetricBelt() {
         </div>
 
         <p className="mt-5 text-[11.5px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Bundled USH2A c.2276G&gt;T demo snapshot · values are scoped to ClinGen, ClinVar,
-          gnomAD v4, or functional evidence, with cached and missing states left visible.
+          Static USH2A c.2276G&gt;T lookup snapshot captured 1 June 2026 · raw population facts
+          are shown without a rarity verdict, with cached and missing states visible.
         </p>
       </div>
     </section>

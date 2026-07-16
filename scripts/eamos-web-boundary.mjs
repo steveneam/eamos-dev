@@ -16,6 +16,8 @@
 //      Full schema<->TypeScript parity is guarded by test_frontend_contract.py.
 //   4. Free predictor catalog: no product access split returns, the complete
 //      engine catalog stays visible, and REVEL + SpliceAI remain in product copy.
+//   5. Landing trust contract: bundled hero identities match tracked backend
+//      evidence, source states stay explained, and audited overclaims stay gone.
 //
 // Usage:
 //   node scripts/eamos-web-boundary.mjs           # scan app/web
@@ -185,13 +187,137 @@ const marketingText = marketingFiles
   .filter((rel) => existsSync(join(REPO_ROOT, rel)))
   .map((rel) => readFileSync(join(REPO_ROOT, rel), 'utf8'))
   .join('\n')
-for (const predictor of ['REVEL', 'SpliceAI']) {
+for (const predictor of REQUIRED_PREDICTORS) {
   if (!marketingText.includes(predictor)) {
     violations.push({
       kind: 'missing-predictor-marketing',
       file: marketingFiles.join(', '),
       line: 0,
-      detail: `${predictor} missing from free-product copy`,
+      detail: `${predictor} missing from the visible free-product catalog copy`,
+    })
+  }
+}
+
+// 5a) The landing may promise traceability and visible uncertainty, but not
+// universal variant coverage, measured time savings, or clinical outcomes.
+const landingTrustFiles = [
+  'app/web/components/landing/LandingClient.tsx',
+  'app/web/components/landing/HeroVariantMap.tsx',
+  'app/web/components/landing/HowItWorks.tsx',
+  'app/web/components/landing/MetricBelt.tsx',
+  'app/web/components/landing/Testimonials.tsx',
+  'app/web/components/landing/Faq.tsx',
+  'app/web/components/landing/SiteFooter.tsx',
+]
+const landingTrustText = landingTrustFiles
+  .filter((rel) => existsSync(join(REPO_ROOT, rel)))
+  .map((rel) => readFileSync(join(REPO_ROOT, rel), 'utf8'))
+  .join('\n')
+const retiredLandingClaims = [
+  [/Understand any genetic/i, 'universal variant coverage'],
+  [/countless databases/i, 'uncounted database breadth'],
+  [/every second matters/i, 'clinical timing outcome'],
+  [/right treatment in time/i, 'treatment outcome'],
+  [/give that time back/i, 'unmeasured time saving'],
+]
+for (const [pattern, claim] of retiredLandingClaims) {
+  if (pattern.test(landingTrustText)) {
+    violations.push({
+      kind: 'landing-overclaim',
+      file: landingTrustFiles.join(', '),
+      line: 0,
+      detail: `${claim} claim returned without a reproducible artifact`,
+    })
+  }
+}
+
+// 5b) The hero's bundled RPE65 identities are generated from the same tracked
+// coordinate proof used by backend fixture tests, not hand-invented marketing.
+const heroRel = 'app/web/components/landing/HeroVariantMap.tsx'
+const heroPath = join(REPO_ROOT, heroRel)
+const coordinateIndexRel = 'app/backend/app/fixtures/coordinate_index/eamos_coordinate_index_tiny.jsonl'
+const coordinateIndexPath = join(REPO_ROOT, coordinateIndexRel)
+if (!existsSync(heroPath) || !existsSync(coordinateIndexPath)) {
+  violations.push({
+    kind: 'missing-landing-trust-proof',
+    file: `${heroRel}, ${coordinateIndexRel}`,
+    line: 0,
+    detail: 'hero or tracked coordinate proof missing',
+  })
+} else {
+  const heroText = readFileSync(heroPath, 'utf8')
+  const variant = readFileSync(coordinateIndexPath, 'utf8')
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .find((record) => record.record_type === 'variant' && record.gene === 'RPE65' && record.cdna === 'c.260A>G')
+  if (!variant) {
+    violations.push({
+      kind: 'missing-landing-trust-proof',
+      file: coordinateIndexRel,
+      line: 0,
+      detail: 'bundled RPE65 c.260A>G coordinate proof missing',
+    })
+  } else {
+    const position = String(variant.pos).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+    const heroFacts = [
+      variant.transcript,
+      `${variant.gene} ${variant.cdna}`,
+      variant.protein_change,
+      `chr${variant.chrom}:${position} ${variant.ref}>${variant.alt}`,
+    ]
+    for (const fact of heroFacts) {
+      if (!heroText.includes(fact)) {
+        violations.push({
+          kind: 'landing-demo-identity-drift',
+          file: heroRel,
+          line: 0,
+          detail: `${fact} no longer matches ${coordinateIndexRel}`,
+        })
+      }
+    }
+  }
+}
+
+// 5c) One compact trust note owns the runtime-state explanation. The historical
+// USH2A specimen keeps only the two population facts recorded by eamos_press;
+// the contradicted rarity verdict and untracked study count must stay absent.
+const howRel = 'app/web/components/landing/HowItWorks.tsx'
+const howText = existsSync(join(REPO_ROOT, howRel)) ? readFileSync(join(REPO_ROOT, howRel), 'utf8') : ''
+for (const statePattern of [/\bLive\b/, /\bCached\b/, /Bundled\s+demo/, /\bUnavailable\b/]) {
+  if (!statePattern.test(howText)) {
+    violations.push({
+      kind: 'missing-landing-source-state',
+      file: howRel,
+      line: 0,
+      detail: `${statePattern} missing from the compact source-status note`,
+    })
+  }
+}
+
+const specimenRel = 'app/web/components/landing/MetricBelt.tsx'
+const claimProofRel = 'app/backend/tests/test_claim_provenance.py'
+const specimenText = existsSync(join(REPO_ROOT, specimenRel)) ? readFileSync(join(REPO_ROOT, specimenRel), 'utf8') : ''
+const claimProofText = existsSync(join(REPO_ROOT, claimProofRel))
+  ? readFileSync(join(REPO_ROOT, claimProofRel), 'utf8')
+  : ''
+for (const [renderedFact, recordedFact] of [['Max AF 0.182%', '"popmax_frequency": 0.001817'], ['AC 2,357', '"allele_count": 2357']]) {
+  if (!specimenText.includes(renderedFact) || !claimProofText.includes(recordedFact)) {
+    violations.push({
+      kind: 'landing-specimen-proof-drift',
+      file: `${specimenRel}, ${claimProofRel}`,
+      line: 0,
+      detail: `${renderedFact} is not paired with its executable claim-provenance fact`,
+    })
+  }
+}
+for (const retiredSpecimenClaim of ['Low Frequency', '3 Unique']) {
+  if (specimenText.includes(retiredSpecimenClaim)) {
+    violations.push({
+      kind: 'landing-specimen-overclaim',
+      file: specimenRel,
+      line: 0,
+      detail: `${retiredSpecimenClaim} must not return to the audited USH2A snapshot`,
     })
   }
 }

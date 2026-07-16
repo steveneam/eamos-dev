@@ -1,13 +1,5 @@
 # Spec — Batch VCF Lookup + Clinical Gene Panels
 
-> **Universal-free correction: 2026-07-16 13:19 +0000 · Codex.** Historical
-> Free/Pro/Max/enterprise access gates in §5.3 and D-2 are superseded. Batch
-> remains part of the same free product. Neutral workload bounds, filtering,
-> queues, and concurrency controls may protect reliability, but they must apply
-> independently of account tier or payment state. The untouched prior spec is
-> preserved at
-> `agent_handoff/archive/2026-07-16-batch-vcf-spec-pre-free.md`.
-
 > **Status:** authored 2026-06-03 · Claude (FE). **§8 contract ratified by Codex (BE) 2026-06-04**
 > with refinements folded in (§8). Steven decisions §10 captured. Two-layer panel design — Codex concurs.
 > **Slug:** `batch-vcf-and-panels` · supersedes the deferred "`/compare` Slice 2".
@@ -70,7 +62,7 @@ per-variant loop.** Three levers, in priority order:
 
 **Design consequence:** the canonical flow is **Drop VCF → Filter (panel first) →
 Confirm scope (N + est. time) → Async job → Results dashboard.** A "whole-VCF, no panel"
-path exists only within neutral operational safety bounds (§5.3).
+path exists but is hard-capped and tier-gated (§5.3).
 
 ---
 
@@ -151,20 +143,21 @@ Applied **before** any lookup. Order: panel → FILTER → region → AF.
   at completion. (§8.)
 
 ### 5.3 Scope-confirmation gate (FE) — the guardrail
-Before a job runs, show: **N variants after filters · estimated time ·
-operational-limit impact**, and require explicit confirmation. This is where we
-stop a clinician from accidentally launching a 50k-variant job.
-
-- **One access contract:** batch is free. No account tier, checkout state, or
-  predictor entitlement changes whether a user can submit a supported job.
-- **Neutral safety bounds:** exact per-job and queued-work limits remain an
-  engineering decision based on measured SG memory, throughput, and source
-  capacity. The same limits and messages apply to every user.
-- **Large-VCF rule:** above the neutral unfiltered bound, require a panel,
-  region, quality, or allele-frequency filter before proceeding. Whole-VCF
-  processing beyond the shared bound is a future capacity/architecture decision,
-  not a paid unlock. Never promise an uncapped path before the worker model and
-  resource budget support it.
+Before a job runs, show: **N variants after filters · estimated time · quota/tier impact**,
+and require explicit confirm. This is where we stop a clinician from accidentally
+launching a 50k-variant job.
+- **Tier caps (align to existing pricing — already product-decided):**
+  Free = no batch (single lookups only). Pro = "VCF upload (batch variants)" up to cap_P.
+  Max = "Bulk VCF uploads" up to cap_M. (Exact caps = §10 D-2.)
+- **Large-VCF rule (Steven, 2026-06-03 — tier-split):**
+  - **Pro:** above the unfiltered cap, a panel (or region/AF filter) is **required** to
+    proceed — *apply the filter first*. This is the default path and the product nudge
+    that keeps every job tractable AND clinically meaningful.
+  - **Max:** unfiltered **whole-VCF** runs are allowed (hard-capped at cap_M, top-N by
+    quality when over).
+  - **Enterprise / special pricing agreement:** dedicated, uncapped whole-VCF runs — as
+    the business expands or per a specific client agreement. (Infra: a dedicated/queued
+    worker lane, not the shared pool.)
 
 ### 5.4 Async batch job engine (BE / Codex — contract in §8)
 - `POST /api/v1/batch` → creates a job (`status=queued`), returns `job_id`. Body carries
@@ -243,7 +236,7 @@ they already trust), shown with version + provenance.
   disease**, **Cardiac** (cardiomyopathy / arrhythmia), + a small starter spread
   (e.g. hereditary cancer, epilepsy) — final list = §10 D-1.
 
-#### 6.2.1 Licensing notes (verify before enabling the overlay — §10 D-1)
+#### 6.2.1 Licensing notes (verify before commercial launch — §10 D-1)
 - **PanelApp software** = Apache 2.0; **panel data** = publicly downloadable, reuse
   (incl. commercial) permitted, **but**: (a) Genomics England puts an **IP-verification
   responsibility on the reuser** and disclaims liability; (b) **OMIM data must be licensed
@@ -253,7 +246,7 @@ they already trust), shown with version + provenance.
   GenCC open, MONDO CC BY, HGNC open); PanelApp is an *overlay* shown with attribution +
   version, not silently re-served; OMIM is avoided in favour of MONDO throughout.
 - **Honest gap:** the above is read from public summaries, not the signed ToU. Steven /
-  legal to confirm the PanelApp Australia terms (especially the OMIM carve-out) before public enablement.
+  legal to confirm the PanelApp Australia terms (esp. the OMIM carve-out) before paid launch.
   None of this blocks dev — Layer 1 is unambiguously safe to build on now.
 
 ### 6.3 Custom panels
@@ -434,11 +427,11 @@ VCFs run as sequential single lookups behind a progress bar).
 - **D-1 (Steven): panel source — DECIDED 2026-06-03** = two-layer (local
   ClinGen/GenCC/MONDO/HGNC commercial-safe core + PanelApp Australia recognisable named-panel
   overlay; §6.2). **Still open:** (a) legal/ToU confirm of PanelApp AU + the OMIM carve-out
-  before public enablement; (b) the exact launch panel set (IRD + cardiac + ?).
-- **D-2 (Steven): SUPERSEDED 2026-07-16 by the universal-free product
-  decision.** Filtering and workload caps are neutral reliability controls, not
-  Free/Pro/Max entitlements. **Still open (parametric):** measured per-job and
-  queued-work bounds plus the worker capacity needed for larger VCFs.
+  before paid launch; (b) the exact launch panel set (IRD + cardiac + ?).
+- **D-2 (Steven): large-VCF tiering — DECIDED 2026-06-03** = Pro requires a filter first;
+  Max allows capped whole-VCF; enterprise/special-agreement gets dedicated runs (§5.3).
+  **Still open (parametric):** the actual numbers — Pro `cap_P` (variants/VCF), Max `cap_M`
+  (bulk = ? files / ? variants), enterprise lane sizing.
 - **D-6 (Steven): chat-funding for the conversational panel builder.** Tier A (deterministic,
   no LLM) ships regardless. Tier B (NL chatbot, §6.3.1) needs the AskEamos chat funded — a
   bounded, cheap use case. Go/no-go on funding the key for *this* use, even if the open-ended

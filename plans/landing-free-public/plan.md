@@ -1,7 +1,7 @@
 # Free-access landing and product gallery
 
-Status: universal-free predictor update implemented and verified.
-Stamped: 2026-07-16 13:06 +0000 · Codex.
+Status: Pass 2 trust/comprehension implemented and verified; broader Pass 3 pending.
+Stamped: 2026-07-16 13:43 +0000 · Codex.
 
 ## Outcome
 
@@ -179,9 +179,36 @@ useful only as history, so future agents cannot accidentally resurrect the paid
 funnel. Re-capture the three product screens whenever those featured surfaces
 change materially.
 
+## Pass 2 implementation evidence
+
+Verified: 2026-07-16 13:43 +0000 · Codex.
+
+- Replaced the unbounded “any genetic variant” promise with the supported-input
+  workflow: identify the variant, inspect provenance, continue into Workbench or
+  Batch. Removed the founder quote's unmeasured time-saving and treatment-timing
+  claims without weakening the Genomics for All mission.
+- Corrected the USH2A specimen: its documented 0.182% maximum AF is now a raw
+  gnomAD fact, not the contradicted “Low Frequency” verdict. Removed the
+  unratcheted “3 Unique” count and made the snapshot date/static state visible.
+- Consolidated live, cached, bundled-demo, and unavailable semantics into one
+  compact trust note. Missing values remain source states, never access states.
+- `scripts/eamos-web-boundary.mjs` now binds the RPE65 hero identity to the
+  tracked backend coordinate fixture, keeps all eleven predictor names visible,
+  and blocks the audited overclaims/specimen drift.
+- `scripts/eamos-capture-landing-features.mjs --verify-hero` now exercises real
+  mouse and keyboard activation, singular `aria-pressed`, the accessibility
+  tree, atomic status announcements, focus-visible, reduced motion, and the
+  compact mobile hide contract. Desktop 1440 × 960 and mobile 390 × 844 visual
+  review passed. Featured report/Workbench/Compare surfaces did not change, so
+  their checked-in captures remain current.
+- `npm run verify` passed in 148.2 seconds: structural/capture/contract guards,
+  frontend and backend lint/format, TypeScript, 18 Vitest files / 161 tests,
+  full backend pytest, and the 17-route production build. No source, provider,
+  auth, payment, Supabase, Render, Vercel, migration, or deploy mutation ran.
+
 ## Landing roadmap after this slice
 
-### Pass 2: trust and comprehension
+### Pass 2: trust and comprehension (complete 2026-07-16)
 
 - Audit every number, source claim, demo label, and time-saving statement
   against a reproducible artifact. Never turn a fixture into a live-data claim.
@@ -196,8 +223,8 @@ change materially.
 
 - Browser-test 360, 390, 768, 1024, 1440, and 1920 px widths, including the
   interactive hero, screenshot crops, sticky nav, and keyboard order.
-- Add automated hero interaction coverage for mouse, keyboard, focus-visible,
-  screen-reader names, and reduced motion.
+- Keep the automated hero interaction contract green for mouse, keyboard,
+  focus-visible, screen-reader names, reduced motion, and compact mobile layout.
 - Establish a landing performance budget for LCP, CLS, total screenshot bytes,
   and shipped JavaScript. Keep the already-compressed screenshots unoptimized
   by Next because they are deterministic WebP documentation assets.

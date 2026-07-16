@@ -1,14 +1,5 @@
 # Auth + Pricing/Payment — UI Requirements
 
-> [!CAUTION]
-> **Pricing and payment requirements superseded 2026-07-16 13:19 +0000 · Codex.**
-> Eamos is one free product with no public pricing, checkout, paid tier, upgrade
-> path, or predictor entitlement. Do not execute section B, its open pricing
-> decisions, or build-order item 3. The authentication notes are historical
-> context only; shipped code and current auth/security documentation are the
-> source of truth. The untouched pre-supersession file is preserved at
-> `agent_handoff/archive/2026-07-16-auth-pricing-requirements-pre-free.md`.
-
 > Captured 2026-05-24 from user direction (Steven), for the NEXT session. Part of
 > the post-deployment feature lane (PostHog + auth + Messenger + Stripe). The
 > live test deployment is up (see `docs/deployment/README.md` +
@@ -49,7 +40,7 @@
   (SELECT/INSERT/DELETE per table) — currently anon AND authenticated have no
   grant (secure default). This is the deliberate "expose to logged-in users" step.
 
-## B. Pricing / Payment — SUPERSEDED, DO NOT BUILD
+## B. Pricing / Payment — NEW page (route, e.g. `/pricing` → `/checkout`)
 
 User: "should lead to a new page." Three reference layouts provided (screenshots
 2026-05-24):

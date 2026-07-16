@@ -22,9 +22,9 @@ const STEPS: Step[] = [
   {
     num: 2,
     kicker: 'Source sweep',
-    title: 'Eamos queries the full evidence stack',
+    title: 'Eamos checks the wired evidence',
     description:
-      'Every wired source and predictor is requested in one free workflow, then joined with an ACMG-aware rules layer. Runtime status stays visible when a score cannot be returned.',
+      'Eamos requests the sources and predictors wired for the resolved variant, then joins returned evidence with an ACMG-aware rules layer. Missing results remain unavailable, not inferred.',
     visual: {
       lines: [
         'ClinVar · gnomAD · Ensembl',
@@ -40,8 +40,8 @@ const STEPS: Step[] = [
     kicker: 'Sourced report',
     title: 'Inspect the report',
     description:
-      'A structured view joins predictor scores, ACMG-aware interpretation, source rows, literature, and trial discovery links for human review.',
-    visual: { lines: ['Evidence: source-backed', 'Status: visible per row', 'Next: inspect provenance'] },
+      'Review predictor scores, source rows, literature, and trial discovery links with provenance attached, then carry the variant into Workbench or Batch.',
+    visual: { lines: ['Evidence: source-backed', 'Status: visible per row', 'Next: Workbench or Batch'] },
   },
 ]
 
@@ -150,6 +150,35 @@ export function HowItWorks() {
               </Reveal>
             )
           })}
+        </div>
+
+        <div
+          role="note"
+          aria-label="How Eamos labels evidence status"
+          className="mt-10 grid gap-3 py-5 md:grid-cols-[150px_minmax(0,1fr)] md:items-start"
+          style={{
+            borderTop: '0.5px solid var(--page-line)',
+            borderBottom: '0.5px solid var(--page-line)',
+          }}
+        >
+          <LandingEyebrow style={{ color: 'var(--em-bright)' }}>
+            Source status
+          </LandingEyebrow>
+          <p
+            style={{
+              maxWidth: '75ch',
+              margin: 0,
+              fontSize: 12.5,
+              lineHeight: 1.65,
+              color: 'var(--hero-ink-2)',
+            }}
+          >
+            <strong style={{ color: 'var(--hero-ink)' }}>Live</strong> was retrieved for this
+            request. <strong style={{ color: 'var(--hero-ink)' }}>Cached</strong> was retrieved
+            earlier with provenance retained. <strong style={{ color: 'var(--hero-ink)' }}>Bundled
+            demo</strong> is a tracked fixture. <strong style={{ color: 'var(--hero-ink)' }}>Unavailable</strong>{' '}
+            means no source-backed value returned. None of these states changes free access.
+          </p>
         </div>
       </div>
     </section>

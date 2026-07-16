@@ -4,6 +4,7 @@
 // Run a local Eamos web server first, then:
 //   node scripts/eamos-capture-landing-features.mjs --base-url=http://127.0.0.1:3001
 //   node scripts/eamos-capture-landing-features.mjs --check
+//   node scripts/eamos-capture-landing-features.mjs --verify-hero --base-url=http://127.0.0.1:3001
 
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -242,6 +243,230 @@ async function waitFor(cdp, expression, label) {
   throw new Error(`Timed out waiting for ${label}`)
 }
 
+function assertBrowser(value, message) {
+  if (!value) throw new Error(`Landing hero regression: ${message}`)
+}
+
+async function evaluateValue(cdp, expression) {
+  const result = await cdp.send('Runtime.evaluate', {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+  })
+  if (result?.exceptionDetails) {
+    throw new Error(
+      result.exceptionDetails.exception?.description
+        ?? result.exceptionDetails.text
+        ?? 'browser evaluation failed',
+    )
+  }
+  return result?.result?.value
+}
+
+async function pressKey(cdp, key, code, windowsVirtualKeyCode, modifiers = 0) {
+  const text = key === 'Enter' ? '\r' : key === ' ' ? ' ' : undefined
+  const params = {
+    key,
+    code,
+    windowsVirtualKeyCode,
+    nativeVirtualKeyCode: windowsVirtualKeyCode,
+    modifiers,
+    ...(text ? { text, unmodifiedText: text } : {}),
+  }
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', ...params })
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...params })
+}
+
+async function clickSelector(cdp, selector) {
+  const point = await evaluateValue(
+    cdp,
+    `(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`,
+  )
+  assertBrowser(point, `mouse target not found: ${selector}`)
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed',
+    x: point.x,
+    y: point.y,
+    button: 'left',
+    clickCount: 1,
+  })
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: point.x,
+    y: point.y,
+    button: 'left',
+    clickCount: 1,
+  })
+}
+
+async function heroSnapshot(cdp) {
+  return evaluateValue(
+    cdp,
+    `(() => {
+      const marker = document.querySelector('.hero-variant-marker');
+      const readout = document.querySelector('#hero-variant-readout');
+      const activeElement = document.activeElement;
+      const activeStyle = activeElement ? getComputedStyle(activeElement) : null;
+      return {
+        markerLabel: marker?.getAttribute('aria-label') ?? '',
+        markerView: marker?.querySelector('small')?.textContent?.trim() ?? '',
+        readout: readout?.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+        readoutRole: readout?.getAttribute('role') ?? '',
+        readoutLive: readout?.getAttribute('aria-live') ?? '',
+        readoutAtomic: readout?.getAttribute('aria-atomic') ?? '',
+        pressed: Array.from(document.querySelectorAll('.hero-variant-step'))
+          .map((button) => button.getAttribute('aria-pressed')),
+        activeText: activeElement?.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+        activeClass: activeElement?.className ?? '',
+        focusVisible: activeElement?.matches?.(':focus-visible') ?? false,
+        outlineStyle: activeStyle?.outlineStyle ?? '',
+        outlineWidth: activeStyle?.outlineWidth ?? '',
+      };
+    })()`,
+  )
+}
+
+async function verifyHeroInTab(cdp) {
+  await cdp.send('Emulation.setEmulatedMedia', {
+    media: 'screen',
+    features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }],
+  })
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: WIDTH,
+    height: HEIGHT,
+    deviceScaleFactor: 1,
+    mobile: false,
+  })
+  await cdp.send('Page.navigate', { url: `${BASE_URL}/` })
+  await waitFor(
+    cdp,
+    `document.querySelectorAll('.hero-variant-step').length === 4
+      && document.querySelector('.hero-variant-marker')?.getClientRects().length === 1`,
+    'desktop landing hero',
+  )
+
+  const initial = await heroSnapshot(cdp)
+  assertBrowser(initial.markerView === 'Transcript', 'the bundled transcript view is not the initial state')
+  assertBrowser(initial.readout.includes('NM_000329.3') && initial.readout.includes('RPE65 c.260A>G'), 'initial transcript identity drifted')
+  assertBrowser(initial.readoutRole === 'status' && initial.readoutLive === 'polite' && initial.readoutAtomic === 'true', 'readout is not an atomic polite status')
+  assertBrowser(initial.pressed.join(',') === 'false,true,false,false', 'initial aria-pressed state is not singular')
+
+  const axTree = await cdp.send('Accessibility.getFullAXTree')
+  const buttonNames = (axTree.nodes ?? [])
+    .filter((node) => node.role?.value === 'button')
+    .map((node) => node.name?.value ?? '')
+  for (const name of ['01 Genomic', '02 Transcript', '03 Protein', '04 Evidence']) {
+    assertBrowser(buttonNames.includes(name), `accessible button name missing: ${name}`)
+  }
+  assertBrowser(
+    buttonNames.some((name) => name.includes('Current view: Transcript') && name.includes('Show next representation')),
+    'the locus control has no descriptive accessible name',
+  )
+
+  await clickSelector(cdp, '.hero-variant-step:nth-child(1)')
+  await waitFor(
+    cdp,
+    `document.querySelector('.hero-variant-marker small')?.textContent === 'Genomic'`,
+    'mouse-selected genomic hero view',
+  )
+  const mouseState = await heroSnapshot(cdp)
+  assertBrowser(mouseState.pressed.join(',') === 'true,false,false,false', 'mouse selection did not update aria-pressed')
+  assertBrowser(mouseState.readout.includes('GRCh38') && mouseState.readout.includes('chr1:68,444,869 T>C'), 'mouse selection did not update the announced readout')
+
+  await pressKey(cdp, 'Tab', 'Tab', 9)
+  await pressKey(cdp, 'Tab', 'Tab', 9)
+  const keyboardFocus = await heroSnapshot(cdp)
+  assertBrowser(keyboardFocus.activeText.includes('Protein'), 'Tab order did not reach the Protein control')
+  assertBrowser(keyboardFocus.focusVisible, 'keyboard focus does not match :focus-visible')
+  assertBrowser(keyboardFocus.outlineStyle !== 'none' && Number.parseFloat(keyboardFocus.outlineWidth) >= 2, 'keyboard focus has no visible outline')
+  await pressKey(cdp, 'Enter', 'Enter', 13)
+  await waitFor(
+    cdp,
+    `document.querySelector('.hero-variant-marker small')?.textContent === 'Protein'`,
+    'keyboard-selected protein hero view',
+  )
+  const keyboardState = await heroSnapshot(cdp)
+  assertBrowser(keyboardState.pressed.join(',') === 'false,false,true,false', 'keyboard selection did not update aria-pressed')
+  assertBrowser(keyboardState.readout.includes('p.Asp87Gly'), 'keyboard selection did not update the announced readout')
+
+  await pressKey(cdp, 'Tab', 'Tab', 9, 8)
+  await pressKey(cdp, 'Tab', 'Tab', 9, 8)
+  await pressKey(cdp, 'Tab', 'Tab', 9, 8)
+  const markerFocus = await heroSnapshot(cdp)
+  assertBrowser(String(markerFocus.activeClass).includes('hero-variant-marker'), 'reverse Tab order did not reach the locus control')
+  assertBrowser(markerFocus.focusVisible, 'locus control has no keyboard focus-visible state')
+  await pressKey(cdp, ' ', 'Space', 32)
+  await waitFor(
+    cdp,
+    `document.querySelector('.hero-variant-marker small')?.textContent === 'Evidence'`,
+    'keyboard-cycled evidence hero view',
+  )
+  const cycledState = await heroSnapshot(cdp)
+  assertBrowser(cycledState.pressed.join(',') === 'false,false,false,true', 'locus keyboard cycle did not update aria-pressed')
+  assertBrowser(cycledState.readout.includes('11 predictor engines'), 'locus keyboard cycle did not announce the evidence view')
+
+  await cdp.send('Emulation.setEmulatedMedia', {
+    media: 'screen',
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  })
+  await waitFor(
+    cdp,
+    `getComputedStyle(document.querySelector('.hero-dna-strand')).animationName === 'none'`,
+    'reduced-motion hero state',
+  )
+  const reduced = await evaluateValue(
+    cdp,
+    `(() => {
+      const strand = getComputedStyle(document.querySelector('.hero-dna-strand'));
+      const marker = getComputedStyle(document.querySelector('.hero-variant-marker'));
+      const step = getComputedStyle(document.querySelector('.hero-variant-step'));
+      return {
+        animationName: strand.animationName,
+        strokeDashoffset: strand.strokeDashoffset,
+        markerTransitionSeconds: marker.transitionDuration
+          .split(',').map((value) => Number.parseFloat(value) * (value.includes('ms') ? 0.001 : 1)),
+        stepTransitionSeconds: step.transitionDuration
+          .split(',').map((value) => Number.parseFloat(value) * (value.includes('ms') ? 0.001 : 1)),
+      };
+    })()`,
+  )
+  assertBrowser(reduced.animationName === 'none' && Number.parseFloat(reduced.strokeDashoffset) === 0, 'reduced motion does not render a fully drawn static strand')
+  assertBrowser([...reduced.markerTransitionSeconds, ...reduced.stepTransitionSeconds].every((value) => value <= 0.001), 'reduced motion leaves a visible transition')
+
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  })
+  const mobileHidden = await evaluateValue(
+    cdp,
+    `(() => {
+      const hero = document.querySelector('.hero-variant-map')?.closest('aside');
+      return hero != null && getComputedStyle(hero).display === 'none' && hero.getClientRects().length === 0;
+    })()`,
+  )
+  assertBrowser(mobileHidden, 'desktop instrument remains visible in the compact mobile hero')
+
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: WIDTH,
+    height: HEIGHT,
+    deviceScaleFactor: 1,
+    mobile: false,
+  })
+  await cdp.send('Emulation.setEmulatedMedia', {
+    media: 'screen',
+    features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }],
+  })
+  process.stdout.write('landing hero: mouse, keyboard, accessibility, reduced motion, and mobile contract verified\n')
+}
+
 async function navigate(cdp, url, ready, scrollTarget = null) {
   await cdp.send('Page.navigate', { url })
   await waitFor(cdp, ready, url)
@@ -338,12 +563,14 @@ async function captureAll() {
     await cdp.ready
     await cdp.send('Page.enable')
     await cdp.send('Runtime.enable')
+    await cdp.send('Accessibility.enable')
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: WIDTH,
       height: HEIGHT,
       deviceScaleFactor: 1,
       mobile: false,
     })
+    await verifyHeroInTab(cdp)
     const manifestCaptures = []
     for (const capture of CAPTURES) {
       if (capture.id === 'compare') await seedCompare(cdp)
@@ -386,6 +613,33 @@ async function captureAll() {
     }
     writeFileSync(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`)
     checkAssets()
+  } finally {
+    cdp.close()
+    chrome.cleanup()
+  }
+}
+
+async function verifyHero() {
+  const response = await fetch(BASE_URL)
+  if (!response.ok) throw new Error(`Eamos server returned HTTP ${response.status} at ${BASE_URL}`)
+  const chrome = await spawnChrome()
+  const tab = await openTab(chrome.port)
+  const cdp = new CDP(tab.webSocketDebuggerUrl)
+  const runtimeErrors = []
+  cdp.on((event) => {
+    if (event.method === 'Runtime.exceptionThrown') {
+      runtimeErrors.push(event.params?.exceptionDetails?.exception?.description ?? 'Runtime exception')
+    }
+  })
+  try {
+    await cdp.ready
+    await cdp.send('Page.enable')
+    await cdp.send('Runtime.enable')
+    await cdp.send('Accessibility.enable')
+    await verifyHeroInTab(cdp)
+    if (runtimeErrors.length > 0) {
+      throw new Error(`Browser runtime errors:\n${runtimeErrors.join('\n')}`)
+    }
   } finally {
     cdp.close()
     chrome.cleanup()
@@ -468,6 +722,13 @@ if (args.check === 'true') {
     checkAssets()
   } catch (error) {
     process.stderr.write(`landing captures: ${error.message}\n`)
+    process.exitCode = 1
+  }
+} else if (args['verify-hero'] === 'true') {
+  try {
+    await verifyHero()
+  } catch (error) {
+    process.stderr.write(`landing hero: ${error.message}\n`)
     process.exitCode = 1
   }
 } else if (args['preview-landing']) {

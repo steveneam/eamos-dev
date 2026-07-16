@@ -30,15 +30,11 @@ const ITEMS: QA[] = [
   },
   {
     q: 'Which databases and predictors does a search cover?',
-    a: 'Eamos combines ClinVar, gnomAD, Ensembl, PubMed, and ClinicalTrials.gov with AlphaMissense, ESM1b, REVEL, PrimateAI-3D, MetaLR, CI-SpliceAI, SpliceAI, Pangolin, CADD, GPN-MSA, and CAPICE.',
+    a: 'The current catalog includes ClinVar, gnomAD, Ensembl, PubMed, and ClinicalTrials.gov plus AlphaMissense, ESM1b, REVEL, PrimateAI-3D, MetaLR, CI-SpliceAI, SpliceAI, Pangolin, CADD, GPN-MSA, and CAPICE. Each report shows which sources returned evidence for that variant.',
   },
   {
     q: 'Is Eamos really free?',
     a: 'Yes. Eamos is one free product with no paid tiers or checkout. Every wired source and predictor is included. If a score is missing, the report says so; it is never hidden behind an upgrade.',
-  },
-  {
-    q: 'How current is the data?',
-    a: 'Each report labels its source state. Depending on runtime availability, a row may be live, cached, bundled demo data, or unavailable, and the report keeps that status visible.',
   },
 ]
 

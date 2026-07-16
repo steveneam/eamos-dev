@@ -35,13 +35,10 @@ export function Testimonials() {
               margin: 0,
             }}
           >
-            As a researcher, I&rsquo;ve felt first-hand how much time disappears into manually sifting
-            through countless databases just to annotate and curate a single variant, and how those
-            delays push back the genetic reports patients are waiting on. With debilitating, progressive
-            genetic disease, every second matters: it can be the difference between the right treatment in
-            time and missing it altogether. I built Eamos to give that time back, to researchers and
-            clinicians, and to the patients and curious minds who simply want to understand their own
-            genetics.
+            As a researcher, I&rsquo;ve felt how much attention variant review loses to moving between
+            databases. I built Eamos to bring that evidence into one traceable workspace, so researchers
+            and clinicians can spend more time interpreting what the sources actually show. The mission is
+            simple: make genomic evidence easier to inspect without hiding uncertainty.
           </blockquote>
           <p
             className="mt-7"

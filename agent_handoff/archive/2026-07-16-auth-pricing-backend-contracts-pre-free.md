@@ -1,15 +1,5 @@
 # Auth + Pricing Backend Contracts
 
-> [!CAUTION]
-> **Payment product contract superseded 2026-07-16 13:19 +0000 · Codex.**
-> Eamos has no public pricing, checkout, paid tier, upgrade path, or predictor
-> entitlement. The payment routes below document dormant backend code only and
-> must not be treated as an active product contract. Do not remove or weaken
-> webhook signature, authentication, rate-limit, or idempotency controls merely
-> because the public funnel is gone. The evidence-submission section is not
-> superseded. The untouched prior file is preserved at
-> `agent_handoff/archive/2026-07-16-auth-pricing-backend-contracts-pre-free.md`.
-
 Section edited: 2026-05-24 19:51 +1000 - Codex.
 
 ## Payment Host Decision
@@ -79,7 +69,7 @@ If Supabase write-through env is absent, the backend keeps the local SQLite
 repository fallback for offline tests/dev only. Tests cover the Supabase REST
 boundary with a fake PostgREST client; no live Supabase secret is required.
 
-## Payments Contract (dormant historical contract)
+## Payments Contract
 
 `POST /api/v1/payments/checkout-session`
 

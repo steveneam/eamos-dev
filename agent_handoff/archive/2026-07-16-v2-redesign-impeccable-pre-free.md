@@ -1,14 +1,6 @@
 # Eamos v2 — Site-wide Bolder Redesign (impeccable)
 
-> **Status: HISTORICAL, SUPERSEDED 2026-07-16 13:19 +0000 · Codex. Do not
-> execute this plan.** Its durable design decisions have moved into `DESIGN.md`;
-> current landing work lives in `plans/landing-free-public/plan.md`. Every
-> pricing, checkout, premium wall, free/pro tier, predictor gate, and historical
-> AlphaMissense hold below is void. Eamos is one free product containing the
-> complete eleven-engine catalog. The untouched prior plan is preserved at
-> `agent_handoff/archive/2026-07-16-v2-redesign-impeccable-pre-free.md`.
->
-> Original status: PLAN, awaiting execution. Created 2026-05-26 (Claude). Frontend lane
+> Status: PLAN, awaiting execution. Created 2026-05-26 (Claude). Frontend lane
 > (`app/web/**`). Driven by the `impeccable` skill + 5 read-only surface audits.
 > Locked creative direction: **The Reading Room, teal kept** (chosen by Steven
 > 2026-05-26: serif + ruled-column structure; brand stays teal, no rebrand, no
@@ -359,7 +351,7 @@ milestone with explicit Claude-lane pathspecs; never sweep Codex's dirty files.
 
 ## 9. Open decisions (confirm in Phase 0)
 
-- Display serif: Newsreader (free, default) vs Canela/Tiempos (paid). 
+- Display serif: Newsreader (free, default) vs Canela/Tiempos (paid).
 - Body face: Inter (recommended) vs keep Plus Jakarta Sans.
 - Logo: stays teal (no refresh needed). Optional only: improve the spark mark's
   legibility at 18px nav scale (audit flagged it reads too thin).

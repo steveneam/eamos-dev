@@ -18,8 +18,8 @@ export function SiteFooter() {
           <div style={{ maxWidth: 360 }}>
             <EamosLogo size={18} tone="dark" />
             <p className="mt-4 text-[12.5px] leading-[1.6]" style={{ color: 'var(--hero-ink-2)' }}>
-              A free, independent genomic evidence workspace. Every wired source and predictor
-              is included, with citations, versions, and runtime status kept visible.
+              A free, independent genomic evidence workspace. Wired sources and predictor engines
+              are included, with runtime status and available provenance kept visible.
             </p>
           </div>
 

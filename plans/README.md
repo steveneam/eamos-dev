@@ -2,6 +2,17 @@
 
 Active and historical work plans for Eamos.
 
+## Universal-Free Product Ratchet
+
+Stamped: 2026-07-16 13:19 +0000 · Codex.
+
+`plans/landing-free-public/plan.md` and the 2026-07-16 governance decision
+supersede every historical pricing, checkout, Free/Pro/Max, premium-wall, and
+predictor-entitlement passage in this directory. Historical payment code may
+remain dormant with its security controls intact; it is not an active product
+surface. Operational limits such as batch size, rate limits, and provider
+capacity are neutral reliability controls and must not become paid access gates.
+
 ## Active Frontend Source Of Truth
 
 The live Eamos frontend is the Next.js app in `app/web`. Production build,
@@ -16,6 +27,9 @@ do not recreate a second hand-maintained frontend or contract mirror.
 | File | Owner | Scope |
 | ---- | ----- | ----- |
 | [`landing-free-public/plan.md`](landing-free-public/plan.md) | Codex | Active free-public landing reposition, monetization removal, and reproducible real-product feature captures. |
+| [`batch-vcf-and-panels/`](batch-vcf-and-panels/) | Historical/active architecture | Batch and panel architecture remains useful; its old tier gates are explicitly superseded by neutral operational safety bounds. |
+| [`auth-pricing/`](auth-pricing/) | Historical | Auth notes are historical context; all pricing/payment product requirements are superseded. Dormant backend payment controls remain hardened. |
+| [`v2-redesign-impeccable.md`](v2-redesign-impeccable.md) | Historical | Superseded design execution plan. Durable design decisions live in `DESIGN.md`; paid-wall and predictor-gating passages are void. |
 | [`v2-backend.md`](v2-backend.md) | Codex | Backend extensions and historical backend ledger. Prefer newer scoped docs when present. |
 | [`v2-frontend.md`](v2-frontend.md) | Historical | Superseded frontend port notes for the old Vite app. Active frontend work now lives in `app/web`. |
 | [`frontend-rebuild.md`](frontend-rebuild.md) | Historical | Original React/Vite rebuild. Keep for reference; do not execute. |

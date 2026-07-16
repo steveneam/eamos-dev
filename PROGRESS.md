@@ -1,5 +1,43 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-16 13:43 +0000 - Codex - Universal-free catalog and Landing Pass 2
+
+Steven's later universal-free decision superseded the earlier 12:30 landing
+posture: all eleven predictor engines are now one free catalog, with no public
+access split. The implementation landed in `fdd254b`; this follow-on completed
+the trust/comprehension audit and historical-plan ratchet.
+
+- Superseded the executable pricing/checkout/Free-Pro passages in the plan
+  index, auth-pricing contracts, batch VCF specification, and historical v2
+  redesign. Preserved each untouched pre-free file verbatim under
+  `agent_handoff/archive/2026-07-16-*-pre-free.md`.
+- Replaced the landing's unsupported “any genetic variant,” measured-time, and
+  treatment-timing claims with the reviewable flow: identify a supported
+  variant, inspect provenance, continue into Workbench or Batch.
+- Corrected the USH2A specimen's contradicted “Low Frequency” label. It now
+  shows the documented 0.182% maximum AF and AC 2,357 as raw gnomAD facts;
+  removed the unratcheted “3 Unique” count and exposed the static capture date.
+- Consolidated live, cached, bundled-demo, and unavailable semantics into one
+  compact trust note. Missing scores remain data states, never entitlements.
+- Extended the web boundary guard to bind the RPE65 hero identity to the tracked
+  backend coordinate fixture, require all eleven predictor names in active
+  product copy, and block the audited overclaims/specimen drift.
+- Extended the dependency-free Chrome harness with a real hero interaction
+  regression for mouse, Enter/Space keyboard activation, `aria-pressed`, the
+  accessibility tree, atomic status announcements, focus-visible, reduced
+  motion, and the compact mobile hide contract.
+
+Verification:
+
+- Desktop 1440 × 960 and mobile 390 × 844 visual review passed; the corrected
+  specimen and trust note remained scannable with no new overflow.
+- `npm run verify` passed in 148.2 seconds: structural/capture/contract guards,
+  ESLint, Ruff, Black, TypeScript, 8 coordination tests, 18 Vitest files / 161
+  tests, full backend pytest, and the 17-route production build.
+- No auth/RLS/session, payment control, source/provider, Supabase, Render,
+  Vercel, migration, materialization, or deploy mutation occurred. The
+  watcher-owned `agent_handoff/FROM-SWORDFISH.md` append was not edited or staged.
+
 ## 2026-07-16 12:30 +0000 - Codex - Free-public landing and peer-mail ratchet
 
 Completed the approved free-public landing slice and the queued Eamos-local

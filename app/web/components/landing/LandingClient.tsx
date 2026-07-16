@@ -84,7 +84,7 @@ export function LandingClient() {
               margin: '0 0 22px',
             }}
           >
-            Understand any genetic{' '}
+            Trace a genetic{' '}
             <span style={{ color: 'var(--em-bright)' }}>variant</span>
           </h1>
 
@@ -97,8 +97,8 @@ export function LandingClient() {
               margin: '0 0 40px',
             }}
           >
-            Search a gene, a variant, or ask in plain words. Eamos brings source evidence and
-            the full predictor panel into one cited report. Everything is included free.
+            Identify a supported variant, inspect its source provenance, then continue into
+            Workbench or Batch. The full 11-engine predictor catalog is included free.
           </p>
 
           <div style={{ width: '100%', maxWidth: 680 }}>
