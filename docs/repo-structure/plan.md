@@ -51,7 +51,9 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
 | `app/backend/app/services/variant_report_orchestrator.py` | 886 | Profile assembly remains here; normalization/provenance helpers and section ranking now have focused modules. |
-| `app/web/components/report/ReportGeneViewer.tsx` | 2487 | Report-specific viewer UI plus viewer state, adaptation, controls, and rendering. |
+| `app/web/components/report/ReportGeneViewer.tsx` | 845 | Stable public report viewer plus gene-locus rendering; controller, snapshot adaptation, shared presentation, and protein responsibilities are now focused modules. |
+| `app/web/components/report/gene-viewer/ReportProteinView.tsx` | 694 | Protein architecture controls and SVG rendering only. |
+| `app/web/components/report/gene-viewer/proteinViewModel.ts` | 553 | Protein feature normalization, packing, legend, palette, and provenance presentation model. |
 
 These are the refactor targets. Generated lockfiles, generated JSON fixtures,
 contract mirrors, and historical plans are not structure problems by themselves.
@@ -125,6 +127,14 @@ The same cleanup split the 1,707-line data-source registry into a stable
 20-line facade, 357 lines of types and validation, and a 1,350-line declarative
 record catalog. The original imports remain valid, while focused registry,
 field-policy, manifest, structure, and protein-annotation tests cover the fold.
+
+The 2026-07-16 report-viewer fold reduced the stable
+`ReportGeneViewer.tsx` import surface from 2,487 to 845 lines. Snapshot
+adaptation, network/state control, shared presentation primitives, protein
+feature modeling, and protein SVG rendering now live under
+`components/report/gene-viewer/`. Per-file budgets of 900, 175, 275, 175, 600,
+and 750 lines prevent those responsibilities from collapsing back together;
+focused adapter/controller tests preserve seed and fetch decisions.
 
 ## Refactor sequence
 
