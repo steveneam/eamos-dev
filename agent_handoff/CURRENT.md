@@ -25,34 +25,37 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED @ 2026-07-16 10:53 UTC — Render-to-syd2 Phase 1 is complete
-  and independently verified. Phase 2/3, cutover, cancellation, and destructive
-  cleanup remain held behind new explicit founder gates.
+- **Codex:** STOPPED @ 2026-07-16 11:18 UTC — Phase 1 is complete. The next
+  `gogogo` has standing approval to build the Eamos-local cross-agent mailbox
+  ratchet; all migration and Swordfish-side actions remain held.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-16 10:54 +0000 · Codex (Phase-1 completion recorded; shared file locks released)
+UNLOCKED · 2026-07-16 11:19 +0000 · Codex (coordination-ratchet lane queued; lock released)
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-16 10:53 +0000 · Codex Phase 1 complete
-Read CURRENT.md, README.md, the Phase-1 runbook, latest ASK/FROM notes, and git log/status.
-Main d9a3270 and image sha256:177fb44f...16b8 are verified; CI 29487052200 was green.
-Two independent Render manifests match: 23 rows / 47,943,536,945 bytes / c907fa2a...20cbb.
-Exact-byte preservation added the approved 10 objects; comparator is matched=23 render_only=0.
-The syd2 ClinGen one-off exited 0 and its one-file asset-manifest diff is green.
-Payload: 527925248 bytes, sha256 50e12d4c...dd9b, owner 1000:1000, mode 0600.
-Runtime remains empty, .drill is intact, service is stopped 0/0, temp credentials are absent.
-Four exited uvicorn swarm remnants remain deliberately unpruned; they contain no payload.
-Do not start Phase 2/3, cutover, Render cancellation, provider changes, or cleanup without a new gate.
-Safe to clear: yes — Phase 1 is verified, the handoff is recorded, and all later actions are held.
+# Resume prompt · 2026-07-16 11:18 +0000 · coordination ratchet queued
+Read CURRENT.md, README.md, CLAUDE.md, git log/status, and the live mailbox conventions.
+Phase 1 is complete; head f6474a2 and CI 29492555791 are green. Migration stays held.
+Steven explicitly approved the next-session Eamos-local coordination-ratchet lane.
+Build a peer-mailbox registry and tested CLI for send, check, wait, and status.
+Enforce inbound/outbound ownership, append ordering, UTC stamps, CURRENT lock hygiene,
+secret scanning, stale-lock detection, and pre-commit refusal of watcher-owned inbound files.
+Document a neutral cross-project contract and prepare a Swordfish adoption packet.
+Use mock mailboxes for tests; never edit/stage FROM-SWORDFISH.md or Swordfish's repository.
+Do not contact Swordfish or start Phase 2/3, resize, bulk seed, cutover, cancellation, or cleanup.
+Keep structural guards green, commit, push, and watch CI to the verified boundary.
+Safe to clear: yes — the next action and its exclusions are durable in CURRENT.md.
 ```
 
 ## Pointer
 
 - Code/image: `d9a3270060a7b50886964546c0b7dd995139e647` and
   `ghcr.io/steveneam/eamos-backend@sha256:177fb44fae30d2fec76d97f39636a05ea08067f2a472e6138c291109d87716b8`.
+- Phase-1 handoff: `f6474a2b008141ee86b01183d10d2f91f33450f1`;
+  CI run `29492555791` and Vercel are green.
 - Runbook: `docs/deployment/render-to-syd2-phase1.md` §4 blocks migration on
   any `RENDER_ONLY`; §7 is now checksum-green for the isolated ClinGen proof.
 - Evidence: `/home/deploy/transfer-project1/` is `0700`; Eamos manifest and
@@ -78,12 +81,18 @@ Safe to clear: yes — Phase 1 is verified, the handoff is recorded, and all lat
   permissions/tree/runtime/canary, and corroborated the stopped service state.
 - Phase 1 exit is met. Phase 2 resize is held; current 79 GiB free means the
   resize trigger remains the later Phase-3 bulk seed, not this completed proof.
+- Steven chose to leave Swordfish closed tonight and approved turning the
+  successful asymmetric mailbox/watcher workflow into an executable Eamos
+  ratchet next session, without cross-project or infrastructure mutations.
 
 ## Next Action
 
-- No migration action is active. Await Steven's explicit gate for Phase 2/3.
-- If resumed, re-read the latest Swordfish note, rerun the fail-closed syd2
-  preflight before any write, and preserve the frozen digest/mount/manifest
-  contracts. Render stays live until the final founder-approved Phase-4 cancel.
-- Leave the four exited uvicorn evidence containers alone unless destructive
-  cleanup is separately and explicitly authorized.
+- On bare `gogogo`, immediately implement the approved Eamos-local coordination
+  ratchet: registry; `send`/`check`/`wait`/`status` CLI; ownership, append-order,
+  timestamp, lock, secret, and staging guards; tests; neutral protocol docs; and
+  a ready-but-unsent Swordfish adoption packet.
+- Do not ask Steven to restate approval. Do not edit/stage the watcher-owned
+  inbound file, touch Swordfish's repository, contact its agent, or mutate any
+  cloud/host/provider state. Keep every migration phase held.
+- Verify the applicable structural guards, commit only owned paths, push, and
+  watch CI. Leave the four exited uvicorn containers untouched.
