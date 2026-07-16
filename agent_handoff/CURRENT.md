@@ -25,12 +25,12 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** COMPLETE @ 2026-07-16 07:28 UTC — PR #14 is merged, local `main`
-  matches `origin/main`, and the post-merge boundary is verified.
+- **Codex:** COMPLETE @ 2026-07-16 08:16 UTC — Compare batch-model fold is
+  pushed on synced `main`; CI and Vercel are green.
 
 ## Log Edit-Lock
 
-RELEASED: 2026-07-16 07:34 +0000 · Codex (post-merge pointer corrected clear-safe)
+RELEASED: 2026-07-16 08:16 +0000 · Codex (Compare fold verified clear-safe)
 
 ## Shared File Locks
 
@@ -39,45 +39,41 @@ RELEASED: 2026-07-16 07:34 +0000 · Codex (post-merge pointer corrected clear-sa
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-16 07:28 +0000 · Codex report folds merged
-Read CURRENT.md, agent_handoff/README.md, then inspect git log/status and the structure plan.
-PR #14 rebase-merged at fe85bc5; local main and origin/main match.
-ReportGeneViewer, PopulationFrequencySection, and ReportClient retain stable public contracts
-while adapter/controller/model/rendering responsibilities now live in focused modules.
-Full verify, audit, protein regression, browser QA, CI, and Vercel passed; post-merge guards
-and 13 focused tests also pass. FROM-SWORDFISH.md is watcher-owned and remains dirty.
-Next, perform a read-only audit of the next approved non-gated structure-plan hotspot and
-freeze a bounded contract before edits; keep schema/provider/cloud/materialization/deploy gated.
-Safe to clear: yes — PR #14 is merged, main is synced, and the verified boundary is durable.
+# Resume prompt · 2026-07-16 08:16 +0000 · Codex Compare batch fold
+Read CURRENT.md, agent_handoff/README.md, the migration master plan, then inspect git log/status.
+Main commit 7fb5459 preserves the named CompareClient route export while moving batch request,
+progress, error, and issue-copy modeling into a focused, tested module.
+Full web tests/lint/type/build, cross-code guards, 26 batch security tests, CI run 29482675204,
+and Vercel passed. FROM-SWORDFISH.md remains watcher-owned and dirty.
+The Phase-1 dry-run itself does not need Render; the mandatory live-disk manifest proof needs
+read-only runtime shell/exec on the SG service, or an operator-provided raw manifest artifact.
+Next, perform a read-only migration-readiness audit: confirm container UID and freeze exact
+source/Render/syd2 manifest commands. Do not touch cloud, secrets, materialization, or deploy.
+Safe to clear: yes — the verified code boundary is pushed and all remote checks are green.
 ```
 
 ## Pointer
 
-- PR: #14, `refactor(web): split report rendering responsibilities`, merged
-  2026-07-16 07:26 UTC by rebase.
-- Main commits: `e932d3d` gene-viewer fold, `2a20031` review handoff, and
-  `fe85bc5` population/report-shell fold.
-- CI: run `29479731408`; all repository jobs passed. Vercel preview is Ready.
-- Post-merge: PR code boundary `fe85bc5` is on synced local/remote `main`; root
-  guard passed and focused gene-viewer/population/report-client Vitest passed 13/13.
+- Main commit: `7fb5459`, `refactor(web): split compare batch lifecycle model`.
+- CI: run `29482675204`; dependency security, both backend shards, aggregator,
+  web, and frontend passed. Vercel deployment completed successfully.
+- Local: 160 web tests, lint, TypeScript, production build, cross-code guards,
+  and 26 focused backend batch tests passed.
 - Worktree: only `agent_handoff/FROM-SWORDFISH.md` is modified; it is
   watcher-owned and was not staged, committed, or altered by this lane.
 
 ## Delta
 
-- `ReportGeneViewer.tsx` fell from 2,487 to 845 lines,
-  `PopulationFrequencySection.tsx` from 1,580 to 326, and `ReportClient.tsx`
-  from 1,770 to 148 while their exported component contracts stayed stable.
-- Snapshot adaptation, request/state control, population modeling/readouts/map,
-  load states, section primitives, and body/protein rendering now have focused
-  owners, structural budgets, and model/controller regression tests.
-- Existing report fixture visuals, copy, controls, exports, provenance, and
-  backend contract shapes remain unchanged; no provider/cloud/schema/deploy
-  action was taken.
+- `CompareClient.tsx` fell from 1,323 to 1,132 lines. The 218-line
+  `batchRunModel.ts` owns payload/filter adaptation and progress/error copy.
+- Twelve focused model tests plus 1,200/250-line budgets protect the split.
+- Security review preserved server auth, owner isolation, rate limits, upload
+  bounds, and bounded Ask-Eamos scope. No confirmed vulnerability was added.
+- No Render, Supabase, provider, schema, materialization, or deploy action ran.
 
 ## Next Action
 
-- Start with a read-only audit of the next already-approved, non-gated hotspot
-  in `docs/repo-structure/plan.md`. Freeze its public contract and propose the
-  smallest serial slice before editing; do not sweep the watcher-owned handoff
-  change or cross any schema/provider/cloud/materialization/deploy gate.
+- Perform the read-only Phase-1 migration-readiness audit: determine the
+  container runtime UID/GID and freeze exact source-bucket, live-Render-disk,
+  and syd2 manifest/diff commands. Do not execute any cloud, secret, seed,
+  deploy, provider, or materialization action without its explicit gate.

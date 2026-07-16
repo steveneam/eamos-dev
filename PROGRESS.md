@@ -1,5 +1,37 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-16 08:16 +0000 - Codex - Compare batch lifecycle structure fold
+
+Completed the next approved R5 structure slice without changing the `/compare`
+route contract, rendered behavior, backend schema, or provider posture.
+
+- Preserved the named `CompareClient` export used by `app/compare/page.tsx`.
+- Moved the browser-to-batch variant allowlist, supported filter translation,
+  job progress/error model, and issue severity copy into the focused
+  `components/compare/batchRunModel.ts` module.
+- Reduced `CompareClient.tsx` from 1,323 to 1,132 lines and added 1,200/250-line
+  structure budgets for the route shell and model.
+- Added 12 focused tests covering exact payload fields, filter translation,
+  progress metadata, and auth/expiry/rate-limit/validation/unavailable/stalled
+  failure mappings.
+- Security review confirmed the adjacent batch routes remain authenticated,
+  owner-scoped, rate-limited, and upload-size-bounded. Ask-Eamos still receives
+  only the bounded cohort summary; raw VCF/INFO data was not added to chat.
+
+Verification:
+
+- Full web Vitest: 17 files / 160 tests passed; full ESLint and TypeScript passed.
+- Next production build passed with `/compare` statically generated.
+- `test_boundary.py`, `test_frontend_contract.py`, and
+  `test_structure_guard.py` passed; the tracked web boundary was clean across
+  268 files.
+- Focused backend batch auth/ownership/rate-limit/upload suite: 26 passed.
+- Main commit `7fb5459` is pushed. CI run `29482675204` passed dependency
+  security, both backend shards, the backend aggregator, web, and frontend;
+  Vercel deployment completed successfully.
+- No Render/Supabase/provider/schema/materialization/deploy action was taken.
+  The watcher-owned `agent_handoff/FROM-SWORDFISH.md` change was excluded.
+
 ## 2026-07-15 14:48 +0000 - Codex - P1 search dual-provider authentication
 
 Section updated: 2026-07-15 15:08 +0000 · Codex after PR merge and main CI.
