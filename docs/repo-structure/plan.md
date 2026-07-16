@@ -40,8 +40,10 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/workbench/workbench-designers.css` | 879 | CRISPR, primer, and full-gene designer ownership. |
 | `app/web/components/workbench/workbench-side-panel.css` | 527 | Scratchpad, disclosures, links, and side-panel ownership. |
 | `app/web/components/workbench/workbench-shell.css` | 158 | Workbench route tokens, navigation, context strip, and shell layout. |
-| `app/web/components/report/PopulationFrequencySection.tsx` | 1580 | Frequency shell, tabs, ancestry table, and map; age charts now extracted. |
+| `app/web/components/report/PopulationFrequencySection.tsx` | 326 | Stable population-frequency shell plus tab and selection orchestration. |
 | `app/web/components/report/PopulationAgeDistribution.tsx` | 310 | Age chart rendering and spreadsheet export. |
+| `app/web/components/report/population-frequency/PopulationFrequencyAncestry.tsx` | 613 | Dataset controls, ancestry bars, inspectors, and tabular readouts. |
+| `app/web/components/report/population-frequency/PopulationFrequencyMap.tsx` | 568 | Geographic and off-map cohort rendering, selection, and legend. |
 | `app/backend/app/data_sources/registry.py` | 20 | Stable public facade and default-registry composition. |
 | `app/backend/app/data_sources/registry_models.py` | 357 | Registry types, validation, and license policy invariants. |
 | `app/backend/app/data_sources/registry_records.py` | 1,350 | Declarative source metadata, isolated from registry behavior. |
@@ -54,6 +56,9 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/report/ReportGeneViewer.tsx` | 845 | Stable public report viewer plus gene-locus rendering; controller, snapshot adaptation, shared presentation, and protein responsibilities are now focused modules. |
 | `app/web/components/report/gene-viewer/ReportProteinView.tsx` | 694 | Protein architecture controls and SVG rendering only. |
 | `app/web/components/report/gene-viewer/proteinViewModel.ts` | 553 | Protein feature normalization, packing, legend, palette, and provenance presentation model. |
+| `app/web/components/report/ReportClient.tsx` | 148 | Stable report route shell; lookup control, load states, section primitives, and report rendering are focused modules. |
+| `app/web/components/report/report-client/ReportBody.tsx` | 676 | Numbered report composition and lazy-section rendering. |
+| `app/web/components/report/report-client/useReportClient.ts` | 272 | URL interpretation, redirects, cancellation, cache use, and lookup state. |
 
 These are the refactor targets. Generated lockfiles, generated JSON fixtures,
 contract mirrors, and historical plans are not structure problems by themselves.
@@ -135,6 +140,16 @@ feature modeling, and protein SVG rendering now live under
 `components/report/gene-viewer/`. Per-file budgets of 900, 175, 275, 175, 600,
 and 750 lines prevent those responsibilities from collapsing back together;
 focused adapter/controller tests preserve seed and fetch decisions.
+
+The follow-on report folds reduced `PopulationFrequencySection.tsx` from 1,580
+to 326 lines and `ReportClient.tsx` from 1,770 to 148 lines without changing
+their exported component contracts. Population dataset modeling, ancestry
+readouts, map interaction, and unavailable states now have focused owners.
+Report request/cache identity, lookup control, load-state presentation, section
+state primitives, and body rendering are likewise separated. Per-module line
+budgets prevent the two shells from reabsorbing those responsibilities, while
+focused model tests cover dataset selection, raw exports, lazy overrides,
+request identity, cache isolation, and classification mapping.
 
 ## Refactor sequence
 
