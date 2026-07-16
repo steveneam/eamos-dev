@@ -432,7 +432,7 @@ function PlanStatusHeader({ email }: { email: string }) {
               textTransform: 'uppercase',
             }}
           >
-            Free public access
+            Free access
           </span>
         </div>
       </div>

@@ -29,16 +29,16 @@ const ITEMS: QA[] = [
     a: 'Eamos is designed for variant evidence, not identifiable patient records. The sample comparison starts in your browser, while saved variants and evidence submissions follow the Privacy Policy. Do not submit identifiable patient information unless you are authorised to do so.',
   },
   {
-    q: 'Which databases does a single search cover?',
-    a: 'The public-source sweep covers ClinVar, gnomAD, Ensembl, PubMed, and ClinicalTrials.gov, with an ACMG-aware rules layer applied to the aggregated evidence.',
+    q: 'Which databases and predictors does a search cover?',
+    a: 'Eamos combines ClinVar, gnomAD, Ensembl, PubMed, and ClinicalTrials.gov with AlphaMissense, ESM1b, REVEL, PrimateAI-3D, MetaLR, CI-SpliceAI, SpliceAI, Pangolin, CADD, GPN-MSA, and CAPICE.',
   },
   {
     q: 'Is Eamos really free?',
-    a: 'Yes. Eamos has no paid tiers or checkout. Some third-party predictor datasets require separate licenses, so Eamos only presents those results when their source and distribution terms allow it, and keeps that provenance visible.',
+    a: 'Yes. Eamos is one free product with no paid tiers or checkout. Every wired source and predictor is included. If a score is missing, the report says so; it is never hidden behind an upgrade.',
   },
   {
     q: 'How current is the data?',
-    a: 'Each report labels its source state. Depending on availability, a row may be live, cached, bundled demo data, unavailable, or held behind a source gate; the report keeps that status visible.',
+    a: 'Each report labels its source state. Depending on runtime availability, a row may be live, cached, bundled demo data, or unavailable, and the report keeps that status visible.',
   },
 ]
 

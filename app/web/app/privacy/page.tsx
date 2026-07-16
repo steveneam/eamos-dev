@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const SECTIONS: { h: string; p: string }[] = [
   {
     h: '1. Research use only',
-    p: 'Eamos is a research-use-only (RUO) genomic variant intelligence tool. It aggregates publicly available reference data for informational and research purposes. It is not a medical device and output must not be used as the sole basis for any clinical decision.',
+    p: 'Eamos is a research-use-only (RUO) genomic variant intelligence tool. It aggregates reference data and computational predictor outputs for informational and research purposes. It is not a medical device and output must not be used as the sole basis for any clinical decision.',
   },
   {
     h: '2. Who we are',
@@ -28,7 +28,7 @@ const SECTIONS: { h: string; p: string }[] = [
   },
   {
     h: '5. Reference genomic data is not your personal data',
-    p: 'Evidence shown in variant reports (from ClinVar, gnomAD, Ensembl, ClinicalTrials.gov, PubMed, and other sources) is reference data about variants, not personal data belonging to you. Reports label whether a source row is live, cached, fixture-backed, unavailable, or gated. Eamos is not intended for identifiable patient records; do not submit identifiable patient information unless you are authorised to do so.',
+    p: 'Evidence shown in variant reports (from ClinVar, gnomAD, Ensembl, SpliceAI, REVEL, ClinicalTrials.gov, PubMed, and other sources) is reference data about variants, not personal data belonging to you. Reports label whether a source row is live, cached, fixture-backed, or unavailable. Eamos is not intended for identifiable patient records; do not submit identifiable patient information unless you are authorised to do so.',
   },
   {
     h: '6. How we use your information',

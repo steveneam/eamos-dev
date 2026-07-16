@@ -27,9 +27,9 @@ const REPRESENTATIONS = [
   {
     key: 'evidence',
     label: 'Evidence',
-    context: 'Public-source sweep',
-    value: 'ClinVar · gnomAD · PubMed',
-    marker: '3 sources',
+    context: 'Full evidence stack',
+    value: 'ClinVar · REVEL · SpliceAI',
+    marker: '11 engines',
   },
 ] as const
 
@@ -178,7 +178,7 @@ export function HeroVariantMap() {
         </div>
 
         <p className="hero-variant-note">
-          The same bundled demo, normalized across genome, transcript, protein, and public evidence.
+          The same bundled demo, normalized across genome, transcript, protein, and the full evidence stack.
         </p>
       </div>
 

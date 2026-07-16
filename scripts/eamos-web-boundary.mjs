@@ -2,7 +2,7 @@
 // eamos-web-boundary - structural boundary guard for the app/web Next.js surface.
 //
 // A node guard (no vitest harness in app/web) reusing the eamos-*.mjs idiom, run
-// over GIT-TRACKED app/web files. It asserts three boundaries and signals via the
+// over GIT-TRACKED app/web files. It asserts four boundaries and signals via the
 // exit code so CI and the pre-commit hook can gate on it:
 //
 //   1. Client/server boundary: no `'use client'` component statically imports a
@@ -14,6 +14,8 @@
 //      run of 8+ is not).
 //   3. Contract canary: the active backend.ts contract exists and is non-empty.
 //      Full schema<->TypeScript parity is guarded by test_frontend_contract.py.
+//   4. Free predictor catalog: no product access split returns, the complete
+//      engine catalog stays visible, and REVEL + SpliceAI remain in product copy.
 //
 // Usage:
 //   node scripts/eamos-web-boundary.mjs           # scan app/web
@@ -48,6 +50,21 @@ const IMPORT_FROM_RE = /^\s*import\b[^'"]*from\s*['"]([^'"]+)['"]/
 const IMPORT_BARE_RE = /^\s*import\s*['"]([^'"]+)['"]/
 // Exactly-7 conflict marker at line start, boundary = whitespace (incl. CR) or EOL.
 const CONFLICT_RE = new RegExp('^(' + '<'.repeat(7) + '|' + '='.repeat(7) + '|' + '>'.repeat(7) + ')(\\s|$)')
+const PREDICTOR_ACCESS_SPLIT_RE = /License review|License-gated source|Commercial-gated source|SourceAccessTag|TierTag|alphamissense_on_hold/
+const PREDICTOR_ENTITLEMENT_FIELD_RE = /\b(?:public_serialization_allowed|launch_gate)\b/
+const REQUIRED_PREDICTORS = [
+  'AlphaMissense',
+  'ESM1b',
+  'REVEL',
+  'PrimateAI-3D',
+  'MetaLR',
+  'CI-SpliceAI',
+  'SpliceAI',
+  'Pangolin',
+  'CADD',
+  'GPN-MSA',
+  'CAPICE',
+]
 
 function trackedWebFiles() {
   const out = execFileSync('git', ['ls-files', 'app/web'], {
@@ -98,6 +115,24 @@ for (const rel of files) {
     if (CONFLICT_RE.test(line)) {
       violations.push({ kind: 'conflict-marker', file: rel, line: i + 1, detail: line.slice(0, 40) })
     }
+    // 4a) one free predictor catalog: no access-tier vocabulary or client-side
+    // entitlement field belongs on active app/components surfaces.
+    if (PREDICTOR_ACCESS_SPLIT_RE.test(line)) {
+      violations.push({
+        kind: 'predictor-access-split',
+        file: rel,
+        line: i + 1,
+        detail: 'free predictor catalog must not render an access tier or license-review label',
+      })
+    }
+    if ((rel.startsWith('app/web/app/') || rel.startsWith('app/web/components/')) && PREDICTOR_ENTITLEMENT_FIELD_RE.test(line)) {
+      violations.push({
+        kind: 'predictor-client-entitlement',
+        file: rel,
+        line: i + 1,
+        detail: 'backend predictor metadata is informational and must not become a client access filter',
+      })
+    }
     // 1) client/server import boundary
     if (isClient) {
       const m = IMPORT_FROM_RE.exec(line) || IMPORT_BARE_RE.exec(line)
@@ -118,6 +153,46 @@ for (const rel of ['app/web/lib/backend.ts']) {
   const abs = join(REPO_ROOT, rel)
   if (!existsSync(abs) || readFileSync(abs, 'utf8').trim().length === 0) {
     violations.push({ kind: 'missing-contract', file: rel, line: 0, detail: 'active contract missing or empty' })
+  }
+}
+
+// 4b) the full catalog remains a visible, free product contract.
+const predictorTableRel = 'app/web/components/report/CalibratedInSilicoTable.tsx'
+const predictorTablePath = join(REPO_ROOT, predictorTableRel)
+if (!existsSync(predictorTablePath)) {
+  violations.push({ kind: 'missing-predictor-catalog', file: predictorTableRel, line: 0, detail: 'predictor catalog missing' })
+} else {
+  const predictorTable = readFileSync(predictorTablePath, 'utf8')
+  for (const predictor of REQUIRED_PREDICTORS) {
+    if (!predictorTable.includes(`name: '${predictor}'`)) {
+      violations.push({
+        kind: 'missing-free-predictor',
+        file: predictorTableRel,
+        line: 0,
+        detail: `${predictor} missing from the free predictor catalog`,
+      })
+    }
+  }
+}
+
+const marketingFiles = [
+  'app/web/components/auth/AuthPageClient.tsx',
+  'app/web/components/landing/Faq.tsx',
+  'app/web/components/landing/HowItWorks.tsx',
+  'app/web/lib/sources.ts',
+]
+const marketingText = marketingFiles
+  .filter((rel) => existsSync(join(REPO_ROOT, rel)))
+  .map((rel) => readFileSync(join(REPO_ROOT, rel), 'utf8'))
+  .join('\n')
+for (const predictor of ['REVEL', 'SpliceAI']) {
+  if (!marketingText.includes(predictor)) {
+    violations.push({
+      kind: 'missing-predictor-marketing',
+      file: marketingFiles.join(', '),
+      line: 0,
+      detail: `${predictor} missing from free-product copy`,
+    })
   }
 }
 

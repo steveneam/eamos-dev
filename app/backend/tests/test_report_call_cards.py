@@ -168,6 +168,9 @@ def test_computational_card_prefers_source_labeled_annotation_metrics() -> None:
     )
     evidence_map = {
         "computational_annotations": {
+            # Legacy callers may still send this retired access-policy field.
+            # It must not hide a returned predictor from the free catalog.
+            "excluded_predictors": ["REVEL", "CADD PHRED", "MetaLR"],
             "predictors": [
                 {"name": "REVEL", "score": 0.78, "threshold": 0.5},
                 {"name": "CADD PHRED", "score": 23.4, "threshold": 20.0},

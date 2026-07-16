@@ -1,21 +1,30 @@
-# Free In-Silico Predictor Materialization Plan
+# In-Silico Predictor Materialization Plan
 
-Status: Planned / code-readiness started - 2026-07-04 - Codex
+Status: Planned / code-readiness started; universal-free product decision
+reconciled 2026-07-16 12:47 +0000 · Codex.
 
 ## Context
 
-The report in-silico catalog marks these predictors as Free:
+The report exposes one free catalog containing every wired predictor:
 
 - AlphaMissense
 - ESM1b
+- REVEL
+- PrimateAI-3D
+- MetaLR
 - CI-SpliceAI
+- SpliceAI
 - Pangolin
+- CADD
 - GPN-MSA
+- CAPICE
 
-This plan covers backend readiness only. It does not approve downloads, uploads,
-runtime sync, Supabase writes, Render env/provider flips, or public launch
-filters. Health, source preflight, and build ledger must distinguish visible
-planned slots from materialized source-backed predictor rows.
+This plan covers backend readiness for the not-yet-materialized lanes only. It
+does not approve downloads, uploads, runtime sync, Supabase writes, Render
+env/provider flips, or source materialization. Health, source preflight, and
+build ledger must distinguish free visible catalog slots from materialized
+source-backed predictor rows. Backend license/provenance/launch metadata remains
+informational for Steven's later keep/remove decision and is not a product tier.
 
 Current source findings, checked 2026-07-04 from primary sources:
 
@@ -34,18 +43,20 @@ Current source findings, checked 2026-07-04 from primary sources:
 
 ## Decisions
 
-- Treat "Free" as product visibility, not materialization approval.
-- Emit backend status for every Free catalog slot, including planned/unwired
+- Treat universal free product access as distinct from materialization approval.
+- Emit backend status for every catalog slot, including planned/unwired
   lanes, so the report UI cannot silently imply live data.
+- Do not use license or launch metadata as client entitlement logic. Preserve it
+  on rows, health, and preflight for audit and the later source-retention decision.
 - Keep materialization fail-closed: no row is emitted unless the backend adapter
   returns a source-backed score with provenance and a reviewed field allowlist.
 - Prefer static exact-variant cache or remote range lookup for very large
   genome-wide assets. Request-time model inference needs a separate resource
   envelope proof.
 
-## Task 1 - Readiness Contract For Free Predictor Slots
+## Task 1 - Readiness Contract For Predictor Slots
 
-Goal: Make health/preflight/build-ledger expose every Free catalog predictor
+Goal: Make health/preflight/build-ledger expose every catalog predictor
 without pretending missing lanes are available.
 
 Context: AlphaMissense, ESM1b, and CI-SpliceAI already had backend lanes; GPN-MSA

@@ -19,7 +19,8 @@ import { resolveClassificationConfig } from '@/lib/classification'
 //
 // The canonical ClassificationBadge (hero) keeps its own file (it carries the
 // review-star logic); this primitive follows its geometry rather than replacing
-// it. Source-access tags remain a separate, non-verdict vocabulary.
+// it. Predictor access-tier tags are intentionally absent because the product
+// exposes one universal free catalog.
 
 export interface EvidenceTone {
   bg: string

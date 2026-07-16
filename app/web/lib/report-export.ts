@@ -35,7 +35,7 @@ export interface FullReportExport {
 }
 
 const DISCLAIMER =
-  'Decision-support only. EAMOS aggregates public sources; a qualified clinician confirms every classification. Every datum is source-linked in the live report.'
+  'Decision-support only. EAMOS aggregates genomic evidence and predictor outputs; a qualified clinician confirms every classification. Every datum is source-linked in the live report.'
 
 function variantLine(payload: ReportPayload): string {
   const h: VariantReportHeader | null | undefined = payload.report_profile?.header

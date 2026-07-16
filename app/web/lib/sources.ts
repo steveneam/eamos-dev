@@ -25,6 +25,12 @@ export const SOURCES: SourceMeta[] = [
     description: 'Deep learning splicing impact scores',
   },
   {
+    key: 'revel',
+    label: 'REVEL',
+    href: 'https://sites.google.com/site/revelgenomics/',
+    description: 'Ensemble missense pathogenicity scores',
+  },
+  {
     key: 'ensembl',
     label: 'Ensembl',
     href: 'https://www.ensembl.org/',
@@ -43,21 +49,6 @@ export const SOURCES: SourceMeta[] = [
     description: 'NIH clinical trials registry',
   },
 ]
-
-// Marketing surfaces list only sources whose public access is unambiguous.
-// The full catalog above remains available to report provenance, where source,
-// license, and launch-gate metadata belong next to any returned result.
-const LANDING_SOURCE_KEYS = new Set([
-  'clinvar',
-  'gnomad',
-  'ensembl',
-  'pubmed',
-  'clinicaltrials',
-])
-
-export const LANDING_SOURCES = SOURCES.filter((source) =>
-  LANDING_SOURCE_KEYS.has(source.key),
-)
 
 // Legacy/backend source keys that map onto a canonical SOURCES entry, so
 // per-source lookups (e.g. the evidence table's `vep` row) keep resolving

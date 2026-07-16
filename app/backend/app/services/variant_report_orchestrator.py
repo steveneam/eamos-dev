@@ -514,15 +514,13 @@ def _computational_deep_dive_from_annotations(
     status: str,
     provenance: list[SourceProvenance],
 ) -> ComputationalDeepDiveSection | None:
-    excluded = set(_string_list(computational.get("excluded_predictors")))
-    excluded.discard("AlphaMissense")
     rows = [
         row
         for row in (
             _computational_row_from_dict(item)
             for item in _list_of_dicts(computational.get("predictors"))
         )
-        if row is not None and row.name not in excluded
+        if row is not None
     ]
 
     spliceai = _dict_or_empty(computational.get("spliceai"))
@@ -538,7 +536,7 @@ def _computational_deep_dive_from_annotations(
             _computational_row_from_dict(item)
             for item in _list_of_dicts(computational.get("conservation"))
         )
-        if row is not None and row.name not in excluded
+        if row is not None
     ]
     warnings = _dedupe_text(
         [

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const SECTIONS: { h: string; p: string }[] = [
   {
     h: '1. Research use only',
-    p: 'Eamos aggregates available third-party genomic evidence into a single report. It is provided for research and informational purposes only and is not a medical device. Output must not be used as the sole basis for any clinical or diagnostic decision.',
+    p: 'Eamos aggregates third-party genomic evidence and computational predictor outputs into a single report. It is provided for research and informational purposes only and is not a medical device. Output must not be used as the sole basis for any clinical or diagnostic decision.',
   },
   {
     h: '2. No warranty on aggregated evidence',
@@ -27,8 +27,8 @@ const SECTIONS: { h: string; p: string }[] = [
     p: 'Where you submit variant evidence for onward routing (e.g. to ClinVar), you confirm you have the right to share that data, that it contains no identifiable patient information unless you are authorised to share it, and that submissions are logged for audit.',
   },
   {
-    h: '5. Free access and third-party sources',
-    p: 'Eamos currently provides platform access without paid tiers or checkout. Third-party databases, software, and predictor datasets remain subject to their own terms and licenses. A result may be unavailable, withheld, or shown with a source or launch gate when those terms do not allow Eamos to distribute it.',
+    h: '5. Free access',
+    p: 'Eamos provides one free product without paid tiers or checkout. All currently wired sources and predictors are included. Third-party sources remain subject to their own terms; source names, versions, citations, and runtime status remain visible. When a source cannot return a result for a variant, Eamos marks it unavailable rather than hiding it behind an upgrade.',
   },
   {
     h: '6. Changes to these terms',

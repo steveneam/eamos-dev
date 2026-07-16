@@ -1,5 +1,5 @@
 import { EamosLogo } from '@/components/brand/EamosLogo'
-import { LANDING_SOURCES } from '@/lib/sources'
+import { SOURCES } from '@/lib/sources'
 import { TextLink, TextLinkStyles } from '@/components/landing/ui/TextLink'
 import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 
@@ -18,14 +18,14 @@ export function SiteFooter() {
           <div style={{ maxWidth: 360 }}>
             <EamosLogo size={18} tone="dark" />
             <p className="mt-4 text-[12.5px] leading-[1.6]" style={{ color: 'var(--hero-ink-2)' }}>
-              A free, independent genomic evidence workspace. Public-source results keep their
-              citations and provenance, and source availability remains visible.
+              A free, independent genomic evidence workspace. Every wired source and predictor
+              is included, with citations, versions, and runtime status kept visible.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-12">
             <FooterCol title="Sources">
-              {LANDING_SOURCES.map((s) => (
+              {SOURCES.map((s) => (
                 <TextLink key={s.key} href={s.href} target="_blank" rel="noopener noreferrer" className="text-[12.5px]">
                   {s.label}
                 </TextLink>

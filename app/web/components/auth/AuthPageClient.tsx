@@ -89,7 +89,7 @@ export function AuthPageClient() {
           >
             One query.
             <br />
-            Public evidence.
+            Every predictor.
           </h1>
           <p
             style={{
@@ -100,9 +100,9 @@ export function AuthPageClient() {
               maxWidth: 380,
             }}
           >
-            Public genomic evidence, aggregated into one structured report.
-            Built for researchers who need a fast orientation and provenance
-            they can inspect at every step.
+            ClinVar, gnomAD, SpliceAI, REVEL, AlphaMissense, CADD and more,
+            aggregated into one structured report. Every wired predictor is
+            included free, with provenance you can inspect at every step.
           </p>
 
           <div

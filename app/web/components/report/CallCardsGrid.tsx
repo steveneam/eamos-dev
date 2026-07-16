@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { CarouselDots } from '@/components/ui/CarouselDots'
 import { EvidenceChip } from '@/components/ui/EvidenceChip'
 import type { ReportCallBadgeKind, ReportCallCard, ReportPayload } from '@/lib/backend'
+import { visibleProductWarnings } from '@/lib/product-warnings'
 
 interface CallCardsGridProps {
   payload: ReportPayload
@@ -149,9 +150,6 @@ function cardCanNavigate(card: ReportCallCard): boolean {
   )
 }
 
-// Warning codes that should never surface in the rendered UI.
-const SUPPRESSED_WARNINGS = new Set(['alphamissense_on_hold'])
-
 function cardMeta(card: ReportCallCard): string {
   const provenance = card.provenance ?? []
   if (provenance.length > 0) return provenance.slice(0, 2).join(' | ')
@@ -176,7 +174,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
         {cards.map((card) => {
           const navigates = cardCanNavigate(card)
           const badges = card.support_badges ?? []
-          const cardWarnings = (card.warnings ?? []).filter((w) => !SUPPRESSED_WARNINGS.has(w))
+          const cardWarnings = visibleProductWarnings(card.warnings)
           // Lab & Functional is colour-coded by functional STATE across the WHOLE
           // card surface (scan the report, read the wet-lab call at a glance):
           // red deficit / green normal / yellow conflict / blue uncurated / grey

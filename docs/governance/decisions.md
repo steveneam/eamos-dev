@@ -3,6 +3,35 @@
 Relocated from `agent_handoff/DECISIONS.md`: 2026-07-15 21:39 +1000 by Codex
 to keep durable reference material outside the live session handoff.
 
+## 2026-07-16: One Free Predictor Catalog, Decide Source Retention Later
+
+Section added: 2026-07-16 12:47 +0000 · Codex.
+
+Decision (Steven, 2026-07-16): Eamos exposes one free predictor catalog now.
+Remove the product-facing `Free`/`Pro` and `Public`/`License review` distinctions,
+restore REVEL and SpliceAI to product copy, and include every wired predictor.
+Steven will decide later which sources stay or go.
+
+This explicitly supersedes the 2026-05-19 AlphaMissense display hold and the
+predictor-marketing restrictions recorded in the first 2026-07-16 free-landing
+pass. AlphaMissense, ESM1b, REVEL, PrimateAI-3D, MetaLR, CI-SpliceAI, SpliceAI,
+Pangolin, CADD, GPN-MSA, and CAPICE are all part of the same free product.
+
+Implementation boundary:
+
+- No predictor access pill, paywall, upgrade prompt, entitlement filter, or
+  license-review placeholder belongs in the frontend.
+- Retired `excluded_predictors` payload hints do not suppress returned rows in
+  the report profile or computational call card.
+- A score absent because an artifact, upstream result, or runtime is unavailable
+  remains an honest data/readiness state. It is not an access tier.
+- Preserve license, provenance, `launch_gate`, and
+  `public_serialization_allowed` metadata on backend rows, health, and preflight
+  so the later keep/remove decision has evidence. Metadata is informational now;
+  do not erase it or turn it into account-role/auth plumbing.
+- This decision does not authorize source downloads/materialization, provider or
+  cloud changes, redistribution workarounds, or fabricated scores.
+
 ## 2026-07-08: Agent-Agnostic Ownership (supersedes role-pinned lane decisions)
 
 Section edited: 2026-07-08 22:43 +1000 - Claude.

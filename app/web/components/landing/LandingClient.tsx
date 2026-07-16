@@ -68,7 +68,7 @@ export function LandingClient() {
                 boxShadow: '0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent)',
               }}
             />
-            Free public access
+            Free access
           </span>
 
           <h1
@@ -97,8 +97,8 @@ export function LandingClient() {
               margin: '0 0 40px',
             }}
           >
-            Search a gene, a variant, or ask in plain words. Eamos gathers available public
-            evidence into one clear, sourced report, free to use.
+            Search a gene, a variant, or ask in plain words. Eamos brings source evidence and
+            the full predictor panel into one cited report. Everything is included free.
           </p>
 
           <div style={{ width: '100%', maxWidth: 680 }}>

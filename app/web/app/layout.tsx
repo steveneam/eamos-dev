@@ -42,7 +42,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
 const defaultTitle = 'Eamos: Genomic Intelligence Platform'
 const defaultDescription =
-  'Free genomic variant evidence from public sources, gathered into one cited research report. Research use only.'
+  'Free genomic variant evidence and predictor scores, including SpliceAI and REVEL, gathered into one cited research report. Research use only.'
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,

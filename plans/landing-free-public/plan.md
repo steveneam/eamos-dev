@@ -1,7 +1,7 @@
-# Free-public landing and product gallery
+# Free-access landing and product gallery
 
-Status: implemented; verification and commit/push handoff in progress.
-Stamped: 2026-07-16 12:18 +0000 · Codex.
+Status: universal-free predictor update implemented and verified.
+Stamped: 2026-07-16 13:06 +0000 · Codex.
 
 ## Outcome
 
@@ -10,20 +10,21 @@ credibility. Remove the paid funnel. Replace generic feature marketing with
 fresh browser captures of the actual report, Workbench, and multi-variant
 comparison flows.
 
-This is not a claim that every third-party predictor can be redistributed for
-free. Product access and source licensing are separate boundaries.
+Steven's 2026-07-16 decision makes the full wired predictor catalog part of the
+same free product now. License/provenance/launch-gate fields remain in backend
+rows, health, and preflight as informational metadata for a later keep/remove
+decision; they do not create a product tier or hide a returned score.
 
 ## Frozen decisions
 
 1. Eamos has no public paid tiers, upgrade path, or checkout funnel.
 2. The landing page says access is free. It does not use a `$0` pricing card or
    preserve pricing language in another form.
-3. REVEL, SpliceAI, and any other restricted source remain governed by their
-   license/provenance/launch-gate metadata. Removing payment does not erase a
-   source license.
-4. Marketing names only sources Eamos can truthfully expose in the public
-   experience. Restricted predictors are not promised in hero, FAQ, auth, or
-   source-strip copy.
+3. REVEL, SpliceAI, AlphaMissense, ESM1b, PrimateAI-3D, MetaLR, CI-SpliceAI,
+   Pangolin, CADD, GPN-MSA, and CAPICE are all included in the free catalog.
+4. The product has no `Free`/`Pro`, `Public`/`License review`, or equivalent
+   predictor-access split. A missing score is a runtime/data state, not an
+   entitlement state.
 5. Feature imagery comes from Eamos itself, using safe demo variants and sample
    VCF data. No patient data, browser account identity, secrets, or production
    dashboards may appear.
@@ -33,26 +34,26 @@ free. Product access and source licensing are separate boundaries.
    screenshots demonstrate provenance and workflow, not lifestyle marketing.
 8. The hero's right-hand visual is a code-native interactive variant map, not
    stock imagery. It maps one bundled RPE65 change across genomic, transcript,
-   protein, and public-evidence representations, with keyboard and
+   protein, and full-evidence-stack representations, with keyboard and
    reduced-motion behavior.
 
 ## Information architecture
 
-1. **Hero:** free public access, one variant search, three concrete examples,
+1. **Hero:** free access, one variant search, three concrete examples,
    and an interactive DNA locus that explains how one change maps across the
    evidence stack.
-2. **Public-source strip:** only sources safe to claim as part of the public
-   product.
+2. **Evidence-source strip:** include the wired source set, including SpliceAI
+   and REVEL.
 3. **Real report specimen:** keep the existing evidence specimen as a fast
-   glance, but remove synthetic claims about unavailable predictors.
-4. **How it works:** query, public-source sweep, sourced report. No licensed
-   score claims or fabricated instant timing.
+   glance, without fabricating scores the bundled artifact does not contain.
+4. **How it works:** query, full evidence sweep, sourced report. Name the full
+   predictor catalog and keep actual runtime state honest.
 5. **Product gallery:** three large, alternating browser captures:
-   - variant report: public gnomAD population evidence and source status;
+   - variant report: gnomAD population evidence and source status;
    - Workbench: sequence context and hands-on analysis;
    - Compare: safe sample-VCF cohort triage.
 6. **Founder mission:** retain the personal reason the product exists.
-7. **FAQ and footer:** explain public access, research-use scope, source
+7. **FAQ and footer:** explain free access, research-use scope, source
    availability, caching, and privacy.
 
 The pricing climax disappears. The product gallery becomes the visual proof and
@@ -67,22 +68,28 @@ the mission section becomes the emotional close.
 - Remove the checkout route/components and the client pricing model.
 - Move the shared secondary-page header out of `components/pricing` before
   deleting that package.
-- Replace Terms billing copy with free-access/source-license language.
+- Replace Terms billing copy with universal free-access language.
 - Remove subscription-purpose wording from Privacy without touching Supabase
   authentication, RLS, saved variants, or evidence submission behavior.
 - Keep backend payment/webhook code dormant. Deleting public UI is not a reason
   to casually weaken its server-side signature, auth, rate-limit, or idempotency
   controls.
 
-### B. Make marketing license-honest
+### B. Make predictor access universal
 
-- Remove REVEL and SpliceAI promises from landing, auth marketing, metadata, and
-  FAQ copy.
-- Keep their report provenance and launch-gate metadata intact where the backend
-  returns it.
-- Replace product `Free`/`Pro` labels with `Public`/`License review`. Live rows
-  defer to `public_serialization_allowed` and `launch_gate`; placeholders use a
-  conservative catalog fallback rather than inventing access.
+- Restore REVEL, SpliceAI, and the complete predictor catalog to landing, auth,
+  metadata, FAQ, and report copy.
+- Remove predictor access pills and disease-source policy chips. Do not replace
+  them with another universal `Free` badge on every row; one product-level free
+  statement is enough.
+- Ignore the retired `excluded_predictors` access-policy hint when constructing
+  report-profile rows and computational call cards, so returned scores remain
+  available across backend and frontend surfaces.
+- Keep `public_serialization_allowed`, `launch_gate`, license, and provenance
+  metadata intact in backend contracts, rows, health, and preflight. The UI does
+  not use those fields as an entitlement filter.
+- Keep missing scores honest: `Awaiting predictor data` or `Score unavailable`
+  means no source-backed row was returned, never that an upgrade is required.
 
 ### C. Ship real feature captures
 
@@ -108,7 +115,7 @@ the mission section becomes the emotional close.
 - Replace the ambient right-side strand decoration with an interactive RPE65
   variant map.
 - Keep the actual query identity explicit: GRCh38 genomic change, transcript
-  HGVS, protein consequence, and safe public sources.
+  HGVS, protein consequence, and named evidence sources.
 - Make the central locus and all four representation controls keyboard
   operable, with `aria-pressed`, an announced readout, visible focus, and a
   static reduced-motion state.
@@ -140,7 +147,9 @@ or user identifier.
 
 - `rg` finds no user-facing pricing, billing-plan, upgrade, checkout, or paid
   subscription language in active `app/web` surfaces.
-- No landing/auth/legal copy promises REVEL or SpliceAI availability.
+- The free-access canary confirms all eleven predictor names remain in the
+  report catalog, REVEL and SpliceAI remain in product copy, and no active
+  access-tier or `License review` UI returns.
 - `node scripts/eamos-capture-landing-features.mjs --check` validates asset
   presence, dimensions, hashes, and manifest routes without launching Chrome.
 - Desktop and mobile landing browser smoke verifies image crops, no horizontal
@@ -153,9 +162,11 @@ or user identifier.
 ## Deliberate non-goals
 
 - No Supabase migration, policy, provider, auth, or cloud change.
-- No licensed predictor download, redistribution, score fabrication, or license
-  workaround.
-- No backend predictor removal. Preserve provenance and launch gates.
+- No new predictor asset download, redistribution, or score fabrication in this
+  copy/UI slice.
+- No backend predictor removal or metadata erasure. Preserve provenance and
+  launch gates for the later founder decision, but do not turn them into access
+  controls now.
 - No Stripe/Supabase/Render/Vercel mutation or deploy command.
 - No patient or private-account screenshot.
 - No simultaneous web writers. The landing, shared navigation, legal copy, and
@@ -178,8 +189,8 @@ change materially.
   inspect provenance, and continue into Workbench or Batch.
 - Keep the founder mission, but add third-party proof only when a real named
   user or publication can be cited. No invented testimonials or vanity counts.
-- Explain source outages, cached fallbacks, and license-gated predictors in one
-  compact trust note instead of scattering caveats.
+- Explain source outages, cached fallbacks, and unavailable scores in one compact
+  trust note instead of scattering caveats.
 
 ### Pass 3: responsive, accessible, and fast
 
@@ -204,4 +215,4 @@ change materially.
 
 Each pass ends with desktop/mobile browser evidence, the structural canaries,
 and a measured before/after. None reintroduces billing, entitlement tiers,
-licensed-score promises, or a client-side security boundary.
+predictor-access labels, or a client-side security boundary.

@@ -309,8 +309,6 @@ def _computational_card_from_annotations(
     if not annotations:
         return None
 
-    excluded = {str(item) for item in annotations.get("excluded_predictors", [])}
-    excluded.discard("AlphaMissense")
     rows = [
         row
         for row in (
@@ -318,7 +316,7 @@ def _computational_card_from_annotations(
             for item in annotations.get("predictors", [])
             if isinstance(item, dict)
         )
-        if row is not None and row["name"] not in excluded
+        if row is not None
     ]
     spliceai = annotations.get("spliceai") if isinstance(annotations.get("spliceai"), dict) else {}
     spliceai_score = _as_float(spliceai.get("max_delta")) if spliceai else None

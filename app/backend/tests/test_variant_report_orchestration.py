@@ -6,6 +6,7 @@ import re
 import pytest
 
 from app.schemas.lookup import SearchInputInterpretation
+from app.services.variant_report_orchestrator import _computational_deep_dive_from_annotations
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.search_input_resolver import SearchInputResolution, SourceSpecificInputs
 from app.tools.base import ToolResult
@@ -96,6 +97,28 @@ def _assert_no_population_metrics_in_section_2_or_acmg(profile: dict) -> None:
 def _computed_rows(payload: dict) -> dict:
     computed = payload["eamos_computed_classification"]
     return {row["code"]: row for row in computed["per_criterion"]}
+
+
+def test_computational_deep_dive_ignores_retired_predictor_exclusions() -> None:
+    section = _computational_deep_dive_from_annotations(
+        {
+            "excluded_predictors": ["REVEL", "SpliceAI", "AlphaMissense"],
+            "predictors": [
+                {"name": "REVEL", "score": 0.81, "source": "REVEL"},
+                {"name": "SpliceAI", "score": 0.32, "source": "SpliceAI"},
+                {"name": "AlphaMissense", "score": 0.74, "source": "AlphaMissense"},
+            ],
+        },
+        status="live",
+        provenance=[],
+    )
+
+    assert section is not None
+    assert {row.name for row in section.predictors} == {
+        "REVEL",
+        "SpliceAI",
+        "AlphaMissense",
+    }
 
 
 def test_lookup_returns_typed_variant_report_profile(client) -> None:

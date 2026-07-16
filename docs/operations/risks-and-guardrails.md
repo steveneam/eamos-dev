@@ -305,6 +305,8 @@ Section consolidated: 2026-07-15 11:19 UTC by Codex from the retired
 
 Section consolidated: 2026-07-15 11:19 UTC by Codex from the retired
 pause register.
+Section edited: 2026-07-16 12:47 +0000 · Codex (AlphaMissense display hold
+reopened by Steven; asset/cloud gates unchanged).
 
 Do not start without explicit user direction:
 
@@ -315,12 +317,15 @@ Do not start without explicit user direction:
 - Patient Report Pipeline (`/runs`, PDF upload/intake/clinician review). Do not
   extend the demo auth or upload/review/approve/chat/PDF-preview flow until the
   founder explicitly reopens it.
-- AlphaMissense display/integration. Keep its assets and contract literals, but
-  do not surface, remove, re-enable, or refactor them until the founder explicitly
-  reopens that lane.
 - branch surgery / destructive git ops (reset, clean, force-push, lineage
   rewrite) — Claude *commits* are no longer gated (see Dirty Worktree)
 - broad cleanup/refactors
+
+The former AlphaMissense display/integration hold is superseded by Steven's
+2026-07-16 universal-free predictor decision. Surface AlphaMissense with the
+rest of the catalog. This does not authorize source materialization, provider or
+cloud mutations, redistribution workarounds, or fabricated scores; those gates
+remain in force.
 
 ## M-002C Primer Provider Limitations
 

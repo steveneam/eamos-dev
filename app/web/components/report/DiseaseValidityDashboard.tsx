@@ -34,7 +34,6 @@ interface SourceRow {
   status: string
   version?: string | null
   href?: string | null
-  policy: 'PUBLIC' | 'LICENSE' | 'GATED'
   note?: string | null
 }
 
@@ -190,13 +189,6 @@ function sourceLabelFromUrl(url: string): string | null {
   return null
 }
 
-function sourcePolicy(label: string): SourceRow['policy'] {
-  const normalized = label.toLowerCase()
-  if (normalized.includes('omim')) return 'LICENSE'
-  if (normalized.includes('restricted')) return 'GATED'
-  return 'PUBLIC'
-}
-
 function rowFromProvenance(item: SourceProvenance): SourceRow {
   const label = item.source === 'Orphadata' ? 'Orphanet' : item.source
   return {
@@ -204,7 +196,6 @@ function rowFromProvenance(item: SourceProvenance): SourceRow {
     status: item.status,
     version: item.version,
     href: item.source_url,
-    policy: sourcePolicy(label),
   }
 }
 
@@ -243,8 +234,6 @@ function buildSourceRows(
         label,
         status: geneDiseaseRow?.status ?? 'missing',
         href: diseaseIdLink(id),
-        policy: sourcePolicy(label),
-        note: label === 'OMIM' ? 'Launch-gated identifier source' : null,
       })
     }
   }
@@ -257,7 +246,6 @@ function buildSourceRows(
           label,
           status: condition.sourceKind === 'gene_disease' ? geneDiseaseRow?.status ?? 'missing' : 'legacy',
           href: diseaseIdLink(id),
-          policy: sourcePolicy(label),
           note: condition.sourceKind === 'legacy_report' ? 'Legacy condition payload' : null,
         })
       }
@@ -269,7 +257,6 @@ function buildSourceRows(
           label,
           status: geneDiseaseRow?.status ?? 'missing',
           href: url,
-          policy: sourcePolicy(label),
         })
       }
     }
@@ -280,7 +267,6 @@ function buildSourceRows(
         addSourceRow(rows, {
           label,
           status: 'legacy',
-          policy: sourcePolicy(label),
           note: 'Legacy associated-condition source label',
         })
       }
@@ -295,7 +281,6 @@ function buildSourceRows(
       status: sourceStatus,
       version: curated.source_version,
       href: curated.source_url,
-      policy: curated.public_serialization_allowed === false ? 'GATED' : 'PUBLIC',
       note: hasClinVarSource
         ? sourceStatus === 'fixture'
           ? 'Fixture aggregate from installed ClinVar rows'
@@ -306,14 +291,12 @@ function buildSourceRows(
       addSourceRow(rows, {
         label: 'UniProt',
         status: 'legacy',
-        policy: 'PUBLIC',
         note: 'Distribution payload, pending source-row contract',
       })
     }
   }
 
   const priority = (row: SourceRow) => {
-    if (row.policy === 'LICENSE') return 20
     if (row.status === 'legacy') return 15
     if (row.status === 'fixture' || row.status === 'fallback') return 10
     return 0
@@ -372,24 +355,6 @@ function StatusChip({ label }: { label: string }) {
       }}
     >
       {formatWarning(label)}
-    </span>
-  )
-}
-
-function PolicyChip({ policy }: { policy: SourceRow['policy'] }) {
-  const gated = policy !== 'PUBLIC'
-  const label = policy === 'PUBLIC' ? 'Public' : policy === 'LICENSE' ? 'License review' : 'Launch gate'
-  return (
-    <span
-      style={{
-        ...chipStyle,
-        background: gated ? 'var(--cls-vus-bg)' : 'var(--bg)',
-        borderColor: gated ? 'var(--cls-vus-bdr)' : 'var(--line)',
-        color: gated ? 'var(--cls-vus-text)' : 'var(--ink-3)',
-      }}
-      title={gated ? 'Source requires launch-time visibility or license handling.' : 'Source can render in public mode when row metadata allows it.'}
-    >
-      {label}
     </span>
   )
 }
@@ -487,10 +452,6 @@ export function DiseaseValidityDashboard({
   const curatedIsClinVar = curated?.source_id === 'ncbi_clinvar_vcf'
   const curatedIsFixture = curatedIsClinVar && curatedSourceStatus === 'fixture'
   const curatedSourceBacked = curatedIsClinVar && curatedSourceStatus !== 'legacy'
-  const gatedSourceCount = sourceRows.filter((row) => row.policy !== 'PUBLIC').length
-  const nonReadySourceCount = sourceRows.filter((row) =>
-    ['fixture', 'fallback', 'legacy', 'missing', 'error', 'failed'].includes(row.status.toLowerCase()),
-  ).length
   const sourceState = geneDiseaseRow?.status ?? typedDisease?.provenance?.[0]?.status ?? 'missing'
   const sourceBacked = !['fixture', 'fallback', 'legacy', 'missing', 'error', 'failed'].includes(sourceState)
 
@@ -593,13 +554,11 @@ export function DiseaseValidityDashboard({
           </span>
           <span style={sourceSummaryMetaStyle}>
             <span style={chipStyle}>{sourceRows.length} sources</span>
-            {gatedSourceCount > 0 && <PolicyChip policy="LICENSE" />}
-            {nonReadySourceCount > 0 && <StatusChip label={`${nonReadySourceCount} not launch-ready`} />}
           </span>
         </summary>
         <div style={sourceDrawerBodyStyle}>
           <p style={sourceDrawerNoteStyle}>
-            Source IDs, source versions, and launch gates live here so Section 5 can stay readable while still remaining audit-grade.
+            Source IDs, source versions, and data status live here so Section 5 can stay readable while still remaining audit-grade.
           </p>
           <div style={sourceTableStyle}>
             {sourceRows.map((row) => (
@@ -616,7 +575,6 @@ export function DiseaseValidityDashboard({
                   {row.note && <div style={sourceVersionStyle}>{row.note}</div>}
                 </div>
                 <div style={sourceMetaStyle}>
-                  <PolicyChip policy={row.policy} />
                   <StatusChip label={row.status} />
                 </div>
               </div>

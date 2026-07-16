@@ -22,16 +22,16 @@ const STEPS: Step[] = [
   {
     num: 2,
     kicker: 'Source sweep',
-    title: 'Eamos gathers the available evidence',
+    title: 'Eamos queries the full evidence stack',
     description:
-      'Public sources are queried according to availability, then aggregated with an ACMG-aware rules layer. Live, cached, fixture, and unavailable states stay visible.',
+      'Every wired source and predictor is requested in one free workflow, then joined with an ACMG-aware rules layer. Runtime status stays visible when a score cannot be returned.',
     visual: {
       lines: [
-        'ClinVar  … classification + status',
-        'gnomAD   … population evidence',
-        'Ensembl  … consequence mapping',
-        'Trials   … discovery links',
-        'PubMed   … cited literature',
+        'ClinVar · gnomAD · Ensembl',
+        'REVEL · AlphaMissense · ESM1b',
+        'SpliceAI · CI-SpliceAI · Pangolin',
+        'CADD · CAPICE · GPN-MSA',
+        'PrimateAI-3D · MetaLR · PubMed',
       ],
     },
   },
@@ -40,7 +40,7 @@ const STEPS: Step[] = [
     kicker: 'Sourced report',
     title: 'Inspect the report',
     description:
-      'A structured view joins the evidence summary, ACMG-aware interpretation, source rows, literature, and trial discovery links for human review.',
+      'A structured view joins predictor scores, ACMG-aware interpretation, source rows, literature, and trial discovery links for human review.',
     visual: { lines: ['Evidence: source-backed', 'Status: visible per row', 'Next: inspect provenance'] },
   },
 ]

@@ -1,4 +1,4 @@
-import { LANDING_SOURCES } from '@/lib/sources'
+import { SOURCES } from '@/lib/sources'
 import { Pill, PillStyles } from '@/components/landing/ui/Pill'
 import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 
@@ -11,10 +11,10 @@ export function SourceStrip() {
         style={{ maxWidth: 1180 }}
       >
         <LandingEyebrow className="shrink-0" style={{ color: 'var(--hero-ink-3)' }}>
-          Public sources
+          Evidence sources
         </LandingEyebrow>
         <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
-          {LANDING_SOURCES.map((src) => (
+          {SOURCES.map((src) => (
             <Pill
               key={src.key}
               as="a"

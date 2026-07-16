@@ -11,6 +11,7 @@
 import { LandingH2 } from '@/components/landing/ui/LandingHeading'
 import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 import type { ReportCallBadgeKind, ReportCallCard } from '@/lib/backend'
+import { visibleProductWarnings } from '@/lib/product-warnings'
 
 type SpecimenCard = Pick<
   ReportCallCard,
@@ -80,11 +81,6 @@ const BADGE_TONES: Record<ReportCallBadgeKind, { bg: string; border: string; col
   warning: { bg: 'var(--warn-tint)',   border: 'var(--warn-bdr)', color: 'var(--warn-text)' },
   neutral: { bg: 'var(--bg-soft)',     border: 'var(--line)', color: 'var(--ink-3)' },
 }
-
-// Mirror CallCardsGrid's policy. AlphaMissense is hidden per project policy
-// ([[project_alphamissense_plan]]) — its warning surfaces here too if backend
-// emits it, so suppress at render.
-const SUPPRESSED_WARNINGS = new Set(['alphamissense_on_hold'])
 
 function formatWarning(value: string): string {
   return value.replace(/_/g, ' ').replace(/:/g, ': ')
@@ -192,9 +188,7 @@ export function MetricBelt() {
             style={{ background: 'var(--line)' }}
           >
             {cards.map((card) => {
-              const visibleWarnings = (card.warnings ?? []).filter(
-                (w) => !SUPPRESSED_WARNINGS.has(w),
-              )
+              const visibleWarnings = visibleProductWarnings(card.warnings)
               const badges = (card.support_badges ?? []).slice(0, 3)
               return (
                 <article

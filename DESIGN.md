@@ -444,14 +444,15 @@ logo left, Features / How it works / FAQ centered in a flex-1 zone, AuthMenu
 right. `PageHeader` lives in `components/layout/` and is shared by account,
 terms, and privacy. It mirrors the LandingNav shape, so change the two together.
 
-The public product has no pricing, checkout, upgrade, or paid-tier surface.
-Predictor pills describe source availability as `Public` or `License review`;
-they never imply an Eamos subscription tier and never replace backend
-`launch_gate` or `public_serialization_allowed` metadata.
+The product has no pricing, checkout, upgrade, paid-tier, or predictor-access
+surface. The full predictor catalog is free, so the interface does not repeat a
+redundant access pill on every engine. Runtime availability stays separate from
+product access: missing scores use a plain unavailable state, while backend
+provenance and operational metadata remain intact for audit and preflight.
 
 The landing hero uses `HeroVariantMap`, a code-native interactive DNA locus,
 for its right-hand visual. Its bundled RPE65 example maps genomic → transcript
-→ protein → public evidence. The locus button and four representation controls
+→ protein → the full evidence stack. The locus button and four representation controls
 are real buttons with visible focus and `aria-pressed`; reduced motion renders
 the helix fully drawn, and the whole instrument yields to the search-first hero
 below the desktop breakpoint.

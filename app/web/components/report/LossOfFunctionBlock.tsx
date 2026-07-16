@@ -1,5 +1,4 @@
 import type React from 'react'
-import { SourceAccessTag, type SourceAccess } from '@/components/ui/SourceAccessTag'
 import { EvidenceChip } from '@/components/ui/EvidenceChip'
 import type { EamosComputedClassification, EamosComputedCriterion } from '@/lib/backend'
 
@@ -31,13 +30,13 @@ function isNullVariant(consequence: string | null | undefined): boolean {
   return NULL_CONSEQUENCES.some((n) => c.includes(n))
 }
 
-const LOF_TOOLS: { name: string; access: SourceAccess; tip: string }[] = [
-  { name: 'NMDetective-B', access: 'Public', tip: 'Predicts whether a premature stop triggers mRNA decay (no protein) or escapes it (truncated protein survives).' },
-  { name: 'Abou-Tayoun PVS1 tree', access: 'Public', tip: 'Eamos clean-room decision tree turning a null variant into a calibrated PVS1 strength, not a blanket flag.' },
-  { name: 'VEP NMD', access: 'Public', tip: 'Ensembl rule-based flag for stop-gain variants likely to escape nonsense-mediated decay.' },
+const LOF_TOOLS: { name: string; tip: string }[] = [
+  { name: 'NMDetective-B', tip: 'Predicts whether a premature stop triggers mRNA decay (no protein) or escapes it (truncated protein survives).' },
+  { name: 'Abou-Tayoun PVS1 tree', tip: 'Eamos clean-room decision tree turning a null variant into a calibrated PVS1 strength, not a blanket flag.' },
+  { name: 'VEP NMD', tip: 'Ensembl rule-based flag for stop-gain variants likely to escape nonsense-mediated decay.' },
 ]
 
-function ToolTag({ name, access, tip }: { name: string; access: SourceAccess; tip: string }) {
+function ToolTag({ name, tip }: { name: string; tip: string }) {
   return (
     <span
       title={tip}
@@ -47,7 +46,6 @@ function ToolTag({ name, access, tip }: { name: string; access: SourceAccess; ti
       }}
     >
       {name}
-      <SourceAccessTag access={access} />
     </span>
   )
 }
