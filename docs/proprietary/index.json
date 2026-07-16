@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-25 02:56 +1000 - Codex",
+  "updated": "2026-07-16 08:41 +0000 - Codex",
   "purpose": "Catalogue of Eamos-original scripts, CLIs, algorithms, and orchestration logic.",
   "entries": [
     {
@@ -115,6 +115,29 @@
         "app/backend/tests/test_eamos_coordinate_resolver.py",
         "app/backend/tests/test_search_input_resolver.py",
         "app/backend/tests/test_eamos_search_input_cli.py"
+      ]
+    },
+    {
+      "id": "eamos-migration-asset-manifest",
+      "name": "Eamos Migration Asset Manifest Verifier",
+      "type": "operator_cli_checksum_reconciliation_service",
+      "status": "active_operator_tooling",
+      "added_at": "2026-07-16 08:41 +0000 - Codex",
+      "last_updated_at": "2026-07-16 08:41 +0000 - Codex",
+      "doc": "docs/proprietary/eamos-migration-manifest.md",
+      "source_files": [
+        "app/backend/app/services/migration_asset_manifest.py",
+        "app/backend/app/cli/eamos_migration_manifest.py",
+        "app/backend/app/migration-source-overrides.json",
+        "docs/deployment/render-to-syd2-phase1.md"
+      ],
+      "entry_points": [
+        "python -m app.cli.eamos_migration_manifest source",
+        "python -m app.cli.eamos_migration_manifest tree",
+        "python -m app.cli.eamos_migration_manifest compare"
+      ],
+      "tests": [
+        "app/backend/tests/test_migration_asset_manifest.py"
       ]
     },
     {

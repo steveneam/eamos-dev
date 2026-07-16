@@ -1,0 +1,12 @@
+{
+  "schema_version": "eamos.migration_source_overrides.v1",
+  "objects": [
+    {
+      "object_path": "hmmer_pfam_a/pfam_current_release_2026-05-29/md5-dc814cc181ece09102c09c4e6c19f2fd/Pfam-A.hmm.gz",
+      "byte_size": 384357362,
+      "sha256": "d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591",
+      "reason": "Legacy verified private object predates adjacent checksum sidecars.",
+      "evidence": "PROGRESS.md#session-94---31-may-2026---private-pfam-storage-and-materialization-cli"
+    }
+  ]
+}

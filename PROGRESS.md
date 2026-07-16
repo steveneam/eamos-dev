@@ -1,5 +1,59 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-16 08:46 +0000 - Codex - Render-to-syd2 Phase-1 readiness verifier
+
+Completed the approved read-only Phase-1 migration-readiness slice without a
+seed, upload, deploy, provider/env change, Supabase mutation, VPS change, or
+Render action.
+
+- Added a deterministic source/runtime manifest verifier. The source command
+  uses only S3 list/head and bounded reads of objects no larger than one MiB;
+  it fails closed when list/head sizes, actual small-object content,
+  content-addressed paths, adjacent sidecars, or reviewed overrides disagree.
+- Added content-identity comparison by SHA-256 plus byte size so the private
+  bucket and materialized Render tree can be reconciled despite intentionally
+  different relpaths. Any runtime-only identity returns nonzero.
+- Live read-only source verification passed for all 35 private objects:
+  43,500,288,345 bytes total, 628,449 small-object bytes downloaded, zero
+  large-object downloads, and zero mutations. The 35-line manifest SHA-256 is
+  `0892d1ecd0f7f8bf117a5eac04f8b04d028ed4dbc260a5ede55028f742ad85dc`.
+- The current tracked Docker image has no `USER` instruction, so its declared
+  identity is root (`0:0`). Live runtime `id` remains unobserved because this
+  session has no authenticated Render shell/API and syd4 cannot reach the SG
+  SSH endpoint on port 22.
+- Froze the exact source, Render identity/disk-manifest, content comparison,
+  and syd2 harness commands in
+  `docs/deployment/render-to-syd2-phase1.md`.
+- Found a pre-cutover contract issue: Swordfish's required backup-exclusion
+  canary is `/srv/project1/assets/.drill/exclusion-canary.bin`, so using the
+  landing root as the exact application tree would always fail with `EXTRA`.
+  Proposed `/srv/project1/assets/runtime` as the isolated bind-mount source,
+  with `.drill` preserved as a sibling.
+- Added the verifier to the proprietary catalogue and documented its trust
+  boundary: the configured Supabase S3 key is full-power/server-side even
+  though this CLI exposes no mutation operation.
+
+Verification:
+
+- Six focused migration-manifest tests passed, including read-operation-only,
+  large-object no-download, checksum-authority disagreement, reviewed-override
+  schema, runtime-only derivative, and deterministic-tree coverage.
+- Full backend pytest passed at 100%; repository-wide Ruff and Black passed.
+- `test_boundary.py` plus the frontend-contract canary passed; the web boundary
+  was clean across 268 tracked files.
+- Swordfish's installed-source `asset-manifest` self-test passed determinism and
+  the MISSING/EXTRA/MISMATCH detection cases.
+- The active Next production build passed. A built-Next to local-FastAPI HTTP
+  proxy smoke returned 200 with the provider-cache response shape; all local
+  servers were stopped afterward.
+- JSON validation and `git diff --check` passed.
+
+Open Phase-1 gates are deliberately unchanged: capture live Render `id` and the
+raw disk manifest through an authenticated operator path; obtain syd2 numeric
+`deploy` UID/GID and agree the isolated runtime mount; record current-cycle
+Supabase egress headroom; then run the isolated ClinGen dry run. Render stays
+live, and bulk seeding still waits for the founder's resize gate.
+
 ## 2026-07-16 08:16 +0000 - Codex - Compare batch lifecycle structure fold
 
 Completed the next approved R5 structure slice without changing the `/compare`
