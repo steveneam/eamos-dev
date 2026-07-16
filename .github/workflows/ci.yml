@@ -18,6 +18,18 @@ permissions:
   contents: read
 
 jobs:
+  coordination:
+    name: coordination ratchets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node --test scripts/eamos-peer-mail.test.mjs
+      - run: node scripts/eamos-peer-mail.mjs status --staging-only
+      - run: node scripts/eamos-handoff-lint.mjs --strict
+
   web:
     # This label is a protected-branch status context. Keep it stable even as
     # the job adds test, boundary, typecheck, or production-build coverage.
@@ -111,7 +123,7 @@ jobs:
   publish_backend_image:
     name: publish backend image
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, dependency_security, frontend]
+    needs: [backend, coordination, dependency_security, frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: read

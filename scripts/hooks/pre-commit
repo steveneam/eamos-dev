@@ -13,7 +13,8 @@
 #
 #   1. eamos-vercel-project-guard --require-root-link   (always)
 #   2. eamos-grep-guard                                 (always — secrets + conflict markers)
-#   3. eamos-handoff-lint --strict                      (only when agent_handoff/CURRENT.md is staged)
+#   3. eamos-peer-mail status --staging-only            (always — peer-owned inbox protection)
+#   4. eamos-handoff-lint --strict                      (only when agent_handoff/CURRENT.md is staged)
 #
 # Degrades to a no-op (with a notice) when Node is unavailable.
 
@@ -38,7 +39,15 @@ if ! node scripts/eamos-grep-guard.mjs; then
   exit 1
 fi
 
-# 3) Handoff anti-bloat lint (strict) — only when the live handoff file is staged.
+# 3) Peer-mail ownership guard — never commit a watcher/peer-owned inbox.
+if ! node scripts/eamos-peer-mail.mjs status --staging-only; then
+  echo ""
+  echo "pre-commit: peer-mail staging guard failed."
+  echo "Unstage peer-owned inbound mail; its writer owns the commit."
+  exit 1
+fi
+
+# 4) Handoff anti-bloat lint (strict) — only when the live handoff file is staged.
 if git diff --cached --name-only | grep -q '^agent_handoff/CURRENT\.md$'; then
   if ! node scripts/eamos-handoff-lint.mjs --strict; then
     echo ""

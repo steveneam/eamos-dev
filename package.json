@@ -4,8 +4,10 @@
     "build": "node scripts/eamos-repo-gate.mjs build",
     "guard": "node scripts/eamos-repo-gate.mjs guard",
     "lint": "node scripts/eamos-repo-gate.mjs lint",
+    "mail": "node scripts/eamos-repo-gate.mjs mail",
     "prepare": "node scripts/install-hooks.mjs",
     "test": "node scripts/eamos-repo-gate.mjs test",
+    "test:coordination": "node scripts/eamos-repo-gate.mjs coordination",
     "typecheck": "node scripts/eamos-repo-gate.mjs typecheck",
     "verify": "node scripts/eamos-repo-gate.mjs verify"
   }

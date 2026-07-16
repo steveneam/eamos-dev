@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "local": {
+    "id": "eamos",
+    "label": "eamos",
+    "signature": "Eamos"
+  },
+  "defaults": {
+    "lockTtlSeconds": 1200,
+    "pollIntervalSeconds": 5,
+    "maxMessageBytes": 65536
+  },
+  "mailboxes": [
+    {
+      "id": "swordfish",
+      "peer": {
+        "id": "swordfish",
+        "label": "swordfish"
+      },
+      "owners": {
+        "outbound": "eamos",
+        "inbound": "swordfish"
+      },
+      "outbound": {
+        "path": "agent_handoff/ASK-BACKS-FOR-SWORDFISH.md",
+        "headingLevel": 2,
+        "appendMarker": "_New outbound notes append below this line._"
+      },
+      "inbound": {
+        "path": "agent_handoff/FROM-SWORDFISH.md",
+        "headingLevels": [1]
+      },
+      "allowDirtyInbound": true
+    }
+  ]
+}

@@ -22,6 +22,14 @@ function pythonCommand() {
 const PYTHON = pythonCommand()
 
 const stages = {
+  coordination: [
+    {
+      label: 'coordination ratchet tests',
+      command: NODE,
+      args: ['--test', join(ROOT, 'scripts', 'eamos-peer-mail.test.mjs')],
+      cwd: ROOT,
+    },
+  ],
   audit: [
     {
       label: 'web production dependency advisories (high or critical)',
@@ -44,6 +52,12 @@ const stages = {
     },
   ],
   guard: [
+    {
+      label: 'peer-mail staging ownership',
+      command: NODE,
+      args: [join(ROOT, 'scripts', 'eamos-peer-mail.mjs'), 'status', '--staging-only'],
+      cwd: ROOT,
+    },
     {
       label: 'web structural boundary',
       command: NODE,
@@ -88,6 +102,12 @@ const stages = {
     },
   ],
   test: [
+    {
+      label: 'coordination ratchet tests',
+      command: NODE,
+      args: ['--test', join(ROOT, 'scripts', 'eamos-peer-mail.test.mjs')],
+      cwd: ROOT,
+    },
     { label: 'web Vitest', command: NPM, args: ['run', 'test'], cwd: WEB },
     {
       label: 'backend pytest',
@@ -104,9 +124,21 @@ const stages = {
 const requested = process.argv[2] ?? 'verify'
 if (requested === '--help' || requested === '-h') {
   process.stdout.write(
-    'Usage: node scripts/eamos-repo-gate.mjs [audit|guard|lint|typecheck|test|build|verify]\n',
+    'Usage: node scripts/eamos-repo-gate.mjs [audit|guard|lint|typecheck|test|build|coordination|mail|verify]\n',
   )
   process.exit(0)
+}
+
+if (requested === 'mail') {
+  const result = spawnSync(NODE, [join(ROOT, 'scripts', 'eamos-peer-mail.mjs'), ...process.argv.slice(3)], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  })
+  if (result.error) {
+    process.stderr.write(`eamos:mail: could not start peer-mail CLI: ${result.error.message}\n`)
+    process.exit(1)
+  }
+  process.exit(result.status ?? 1)
 }
 
 const stageNames = requested === 'verify' ? ['guard', 'lint', 'typecheck', 'test', 'build'] : [requested]

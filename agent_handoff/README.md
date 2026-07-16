@@ -115,6 +115,37 @@ pre-reshape file is archived verbatim (Rule 1) when it held unrecorded detail;
 readability, rotate its oldest sessions verbatim to `archive/<date>-<slug>.md` and
 leave a one-line pointer.
 
+## Peer-mail executable contract
+
+Added: 2026-07-16 11:36 +0000 · Codex.
+
+The tracked registry [`.agent-mailboxes.json`](../.agent-mailboxes.json) names
+the writer of each channel and is the source of truth for protected inbound
+paths. `scripts/eamos-peer-mail.mjs` provides the local commands:
+
+```text
+npm run mail -- status
+npm run mail -- check --peer=swordfish
+npm run mail -- check --peer=swordfish --ack
+npm run mail -- wait --peer=swordfish --timeout=60
+npm run mail -- send --peer=swordfish --subject="..." --body-file=note.md
+npm run mail -- clear-safe
+```
+
+`status`, `check`, and `wait` are read-only. `--ack` writes only a receipt under
+the repository's private `.git/eamos-peer-mail/` state. `send` is append-only,
+uses a per-peer exclusive lock, stamps UTC itself, and refuses secret-shaped
+content, out-of-order mail, stale locks, or a staged peer-owned inbox. Running
+the command does not create authority to contact a peer; the active task still
+controls whether a live send is allowed.
+
+The pre-commit hook always blocks staged peer-owned inboxes. `clear-safe`
+refuses unless the live handoff is unlocked with a concrete Next Action,
+strict handoff lint passes, locally owned changes are committed, and `HEAD` is
+exactly synced with its upstream. A registry-declared watcher-owned inbox may
+remain dirty, but never staged. Full neutral contract and adoption procedure:
+`docs/operations/peer-mailbox-contract.md`.
+
 ## Roles & Capabilities (agent-agnostic — neither is a lane)
 
 Inventory reconciled: 2026-07-15 11:39 UTC by Codex against the live Swordfish
