@@ -45,6 +45,10 @@ Verification:
   FastAPI fixture-mode smoke returned HTTP 200 for `RPE65:c.260A>G`, all four
   call-card IDs, the expected GRCh38 coordinate, and 12 source-currency rows.
 - `git diff --check` and focused changed-file ESLint passed.
+- Implementation commit `52d98da` is pushed to `main`; CI run
+  `29512778692` passed every required job, including dependency security, both
+  backend shards, the web production build, coordination ratchets, the backend
+  container contract, and immutable artifact verification.
 
 No provider, source-materialization, Supabase, migration, environment, cloud,
 or deploy mutation occurred. The watcher-owned

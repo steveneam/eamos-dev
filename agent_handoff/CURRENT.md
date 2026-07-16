@@ -25,70 +25,59 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED @ 2026-07-16 15:01 UTC — Landing Pass 4 is verified,
-  committed, pushed, and CI-green. Provider, cloud, source materialization,
-  deployment, and the Swordfish packet remain held.
+- **Codex:** STOPPED @ 2026-07-16 15:52 +0000 — Variant Report presentation and
+  roadmap reconciliation completed in `52d98da`; CI run `29512778692` passed.
+  No cloud, provider, source-materialization, migration, environment, or deploy
+  mutation was performed.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-16 15:01 +0000 · Codex · Landing Pass 4 wrapped
+UNLOCKED · 2026-07-16 15:52 +0000 · Codex
 
 ## Shared File Locks
 
-None.
+- None. Codex released the report, roadmap, plan, progress, and handoff locks at
+  2026-07-16 15:52 +0000 after push and green CI.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-16 15:01 +0000 · Codex post-Landing Pass 4
-Read CURRENT.md, README.md, CLAUDE.md, git log/status, and the completed landing plan.
-Landing Pass 4 is complete in `693dc50`: safe share permalinks, anonymous content-free telemetry, and the self-hydrating sample VCF flow are ratcheted.
-Keep the universal-free eleven-engine contract and backend license/provenance/launch metadata frozen.
-Treat aggregate telemetry review as post-deploy follow-up; do not inspect person profiles, raw URLs, or genomic query content.
-First perform a read-only ROADMAP/active-plan audit and recommend the highest-value ungated next slice; do not start a structural feature without Steven's selection.
-Never edit/stage FROM-SWORDFISH.md; the Swordfish adoption packet remains unsent.
-Do not materialize sources or mutate Supabase, Stripe, Render, Vercel, providers, deployments, or migrations.
-Safe to clear: yes — Pass 4 is committed, pushed, CI-green, and durable.
+# Resume prompt · 2026-07-16 15:52 +0000 · Codex report evidence/runtime audit
+Read CURRENT.md, README.md, CLAUDE.md, ROADMAP.md, and plans/variant-report-experience/plan.md.
+The Variant Report presentation slice is complete in 52d98da; CI 29512778692 passed.
+The four call cards now hand directly to Clinical, followed by seven coherent chapters.
+Next, audit representative pathogenic, benign, unresolved, and source-empty variants read-only.
+Identify real seven-section evidence/runtime gaps before proposing the next bounded slice.
+Preserve the universal-free eleven-engine contract and backend license/provenance/launch metadata.
+Never edit or stage FROM-SWORDFISH.md.
+Do not materialize sources or mutate Supabase, providers, cloud, migrations, deploys, or env.
 ```
 
 ## Pointer
 
-- Completed plan and evidence: `plans/landing-free-public/plan.md` and
-  `PROGRESS.md`; implementation commit: `693dc50`.
-- Privacy adapter and tests: `app/web/lib/product-analytics.ts` and
-  `app/web/lib/product-analytics.test.ts`; public disclosure:
-  `app/web/app/privacy/page.tsx`.
-- Structural/browser ratchets: `scripts/eamos-web-boundary.mjs` and
-  `scripts/eamos-capture-landing-features.mjs --verify-pass4`.
-- Implementation CI: https://github.com/steveneam/eamos-dev/actions/runs/29508880151
-  — all jobs green, including dependency security and the immutable image check.
-- Phase-1 migration proof remains at `f6474a2b008141ee86b01183d10d2f91f33450f1`;
-  all later migration phases remain held.
+- Current roadmap: `ROADMAP.md`; next cycle is Report evidence and runtime
+  closure.
+- Completed presentation record: `plans/variant-report-experience/plan.md` and
+  the 2026-07-16 15:44 entry in `PROGRESS.md`.
+- Report hierarchy: `app/web/components/report/report-client/ReportBody.tsx`,
+  `app/web/components/ui/Card.tsx`, and `scripts/eamos-web-boundary.mjs`.
 - Watcher-owned `agent_handoff/FROM-SWORDFISH.md` may be dirty; never edit or
-  stage it. The adoption packet is ready but deliberately unsent.
+  stage it.
 
 ## Delta
 
-- `/compare?demo=1` now self-hydrates eight bundled variants in a fresh browser,
-  exposes a visible Generate decision, and performs zero automatic Batch calls.
-- The landing exposes two exact share paths with accessible clipboard feedback:
-  the sample report and the sample-VCF Batch flow.
-- Four fixed product events carry no variant, report, account, campaign, or raw
-  URL content. Analytics is anonymous and memory-only with identify/profile,
-  IP enrichment, replay, autocapture, page-leave, and surveys disabled.
-- Production audit: LCP 248 ms, CLS 0.0003, 444,514 JavaScript bytes, and 134,822
-  captured asset bytes across six viewport widths.
-- `npm run verify` passed in 143.3 seconds through the full backend suite, 163
-  frontend tests, structural guards, and the 17-route production build.
-- Evidence-first and vibe-security review found no confirmed vulnerability.
-  No source, provider, cloud, auth, payment, migration, or deploy mutation ran.
+- The stale May roadmap is replaced with the shipped July product reality and
+  a dependency-aware execution order.
+- The report keeps the four top cards, starts its detailed read at Clinical,
+  and presents all seven sections as one source-scoped numbered record.
+- Local full verification, report preflight, browser/a11y review, the
+  frontend-contract canary, the local Next -> FastAPI smoke, push, and CI are
+  green. Dense-widget contrast cleanup remains a recorded accessibility
+  follow-up.
 
 ## Next Action
 
-- Perform a read-only `ROADMAP.md` and active-plan audit, then recommend the
-  highest-value ungated next slice for Steven to select. Do not begin a new
-  structural feature from that audit alone.
-- Review only aggregate Pass 4 telemetry after a normal deploy exists; never
-  inspect person profiles, raw URLs, or genomic query content.
-- Keep the universal-free eleven-engine contract, migrations, providers, cloud,
-  deployments, live peer contact, and the Swordfish packet frozen.
+- Run a read-only representative-variant matrix across all seven report
+  sections, distinguish source absence from presentation defects, and recommend
+  the smallest evidence/runtime closure slice. Keep every cloud, provider,
+  materialization, migration, environment, and deploy gate closed.
