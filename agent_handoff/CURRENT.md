@@ -25,75 +25,72 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED @ 2026-07-16 11:18 UTC — Phase 1 is complete. The next
-  `gogogo` has standing approval to build the Eamos-local cross-agent mailbox
-  ratchet; all migration and Swordfish-side actions remain held.
+- **Codex:** STOPPED @ 2026-07-16 12:30 UTC — free-public landing, real product
+  captures, interactive DNA hero, and Eamos peer-mail ratchet completed and
+  verified; migration and Swordfish-side adoption remain held.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-16 11:20 +0000 · Codex (clear-safe ratchet queued; lock released)
+UNLOCKED · 2026-07-16 12:30 +0000 · Codex · verified landing and coordination slice complete
+
+## Shared File Locks
+
+- None.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-16 11:18 +0000 · coordination ratchet queued
-Read CURRENT.md, README.md, CLAUDE.md, git log/status, and the live mailbox conventions.
-Phase 1 is complete; head f6474a2 and CI 29492555791 are green. Migration stays held.
-Steven explicitly approved the next-session Eamos-local coordination-ratchet lane.
-Build a peer-mailbox registry and tested CLI for send, check, wait, and status.
-Enforce mailbox ownership/order, UTC stamps, lock hygiene, secret/stale-lock checks, and staging guards.
-Add a clear-safe verifier: refuse unless CURRENT has the concrete next plan, is unlocked,
-strict-lint clean, committed, and pushed; never tell Steven to clear/start before it passes.
-Document a neutral cross-project contract and prepare a Swordfish adoption packet.
-Use mock mailboxes for tests; never edit/stage FROM-SWORDFISH.md or Swordfish's repository.
-Do not contact Swordfish or start Phase 2/3, resize, bulk seed, cutover, cancellation, or cleanup.
-Keep structural guards green, commit, push, and watch CI to the verified boundary.
+# Resume prompt · 2026-07-16 12:30 +0000 · free-public landing Pass 2 queued
+Read CURRENT.md, README.md, CLAUDE.md, git log/status, and the landing plan.
+The free-public landing and peer-mail ratchet are complete; full `npm run verify` is green.
+Keep Eamos free: no public pricing, checkout, upgrade, paid tier, or licensed-score promise.
+Continue `plans/landing-free-public/plan.md` at Pass 2, trust and comprehension.
+First archive/supersede historical pricing plans and add automated hero interaction coverage.
+Audit every landing number/source/demo claim against a reproducible artifact and keep states explicit.
+Preserve the real-capture manifest, keyboard focus, reduced motion, and search-first mobile hero.
+Never edit/stage FROM-SWORDFISH.md; the Swordfish adoption packet remains unsent.
+Do not mutate Supabase, Stripe, Render, Vercel, providers, deployments, or migration state.
+Verify the structural canaries, commit only owned paths, push, and watch CI.
 Safe to clear: yes — the next action and its exclusions are durable in CURRENT.md.
 ```
 
 ## Pointer
 
-- Code/image: `d9a3270060a7b50886964546c0b7dd995139e647` and
-  `ghcr.io/steveneam/eamos-backend@sha256:177fb44fae30d2fec76d97f39636a05ea08067f2a472e6138c291109d87716b8`.
-- Phase-1 handoff: `f6474a2b008141ee86b01183d10d2f91f33450f1`;
-  CI run `29492555791` and Vercel are green.
-- Runbook: `docs/deployment/render-to-syd2-phase1.md` §4 blocks migration on
-  any `RENDER_ONLY`; §7 is now checksum-green for the isolated ClinGen proof.
-- Evidence: `/home/deploy/transfer-project1/` is `0700`; Eamos manifest and
-  identity artifacts are `0600` with hashes recorded in the outbound note.
-- Source proof: private prefix `render_precutover_20260716/` contains exactly
-  the approved 10 new objects / 5,061,937,840 bytes; post-preservation inventory
-  is 45 objects / 48,562,226,185 bytes with manifest SHA-256 `dbc6ad9a...fe2`.
-- syd2 proof: `/srv/project1/assets/phase1-dry-run/` contains only the verified
-  payload and metadata; `/srv/project1/assets/runtime/` is empty.
-- Coordination: latest requests/verdicts are in `ASK-BACKS-FOR-SWORDFISH.md`
-  and watcher-owned `FROM-SWORDFISH.md`; never stage or edit the latter.
+- Landing plan: `plans/landing-free-public/plan.md`.
+- Hero and gallery: `app/web/components/landing/HeroVariantMap.tsx` and
+  `app/web/components/landing/FeaturesGrid.tsx`.
+- Capture contract: `scripts/eamos-capture-landing-features.mjs` and
+  `app/web/public/features/capture-manifest.json`.
+- Peer-mail contract: `.agent-mailboxes.json`, `scripts/eamos-peer-mail.mjs`,
+  and `docs/operations/peer-mailbox-contract.md`.
+- Implementation commits: `32b67918faa7fe34536edbf739b3e9ea94ae7c1e`
+  and `53d9c2802489d5783def55211ee4fb0dd3af2ebc`.
+- Phase-1 migration proof remains at `f6474a2b008141ee86b01183d10d2f91f33450f1`;
+  all later migration phases remain held.
+- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` may be dirty; never edit or
+  stage it. The adoption packet is ready but deliberately unsent.
 
 ## Delta
 
-- Steven approved exact-byte preservation and accepted worst-case Render
-  overage of at most $0.02; all 10 Render-only identities were preserved without
-  overwrite/delete, and strict comparison now exits 0 at `render_only=0`.
-- Swordfish `project1-apply` run `29491702667` is green at `104d8f0`; the exact
-  image digest, numeric user, two mounts, free space, and empty roots were probed.
-- The §7 one-off used only four S3 keys via a mode-0600 ephemeral env file,
-  exited 0, self-removed, and left the long-lived service stopped at `0/0`.
-- Codex independently re-hashed the payload, reran `asset-manifest diff`, checked
-  permissions/tree/runtime/canary, and corroborated the stopped service state.
-- Phase 1 exit is met. Phase 2 resize is held; current 79 GiB free means the
-  resize trigger remains the later Phase-3 bulk seed, not this completed proof.
-- Steven chose to leave Swordfish closed tonight and approved turning the
-  successful asymmetric mailbox/watcher workflow into an executable Eamos
-  ratchet next session, without cross-project or infrastructure mutations.
+- Removed public pricing/upgrade/checkout UI, routes, and client plan model.
+  Backend payment and webhook controls were preserved, not weakened.
+- Replaced licensed-predictor marketing with public-source claims and explicit
+  `Public` / `License review` report vocabulary backed by row metadata.
+- Added a meaningful RPE65 DNA hero that maps genome, transcript, protein, and
+  evidence views through real keyboard-operable controls.
+- Rebuilt Features around checked browser captures of Report, Workbench, and
+  sample-VCF Compare; the manifest ratchet verifies all three assets.
+- Added peer-mail ownership, append order, timestamps, locks, secret/staging
+  guards, receipts, tests, CI, and a durable clear-safe proof.
+- `npm run verify` passed in 241.9 seconds, including 8 coordination tests, 160
+  web tests, full backend pytest, and the 17-route production build.
 
 ## Next Action
 
-- On bare `gogogo`, immediately implement the approved Eamos-local coordination
-  ratchet: registry; `send`/`check`/`wait`/`status` CLI; ownership, append-order,
-  timestamp, lock, secret, staging, and durable clear-safe guards; tests; neutral
-  protocol docs; and a ready-but-unsent Swordfish adoption packet.
-- Do not ask Steven to restate approval. Do not edit/stage the watcher-owned
-  inbound file, touch Swordfish's repository, contact its agent, or mutate any
-  cloud/host/provider state. Keep every migration phase held.
-- Verify the applicable structural guards, commit only owned paths, push, and
-  watch CI. Leave the four exited uvicorn containers untouched.
+- Continue landing Pass 2: audit trust/comprehension, archive or supersede
+  historical pricing plans, and add automated interaction coverage for the DNA
+  hero before the broader responsive/accessibility/performance pass.
+- Do not reintroduce billing, entitlements, paid tiers, licensed-score promises,
+  or fabricated proof. Preserve backend provenance and launch gates.
+- Keep migration, provider/cloud/deploy actions, live peer contact, and the
+  Swordfish-side adoption packet held unless Steven explicitly assigns them.

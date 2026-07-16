@@ -1,5 +1,48 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-16 12:30 +0000 - Codex - Free-public landing and peer-mail ratchet
+
+Completed the approved free-public landing slice and the queued Eamos-local
+coordination ratchet without a deploy, provider change, Supabase mutation,
+licensed-source workaround, Swordfish edit/contact, or migration action.
+
+- Removed the public pricing, upgrade, and checkout funnel, including the two
+  checkout pages and client pricing model. Backend payment/webhook code and its
+  auth, signature, rate-limit, and idempotency controls remain intact.
+- Reframed the landing and auth surfaces around free public access. Removed
+  REVEL/SpliceAI marketing promises while preserving source provenance,
+  `launch_gate`, and `public_serialization_allowed` behavior inside reports.
+- Replaced `Free`/`Pro` predictor badges with source-access language:
+  `Public` or `License review`.
+- Added a keyboard-operable, reduced-motion-safe RPE65 DNA variant map to the
+  hero. It follows one bundled change across genomic, transcript, protein, and
+  public-evidence representations; the compact mobile hero remains search-first.
+- Rebuilt the feature section around three real 1440x960 browser captures of
+  the report, Workbench, and sample-VCF comparison flows. A dependency-free CDP
+  harness plus checked manifest enforces routes, dimensions, sizes, and hashes.
+- Added the ongoing plan at `plans/landing-free-public/plan.md`, covering later
+  trust/comprehension, accessibility/performance, and free-product discovery
+  passes without resurrecting billing or licensed-score claims.
+- Added `.agent-mailboxes.json` and a tested peer-mail CLI for status, check,
+  wait, append-only send, receipts, exclusive locks, staging ownership, secret
+  rejection, and durable clear-safe proof. CI and pre-commit now ratchet the
+  watcher-owned inbox boundary; the Swordfish adoption packet remains unsent.
+
+Verification:
+
+- `npm run verify` passed in 241.9 seconds: structural guards, capture manifest,
+  ESLint, Ruff, Black, TypeScript, 8 coordination tests, 160 web tests, the full
+  backend suite, and the production Next build all passed.
+- The production build generated 17 routes and no checkout route.
+- Desktop, mobile, feature-gallery, and hero-interaction browser captures were
+  visually reviewed; the three checked-in product images contain bundled demo
+  data only.
+- Security review found no auth/RLS/session boundary change, secret exposure,
+  client-side entitlement decision, payment-control weakening, or cloud action.
+- Implementation commits are `32b6791` (coordination ratchet) and `53d9c28`
+  (free-public landing). The watcher-owned `FROM-SWORDFISH.md` append was never
+  edited or staged.
+
 ## 2026-07-16 08:46 +0000 - Codex - Render-to-syd2 Phase-1 readiness verifier
 
 Completed the approved read-only Phase-1 migration-readiness slice without a
