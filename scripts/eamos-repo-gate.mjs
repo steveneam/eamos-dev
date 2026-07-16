@@ -65,6 +65,12 @@ const stages = {
       cwd: ROOT,
     },
     {
+      label: 'landing browser-capture manifest',
+      command: NODE,
+      args: [join(ROOT, 'scripts', 'eamos-capture-landing-features.mjs'), '--check'],
+      cwd: ROOT,
+    },
+    {
       label: 'backend boundary, structure, and contract canaries',
       command: PYTHON,
       args: [

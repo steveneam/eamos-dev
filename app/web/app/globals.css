@@ -304,12 +304,6 @@
 select[data-tone="dark"] { color-scheme: dark; }
 [data-tone="dark"] option { background-color: var(--page-bg-deep); color: var(--hero-ink); }
 
-/* Pricing card hover is owned by Pricing.tsx — teal border swap on the same
-   teal-axis signal every other landing surface uses. No transform/lift, no
-   shadow swap.
-   (The old global .pricing-card:hover{transform:translateY(-2px)} is removed;
-   if you see it again in a bundle, restart the dev server's CSS cache.) */
-
 /* Brand home-link (Eamos logo wrapper) — every page that has a brand nav uses
    this on its <Link href="/"> so the logo carries the same opacity-dim hover
    everywhere. Static product surfaces (TopNav) have their own treatment. */
@@ -335,7 +329,7 @@ body {
 
 html {
   background: var(--bg-soft);
-  /* anchor links (#features/#how/#faq/#pricing) clear the 60px sticky nav;
+  /* anchor links (#features/#how/#faq) clear the 60px sticky nav;
      scroll-behavior is overridden to auto by the reduced-motion guard below. */
   scroll-padding-top: calc(var(--nav-h) + 12px);
   scroll-behavior: smooth;

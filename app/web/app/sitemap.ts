@@ -1,9 +1,8 @@
 import type { MetadataRoute } from 'next'
 
 // Sitemap lists public, indexable routes only.
-// Excluded (auth-gated or flow pages): /account, /checkout, /checkout/success
+// Excluded (auth-gated): /account
 // Excluded (legacy, frozen): /runs
-// Pricing lives on the landing page (/) — no separate /pricing route exists.
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://eamos.com.au'
 

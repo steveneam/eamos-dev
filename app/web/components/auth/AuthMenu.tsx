@@ -319,15 +319,6 @@ function AccountDropdown({
       >
         My account
       </a>
-      <Link
-        href="/#pricing"
-        role="menuitem"
-        className="am-menu-item"
-        data-dark={dark ? '' : undefined}
-        onClick={onClose}
-      >
-        Billing &amp; plans
-      </Link>
       <button
         type="button"
         role="menuitem"

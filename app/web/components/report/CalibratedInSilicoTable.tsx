@@ -1,6 +1,6 @@
 import type { ComputationalPredictorRow } from '@/lib/backend'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
-import { TierTag } from '@/components/ui/TierTag'
+import { SourceAccessTag, type SourceAccess } from '@/components/ui/SourceAccessTag'
 import { ScaleTrack, type ScaleBand } from './ScoreScale'
 
 interface CalibratedInSilicoTableProps {
@@ -29,7 +29,7 @@ interface CatalogEntry {
   name: string
   category: PredictorCategory
   acmg: string
-  tier: 'Free' | 'Pro'
+  access: SourceAccess
   /** What the engine emits — shown as a caption on placeholder rows + in the name tooltip. */
   metric: string
   cal: Calibration
@@ -38,70 +38,69 @@ interface CatalogEntry {
 // The full §2 in-silico panel (per the report IA canvas). Each row renders live
 // data when the backend supplies it, else a labelled "needs live data"
 // placeholder so the complete predictor surface is visible before wiring. Tier
-// tags are informational only — everything is shown in full on this account; the
-// free/Pro gate (blur) is a pre-launch task, not active here. Calibrated cutoffs
-// are the ClinGen SVI values (Pejaver 2022 / Bergquist 2025 / Walker 2023);
+// tags describe source distribution policy only. Calibrated cutoffs are the
+// ClinGen SVI values (Pejaver 2022 / Bergquist 2025 / Walker 2023);
 // uncalibrated tools render a raw-score bar rather than fabricated tiers.
 const PREDICTOR_CATALOG: CatalogEntry[] = [
   // Missense — predict the effect of an amino-acid substitution.
   {
-    name: 'AlphaMissense', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Free',
+    name: 'AlphaMissense', category: 'Missense', acmg: 'PP3 / BP4', access: 'Public',
     metric: 'Calibrated missense pathogenicity (0–1) + class',
     cal: { range: [0, 1], higherDamaging: true, source: 'Bergquist 2025', tiers: { pp3Strong: 0.792, pp3Moderate: 0.17, pp3Supporting: 0.1, bp4Supporting: 0.099, bp4Strong: 0.07 } },
   },
   {
-    name: 'ESM1b', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Free',
+    name: 'ESM1b', category: 'Missense', acmg: 'PP3 / BP4', access: 'Public',
     metric: 'Protein-LLM variant-effect (log-likelihood)',
     cal: { range: [-25, 10], higherDamaging: false, source: 'Bergquist 2025', tiers: { pp3Strong: -14.0, pp3Moderate: -12.2, pp3Supporting: -10.7, bp4Supporting: -6.4, bp4Moderate: -3.2 } },
   },
   {
-    name: 'REVEL', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Pro',
+    name: 'REVEL', category: 'Missense', acmg: 'PP3 / BP4', access: 'License review',
     metric: 'Ensemble missense score (0–1)',
     cal: { range: [0, 1], higherDamaging: true, source: 'Pejaver 2022', tiers: { pp3Strong: 0.932, pp3Moderate: 0.773, pp3Supporting: 0.644, bp4Supporting: 0.29, bp4Moderate: 0.183, bp4Strong: 0.016 } },
   },
   {
-    name: 'PrimateAI-3D', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Pro',
+    name: 'PrimateAI-3D', category: 'Missense', acmg: 'PP3 / BP4', access: 'License review',
     metric: 'Missense pathogenicity from 3D structure + primate variation',
     cal: { range: [0, 1], higherDamaging: true, source: null },
   },
   {
-    name: 'MetaLR', category: 'Missense', acmg: 'PP3 / BP4', tier: 'Pro',
+    name: 'MetaLR', category: 'Missense', acmg: 'PP3 / BP4', access: 'License review',
     metric: 'Logistic-regression missense meta-score',
     cal: { range: [0, 1], higherDamaging: true, source: 'tool-native', binary: 0.5 },
   },
   // Splice — predict disruption or creation of splice sites.
   {
-    name: 'CI-SpliceAI', category: 'Splice', acmg: 'PVS1 / PP3 / BP4', tier: 'Free',
+    name: 'CI-SpliceAI', category: 'Splice', acmg: 'PVS1 / PP3 / BP4', access: 'Public',
     metric: 'Δ acceptor/donor gain+loss · max-Δ',
     cal: { range: [0, 1], higherDamaging: true, source: 'tool-native', binary: 0.19 },
   },
   {
-    name: 'SpliceAI', category: 'Splice', acmg: 'PVS1 / PP3 / BP4', tier: 'Pro',
+    name: 'SpliceAI', category: 'Splice', acmg: 'PVS1 / PP3 / BP4', access: 'License review',
     metric: 'Δ score per junction · max-Δ',
     cal: { range: [0, 1], higherDamaging: true, source: 'ClinGen SVI (Walker 2023)', tiers: { pp3Supporting: 0.2, bp4Supporting: 0.1 } },
   },
   {
-    name: 'Pangolin', category: 'Splice', acmg: 'PVS1 / PP3 / BP4', tier: 'Free',
+    name: 'Pangolin', category: 'Splice', acmg: 'PVS1 / PP3 / BP4', access: 'Public',
     metric: 'Splice-strength Δ (multi-tissue) · max-Δ',
     // GPL-3.0 code / CC-BY scores — commercially safe, display-only (ADR 0005).
     cal: { range: [0, 1], higherDamaging: true, source: 'tool-native', binary: 0.2 },
   },
   // Genome-wide — cross-class deleteriousness over coding + non-coding variants.
   {
-    name: 'CADD', category: 'Genome-wide', acmg: 'PP3 / BP4', tier: 'Pro',
+    name: 'CADD', category: 'Genome-wide', acmg: 'PP3 / BP4', access: 'License review',
     metric: 'PHRED-scaled deleteriousness (coding + non-coding)',
     cal: { range: [0, 40], higherDamaging: true, source: 'Pejaver 2022', tiers: { pp3Moderate: 28.1, pp3Supporting: 25.3, bp4Supporting: 22.7, bp4Moderate: 17.3, bp4Strong: 0.15 } },
   },
   {
-    name: 'GPN-MSA', category: 'Genome-wide', acmg: 'PP3 / BP4', tier: 'Free',
+    name: 'GPN-MSA', category: 'Genome-wide', acmg: 'PP3 / BP4', access: 'Public',
     metric: 'Genomic-LLM log-likelihood (genome-wide)',
     cal: { range: [-15, 5], higherDamaging: false, source: null },
   },
   {
-    name: 'CAPICE', category: 'Genome-wide', acmg: 'PP3 / BP4', tier: 'Pro',
+    name: 'CAPICE', category: 'Genome-wide', acmg: 'PP3 / BP4', access: 'License review',
     metric: 'ML pathogenicity 0–1, SNV + indel (consequence-agnostic)',
-    // LGPL-3.0 code, but v5 consumes SpliceAI input features (CC-BY-NC) → Pro-only
-    // per the vault CAPICE build-spec; display-only, no ClinGen calibration.
+    // LGPL-3.0 code, but v5 consumes SpliceAI input features (CC-BY-NC), so the
+    // source remains under license review; display-only, no ClinGen calibration.
     cal: { range: [0, 1], higherDamaging: true, source: null },
   },
 ]
@@ -346,7 +345,7 @@ interface RowData {
   key: string
   category: PredictorCategory
   name: string
-  tier: 'Free' | 'Pro' | null
+  access: SourceAccess | null
   acmg: string | null
   metric: string | null
   tip: string | null
@@ -390,7 +389,7 @@ function PredictorRow({ rd, isLast }: { rd: RowData; isLast: boolean }) {
           <span style={{ fontWeight: 600, color: 'var(--ink)', cursor: engineTitle ? 'help' : undefined }} title={engineTitle}>
             {displayName(rd.name)}
           </span>
-          {rd.tier && <TierTag tier={rd.tier} />}
+          {rd.access && <SourceAccessTag access={rd.access} />}
         </div>
         {subCaption && <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>{subCaption}</div>}
         {live && (
@@ -514,13 +513,25 @@ function missingAvailability(entry: CatalogEntry, warnings: string[]): { label: 
   if (matched?.includes('gate') || matched?.includes('license')) {
     return { label: 'Gated', tip: matched }
   }
-  if (entry.tier === 'Pro') {
+  if (entry.access === 'License review') {
     return {
-      label: 'Commercial-gated source',
-      tip: 'This predictor is in the gated source catalog and will render when the backend emits a source-backed row.',
+      label: 'License-gated source',
+      tip: 'This predictor is in the license-review catalog and renders only when the backend emits an allowed source-backed row.',
     }
   }
   return { label: 'Unavailable', tip: 'No source-backed predictor row was returned for this variant.' }
+}
+
+function sourceAccess(
+  row: ComputationalPredictorRow | null,
+  fallback: SourceAccess = 'License review',
+): SourceAccess {
+  if (!row) return fallback
+  if (row.public_serialization_allowed === false) return 'License review'
+  const gate = row.launch_gate?.toLowerCase() ?? ''
+  if (gate && !/(public|ready|open)/.test(gate)) return 'License review'
+  if (row.public_serialization_allowed === true) return 'Public'
+  return fallback
 }
 
 export function CalibratedInSilicoTable({ predictors, warnings = [] }: CalibratedInSilicoTableProps) {
@@ -539,16 +550,17 @@ export function CalibratedInSilicoTable({ predictors, warnings = [] }: Calibrate
 
   const ordered: RowData[] = PREDICTOR_CATALOG.map((entry) => {
     const availability = missingAvailability(entry, warnings ?? [])
+    const liveRow = liveForEntry.get(entry.name) ?? null
     return {
       key: entry.name,
       category: entry.category,
       name: entry.name,
-      tier: entry.tier,
+      access: sourceAccess(liveRow, entry.access),
       acmg: entry.acmg,
       metric: entry.metric,
       tip: ENGINE_TIP[entry.name] ?? null,
       cal: entry.cal,
-      live: liveForEntry.get(entry.name) ?? null,
+      live: liveRow,
       availability: availability.label,
       availabilityTip: availability.tip,
     }
@@ -558,7 +570,7 @@ export function CalibratedInSilicoTable({ predictors, warnings = [] }: Calibrate
       key: `other-${row.name}`,
       category: 'Other',
       name: row.name,
-      tier: null,
+      access: sourceAccess(row),
       acmg: null,
       metric: null,
       tip: ENGINE_TIP[row.name] ?? null,
@@ -580,7 +592,7 @@ export function CalibratedInSilicoTable({ predictors, warnings = [] }: Calibrate
       <p style={{ fontSize: 11.5, color: 'var(--ink-4)', margin: '0 0 10px', lineHeight: 1.5 }}>
         The full predictor panel, grouped by what each engine scores. The bar shows where the raw score sits on each
         engine&apos;s benign-to-pathogenic scale (calibrated to ClinGen thresholds where they exist).
-        Missing engines are marked unavailable or gated until the backend emits a source-backed row ({liveCount} of {sorted.length} engines live).
+        Missing engines are marked unavailable or behind a license or launch gate until the backend emits an allowed source-backed row ({liveCount} of {sorted.length} engines live).
       </p>
 
       <div style={{ border: '0.5px solid var(--line)', borderRadius: 'var(--r-md)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>

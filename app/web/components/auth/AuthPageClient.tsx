@@ -89,7 +89,7 @@ export function AuthPageClient() {
           >
             One query.
             <br />
-            Every source.
+            Public evidence.
           </h1>
           <p
             style={{
@@ -100,9 +100,9 @@ export function AuthPageClient() {
               maxWidth: 380,
             }}
           >
-            ClinVar, gnomAD, SpliceAI, REVEL and PubMed evidence, aggregated in
-            one structured report. Built for clinical geneticists who need a
-            verdict fast and audit-grade provenance they can defend.
+            Public genomic evidence, aggregated into one structured report.
+            Built for researchers who need a fast orientation and provenance
+            they can inspect at every step.
           </p>
 
           <div

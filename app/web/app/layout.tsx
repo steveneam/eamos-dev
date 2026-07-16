@@ -24,7 +24,7 @@ const inter = Inter({
 // IBM Plex Mono replaces JetBrains Mono (2026-06-03, Steven): JetBrains ships a
 // dotted zero that reads as "8" at 11-14px on HGVS/coords. IBM Plex Mono has a
 // clear zero and pairs with Inter. Single-token swap; all `var(--mono)` consumers
-// inherit it (report + account + pricing + Workbench sequence viewer).
+// inherit it (report + account + Workbench sequence viewer).
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
   weight: ['400', '500'],
@@ -42,7 +42,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
 const defaultTitle = 'Eamos: Genomic Intelligence Platform'
 const defaultDescription =
-  'Aggregates ClinVar, Ensembl, SpliceAI, gnomAD and PubMed for genomic variant evidence. Research use only.'
+  'Free genomic variant evidence from public sources, gathered into one cited research report. Research use only.'
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,

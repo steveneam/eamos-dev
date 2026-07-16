@@ -44,6 +44,21 @@ export const SOURCES: SourceMeta[] = [
   },
 ]
 
+// Marketing surfaces list only sources whose public access is unambiguous.
+// The full catalog above remains available to report provenance, where source,
+// license, and launch-gate metadata belong next to any returned result.
+const LANDING_SOURCE_KEYS = new Set([
+  'clinvar',
+  'gnomad',
+  'ensembl',
+  'pubmed',
+  'clinicaltrials',
+])
+
+export const LANDING_SOURCES = SOURCES.filter((source) =>
+  LANDING_SOURCE_KEYS.has(source.key),
+)
+
 // Legacy/backend source keys that map onto a canonical SOURCES entry, so
 // per-source lookups (e.g. the evidence table's `vep` row) keep resolving
 // after the VEP→Ensembl rename.

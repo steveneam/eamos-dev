@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-07-16T12:07:00.585Z",
+  "source_revision": "c79e72ca789b",
+  "fixture_policy": "Bundled demo or offline-safe data only; no patient records.",
+  "viewport": {
+    "width": 1440,
+    "height": 960,
+    "device_scale_factor": 1
+  },
+  "captures": [
+    {
+      "id": "report",
+      "file": "report-demo.webp",
+      "route": "/report?fixture=rpe65-negative",
+      "ready": "document.querySelectorAll('[data-report-section-slot]').length >= 3",
+      "scroll_target": "[data-report-section-slot=\"population_frequency\"]",
+      "bytes": 48970,
+      "sha256": "37a6aa383bf60307cc5ccaef75ec99d9f30e803c475b248e102159ba0efae21c"
+    },
+    {
+      "id": "workbench",
+      "file": "workbench-demo.webp",
+      "route": "/workbench?gene=RPE65&cdna=c.260A%3EG&transcript=NM_000329.3",
+      "ready": "document.body.innerText.includes('RPE65') && document.body.innerText.includes('Sequence')",
+      "scroll_target": null,
+      "bytes": 53124,
+      "sha256": "d56bdb523db7b9d3f7405fa3c42747c87b2903fde49d9c771590f00e6cb4a266"
+    },
+    {
+      "id": "compare",
+      "file": "compare-demo.webp",
+      "route": "/compare",
+      "ready": "document.body.innerText.includes('sample.vcf') && document.body.innerText.includes('Generate results')",
+      "scroll_target": null,
+      "bytes": 32728,
+      "sha256": "ec75abaeb9d151960a79d170f438b1a24607420e1d115990b857e09387c481da"
+    }
+  ]
+}

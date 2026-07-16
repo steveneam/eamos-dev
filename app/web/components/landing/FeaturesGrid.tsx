@@ -1,221 +1,208 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { Reveal } from '@/components/landing/Reveal'
 import { LandingH2, LandingH3 } from '@/components/landing/ui/LandingHeading'
+import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 
-interface Shot {
-  src: string
-  title: string
-  caption: string
-}
-
-// Product snapshots captured from a live report. Rough first pass — replace with
-// polished marketing shots later. The gnomAD world-map featured band below was
-// captured from MTHFR c.665C>T (a gnomAD-present variant; the RPE65 demo isn't in gnomAD).
-//
-// The four-card "evidence matrix" specimen lives in MetricBelt above; this grid
-// shows the *other* layers of the report (classification, publications, trials,
-// gnomAD map, Workbench).
-const SHOTS: Shot[] = [
+const FEATURES = [
   {
-    src: '/feat-classification.webp',
-    title: 'Classification at a glance',
-    caption: 'ClinVar + UniProt distribution across LOF, missense, non-coding and synonymous.',
+    index: '01',
+    eyebrow: 'Variant report',
+    title: 'Evidence you can trace, not just a verdict',
+    description:
+      'Move from classification and population evidence to disease context, literature, and trials in one navigable report. Source status and provenance stay attached to the result.',
+    src: '/features/report-demo.webp',
+    alt: 'Eamos variant report for the bundled RPE65 demo, showing the real gnomAD population-frequency section and its provenance-aware evidence workspace.',
+    route: '/report?fixture=rpe65-negative',
+    href: '/report?fixture=rpe65-negative',
+    action: 'Open the sample report',
   },
   {
-    src: '/feat-publications.webp',
-    title: 'Cited literature, deduplicated',
-    caption: 'Variant-level publication mining with snippets and a publications-over-time view.',
+    index: '02',
+    eyebrow: 'Workbench',
+    title: 'Sequence context beside the evidence',
+    description:
+      'Inspect genomic and transcript context, then move into primer, CRISPR, and alignment tools without rebuilding the variant by hand in another tab.',
+    src: '/features/workbench-demo.webp',
+    alt: 'Eamos Workbench running with the bundled RPE65 example and its sequence context visible.',
+    route: '/workbench · RPE65',
+    href: '/workbench?gene=RPE65&cdna=c.260A%3EG&transcript=NM_000329.3',
+    action: 'Explore the Workbench',
   },
   {
-    src: '/feat-trials.webp',
-    title: 'Active trials & therapies',
-    caption: 'ClinicalTrials.gov discovery links, colour-coded by recruitment status.',
+    index: '03',
+    eyebrow: 'Batch comparison',
+    title: 'A cohort workflow with an explicit scope',
+    description:
+      'Import a VCF, review its variants in the browser, then choose when to generate a batch result. The screen below uses the bundled sample VCF.',
+    src: '/features/compare-demo.webp',
+    alt: 'Eamos batch comparison screen with the bundled sample VCF loaded and ready to generate.',
+    route: '/compare · sample.vcf',
+    href: '/compare',
+    action: 'Open batch comparison',
   },
-]
+] as const
 
 export function FeaturesGrid() {
   return (
-    <section id="features" className="py-28" style={{ background: 'var(--page-bg)' }}>
-      <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
-        <header className="mb-14" style={{ maxWidth: 720 }}>
-          <LandingH2 className="mb-4">One lookup. The whole evidence picture.</LandingH2>
-          <p className="text-[17px] leading-[1.55]" style={{ color: 'var(--hero-ink-2)', maxWidth: 620 }}>
-            Every report folds the databases you already open into one structured, cited, ACMG-aware
-            view, engineered for speed and clinical trust.
+    <section
+      id="features"
+      className="py-28"
+      style={{
+        background: 'var(--page-bg)',
+        borderBottom: '0.5px solid var(--page-line)',
+      }}
+    >
+      <div className="mx-auto px-6 sm:px-8" style={{ maxWidth: 1180 }}>
+        <header className="mb-16 grid gap-6 md:grid-cols-[minmax(0,1fr)_330px] md:items-end">
+          <div style={{ maxWidth: 720 }}>
+            <LandingEyebrow className="mb-4" style={{ color: 'var(--em-bright)' }}>
+              Inside Eamos
+            </LandingEyebrow>
+            <LandingH2>See the working product.</LandingH2>
+          </div>
+          <p
+            style={{
+              fontSize: 13.5,
+              lineHeight: 1.65,
+              color: 'var(--hero-ink-3)',
+              margin: 0,
+            }}
+          >
+            Current Eamos screens captured in a real browser from bundled demo data. No patient
+            records and no concept mockups.
           </p>
         </header>
 
-        {/* Featured: gnomAD population-frequency world map (captured from MTHFR c.665C>T).
-            The four-call-card specimen lives in MetricBelt above — re-showing it here would
-            duplicate the page; this section opens with the gnomAD map as the next layer. */}
-        <Reveal as="article">
-          <figure
-            className="m-0 overflow-hidden"
-            style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 16 }}
-          >
-            <div
-              className="relative"
-              style={{ aspectRatio: '7 / 3', overflow: 'hidden', background: 'var(--page-bg-deep)' }}
-            >
-              <Image
-                src="/feat-gnomad-map.webp"
-                alt="gnomAD v4 allele frequencies across genetic ancestry groups, rendered on a land-clipped world map"
-                fill
-                priority
-                sizes="(max-width: 1180px) 100vw, 1180px"
-                style={{ objectFit: 'cover', objectPosition: 'center' }}
-              />
-            </div>
-            <figcaption style={{ padding: '20px 24px' }}>
-              <LandingH3 className="mb-1">
-                Population frequency, mapped
-              </LandingH3>
-              <p style={feat.caption}>
-                gnomAD v4 allele frequencies across every genetic ancestry group, on a land-clipped
-                world map. Source-group data, not patient ancestry or geography.
-              </p>
-            </figcaption>
-          </figure>
-        </Reveal>
-
-        {/* Asymmetric: a wide "Classification" feature, then two narrower
-            shots stacked, then a wide "Workbench" in-development tile. Reads as
-            magazine column-spans, not a 4-up template. Stacks on mobile. */}
-        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-6">
-          {/* SHOT 0 — wide */}
-          <Reveal as="article" className="lg:col-span-4" delay={0}>
-            <figure
-              className="m-0 h-full overflow-hidden"
-              style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 14 }}
-            >
-              <div
-                className="relative"
-                style={{ aspectRatio: '16 / 8', overflow: 'hidden', background: 'var(--page-bg-deep)' }}
-              >
-                <Image
-                  src={SHOTS[0].src}
-                  alt={SHOTS[0].title}
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 66vw"
-                  style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                />
-              </div>
-              <figcaption style={{ padding: '18px 22px' }}>
-                <LandingH3 className="mb-1">
-                  {SHOTS[0].title}
-                </LandingH3>
-                <p style={feat.caption}>{SHOTS[0].caption}</p>
-              </figcaption>
-            </figure>
-          </Reveal>
-
-          {/* SHOTS 1-2 — narrow, stacked into one column on lg+ */}
-          <div className="grid grid-cols-1 gap-5 lg:col-span-2">
-            {[SHOTS[1], SHOTS[2]].map((shot, i) => (
-              <Reveal key={shot.src} as="article" delay={0.06 + i * 0.04}>
-                <figure
-                  className="m-0 h-full overflow-hidden"
-                  style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 14 }}
+        <div>
+          {FEATURES.map((feature, index) => {
+            const imageFirst = index % 2 === 0
+            return (
+              <Reveal key={feature.index} as="article" delay={index * 0.05}>
+                <div
+                  className="grid gap-8 py-12 lg:grid-cols-12 lg:items-center lg:gap-12"
+                  style={{ borderTop: '0.5px solid var(--page-line)' }}
                 >
                   <div
-                    className="relative"
-                    style={{ aspectRatio: '16 / 9', overflow: 'hidden', background: 'var(--page-bg-deep)' }}
+                    className={`lg:col-span-4 ${imageFirst ? 'lg:order-2' : 'lg:order-1'}`}
+                    style={{ maxWidth: 420 }}
                   >
-                    <Image
-                      src={shot.src}
-                      alt={shot.title}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 33vw"
-                      style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                    />
+                    <span
+                      aria-hidden
+                      style={{
+                        display: 'block',
+                        fontFamily: 'var(--mono)',
+                        fontSize: 11,
+                        color: 'var(--em-bright)',
+                        marginBottom: 22,
+                      }}
+                    >
+                      {feature.index} / 03
+                    </span>
+                    <LandingEyebrow className="mb-3" style={{ color: 'var(--hero-ink-3)' }}>
+                      {feature.eyebrow}
+                    </LandingEyebrow>
+                    <LandingH3 className="mb-4">{feature.title}</LandingH3>
+                    <p
+                      style={{
+                        fontSize: 14.5,
+                        lineHeight: 1.65,
+                        color: 'var(--hero-ink-2)',
+                        margin: '0 0 22px',
+                      }}
+                    >
+                      {feature.description}
+                    </p>
+                    <Link
+                      href={feature.href}
+                      className="feature-product-link"
+                      style={{
+                        color: 'var(--em-bright)',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      {feature.action} <span aria-hidden>→</span>
+                    </Link>
                   </div>
-                  <figcaption style={{ padding: '14px 18px' }}>
-                    <LandingH3 className="mb-1">
-                      {shot.title}
-                    </LandingH3>
-                    <p style={feat.caption}>{shot.caption}</p>
-                  </figcaption>
-                </figure>
-              </Reveal>
-            ))}
-          </div>
 
-          {/* Workbench — wide, in development. Spans full width on lg+ so it
-              reads as a milestone, not a peer. */}
-          <Reveal as="article" className="lg:col-span-6" delay={0.18}>
-            <figure
-              className="m-0 h-full overflow-hidden"
-              style={{ background: 'var(--page-card)', border: '0.5px solid var(--page-line)', borderRadius: 14 }}
-            >
-              <div
-                className="relative flex items-center justify-center"
-                style={{
-                  aspectRatio: '32 / 9',
-                  overflow: 'hidden',
-                  background:
-                    'radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--em) 10%, transparent), transparent 60%), var(--page-bg-deep)',
-                }}
-              >
-                <span
-                  aria-hidden
-                  className="text-center"
-                  style={{
-                    fontFamily: 'var(--mono)',
-                    fontSize: 11,
-                    lineHeight: 1.7,
-                    letterSpacing: '0.04em',
-                    color: 'var(--hero-ink-3)',
-                    filter: 'grayscale(1)',
-                    opacity: 0.7,
-                  }}
-                >
-                  Sequence viewer
-                  <br />
-                  Primer · CRISPR design
-                  <br />
-                  Pairwise alignment
-                </span>
-                <span
-                  className="absolute"
-                  style={{
-                    top: 12,
-                    right: 12,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    color: 'var(--em-bright)',
-                    background: 'color-mix(in oklab, var(--em) 12%, transparent)',
-                    border: '0.5px solid var(--hero-line)',
-                    borderRadius: 999,
-                    padding: '4px 10px',
-                  }}
-                >
-                  In development
-                </span>
-              </div>
-              <figcaption style={{ padding: '16px 18px' }}>
-                <LandingH3 className="mb-1">
-                  Workbench
-                </LandingH3>
-                <p style={feat.caption}>
-                  Sequence viewer, primer & CRISPR design, and alignment; in the works.
-                </p>
-              </figcaption>
-            </figure>
-          </Reveal>
+                  <figure
+                    className={`m-0 overflow-hidden lg:col-span-8 ${imageFirst ? 'lg:order-1' : 'lg:order-2'}`}
+                    style={{
+                      background: 'var(--page-bg-deep)',
+                      border: '0.5px solid var(--page-line)',
+                      borderRadius: 12,
+                      boxShadow: 'var(--elev-2)',
+                    }}
+                  >
+                    <div
+                      className="flex items-center justify-between gap-4 px-4"
+                      style={{
+                        height: 34,
+                        borderBottom: '0.5px solid var(--page-line)',
+                        background: 'var(--page-card)',
+                      }}
+                    >
+                      <span className="flex items-center gap-1.5" aria-hidden>
+                        {[0, 1, 2].map((dot) => (
+                          <span
+                            key={dot}
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 999,
+                              background: dot === 0 ? 'var(--em)' : 'var(--line-2)',
+                            }}
+                          />
+                        ))}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: 'var(--mono)',
+                          fontSize: 9.5,
+                          color: 'var(--hero-ink-3)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        Real browser capture · {feature.route}
+                      </span>
+                    </div>
+                    <div className="relative" style={{ aspectRatio: '3 / 2' }}>
+                      <Image
+                        src={feature.src}
+                        alt={feature.alt}
+                        fill
+                        unoptimized
+                        priority={index === 0}
+                        sizes="(max-width: 1024px) 100vw, 760px"
+                        style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                      />
+                    </div>
+                  </figure>
+                </div>
+              </Reveal>
+            )
+          })}
         </div>
       </div>
+      <style>{`
+        .feature-product-link {
+          text-decoration-line: underline;
+          text-decoration-color: transparent;
+          text-decoration-thickness: 1.5px;
+          text-underline-offset: 5px;
+          transition: text-decoration-color var(--dur-1) var(--ease-standard);
+        }
+        .feature-product-link:hover { text-decoration-color: currentColor; }
+        .feature-product-link:focus-visible {
+          outline: 2px solid color-mix(in oklab, var(--em) 55%, transparent);
+          outline-offset: 5px;
+          border-radius: 2px;
+        }
+      `}</style>
     </section>
   )
-}
-
-const feat = {
-  caption: {
-    fontSize: 13,
-    color: 'var(--hero-ink-2)',
-    lineHeight: 1.55,
-    margin: 0,
-  } as const,
 }

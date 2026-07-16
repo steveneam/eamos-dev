@@ -19,7 +19,7 @@ import { resolveClassificationConfig } from '@/lib/classification'
 //
 // The canonical ClassificationBadge (hero) keeps its own file (it carries the
 // review-star logic); this primitive follows its geometry rather than replacing
-// it. Free/Pro tier tags stay on TierTag (a non-verdict warn/teal pill).
+// it. Source-access tags remain a separate, non-verdict vocabulary.
 
 export interface EvidenceTone {
   bg: string

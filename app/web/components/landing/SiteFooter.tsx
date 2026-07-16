@@ -1,5 +1,5 @@
 import { EamosLogo } from '@/components/brand/EamosLogo'
-import { SOURCES } from '@/lib/sources'
+import { LANDING_SOURCES } from '@/lib/sources'
 import { TextLink, TextLinkStyles } from '@/components/landing/ui/TextLink'
 import { LandingEyebrow } from '@/components/landing/ui/LandingEyebrow'
 
@@ -18,14 +18,14 @@ export function SiteFooter() {
           <div style={{ maxWidth: 360 }}>
             <EamosLogo size={18} tone="dark" />
             <p className="mt-4 text-[12.5px] leading-[1.6]" style={{ color: 'var(--hero-ink-2)' }}>
-              Built independently for genomic medicine. Evidence is aggregated live from public
-              databases; no patient sequence files are stored.
+              A free, independent genomic evidence workspace. Public-source results keep their
+              citations and provenance, and source availability remains visible.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-12">
             <FooterCol title="Sources">
-              {SOURCES.map((s) => (
+              {LANDING_SOURCES.map((s) => (
                 <TextLink key={s.key} href={s.href} target="_blank" rel="noopener noreferrer" className="text-[12.5px]">
                   {s.label}
                 </TextLink>
@@ -34,7 +34,7 @@ export function SiteFooter() {
             <FooterCol title="Product">
               <TextLink href="#how" className="text-[12.5px]">How it works</TextLink>
               <TextLink href="#features" className="text-[12.5px]">Features</TextLink>
-              <TextLink href="/#pricing" className="text-[12.5px]">Pricing</TextLink>
+              <TextLink href="/workbench" className="text-[12.5px]">Workbench</TextLink>
               <TextLink href="#faq" className="text-[12.5px]">FAQ</TextLink>
             </FooterCol>
             <FooterCol title="More">

@@ -155,7 +155,7 @@ clinical hover, per the Dashboard Interaction Language above:
 | Static / display only | flat within its card, no hover response, default cursor |
 | Disabled | `opacity: .5`, `cursor: not-allowed`, no hover/motion |
 
-**Brand surfaces (landing, /terms, /privacy, /account, /checkout, /auth)** —
+**Brand surfaces (landing, /terms, /privacy, /account, /auth)** —
 every clickable carries a teal-axis hover so the surface reads as one system.
 No `--elev-2` lift on brand cards (the elevation language belongs to the
 clinical product surfaces); the teal-accent swap does the work:
@@ -166,10 +166,10 @@ clinical product surfaces); the teal-accent swap does the work:
 | Pill / chip (Try, Powered by, source) | `--hero-line` border | border → `var(--em)`, bg → `--hero-glass2` |
 | Input (email, password, promo, search) | `--line-2` border | border → `var(--teal)`; teal glow on focus, not hover |
 | Toggle pill (evidence codes, audience) | `--line` border | border → `var(--teal)`, color darkens (active state keeps teal-tint fill) |
-| Solid CTA (Choose Pro, Continue, View account, Register) | `--teal` bg | `filter: brightness(0.88)` |
+| Solid CTA (Continue, View account, Register) | `--teal` bg | `filter: brightness(0.88)` |
 | Outlined CTA (Return home) | `--line` border | border → `var(--teal)`, color → `--ink` |
 | Logo home-link (`.brand-home-link`) | full opacity | `opacity: 0.7` |
-| Pricing card | `--page-line` (or semi-teal for featured) | border → `var(--em)`. **No translateY lift, no shadow swap** — user-mandated 2026-05-26 |
+| Interactive brand card | `--page-line` | border → `var(--em)`. **No translateY lift, no shadow swap** — user-mandated 2026-05-26 |
 | Checkbox row (label wrapper) | transparent | bg → `color-mix(in oklab, var(--teal) 6%, transparent)` |
 | Icon button | `--hero-line` border | border → `var(--em)`, bg → `--hero-glass2`, color → `--hero-ink` |
 | FAQ row | transparent | bg → `color-mix(in oklab, var(--em) 5%, transparent)` |
@@ -185,8 +185,7 @@ no hover.
 
 - `transform: translateY(...)` on cards/buttons as a "lift". The brand surface
   uses border/color swaps; translate is reserved for active-press (`:active`).
-- Shadow level swap on brand cards (e.g. pricing). The pricing card hover is
-  the canonical reference — border only.
+- Shadow level swap on brand cards. Interactive brand-card hover is border only.
 - `backdrop-filter: blur(...)` on any sticky/overlay element. Repaints on every
   keystroke (mobile typing lag); use an opaque token instead.
 
@@ -237,7 +236,7 @@ no hover.
 
 ### Landing / brand-surface tokens (warm-paper register)
 
-The brand surfaces (landing, /terms, /privacy, /account, /checkout, /auth) sit on
+The brand surfaces (landing, /terms, /privacy, /account, /auth) sit on
 warm-paper neutrals — distinct from the product report's white surfaces. Tokens
 live in `app/web/app/globals.css` under the v2 "Reading Room" block.
 
@@ -254,7 +253,7 @@ live in `app/web/app/globals.css` under the v2 "Reading Room" block.
 --nav-bg: rgba(252, 249, 243, 0.97);
 
 /* Hero editorial ground + accent (deeper teal for legibility on cream) */
---hero-top / --hero-mid / --hero-bot   /* gradient stops, gradient sits behind GenomicFlow */
+--hero-top / --hero-mid / --hero-bot   /* subtle functional hero wash behind HeroVariantMap */
 --hero-ink / --hero-ink-2 / --hero-ink-3   /* warm-dark ink scale on cream */
 --hero-line / --hero-glass / --hero-glass2  /* hairline + glass surfaces */
 --em / --em-deep / --em-bright / --em-glow / --em-tint   /* landing teal scale */
@@ -436,15 +435,26 @@ e.g. a Primer result card, a selectable list row) adds:
 | `LandingH2` / `LandingH3` | The canonical h2 (clamp 30-42px Spectral 400) and h3 (18px Spectral 400) for the landing + legal pages. Every section heading flows through them. |
 | `Pill` + `PillStyles` | Shared `.eamos-pill` (Try chips, Powered-by source pills, etc.). Hover: bg → `--hero-glass2`, border → `var(--em)`, color → `--hero-ink`. The brand surface's signature hover. |
 | `TextLink` + `TextLinkStyles` | Shared `.eamos-text-link` (footer + inline links). Hover: teal underline (`text-decoration-color: var(--em-bright)`). |
-| `.brand-home-link` (global) | Eamos-logo wrapper class used by LandingNav, PageHeader, /terms, /privacy, /checkout/success. Hover: `opacity: 0.7`. |
+| `.brand-home-link` (global) | Eamos-logo wrapper class used by LandingNav and PageHeader across account and legal surfaces. Hover: `opacity: 0.7`. |
 | `.lnav-link` / `.lnav-mobile-link` (LandingNav) | The desktop + mobile nav text links. Same teal-underline hover as TextLink. |
 | `.lnav-icon-btn` (LandingNav) | Back-to-top + mobile menu toggle. Hover: bg → `--hero-glass2`, border → `var(--em)`, color → `--hero-ink`. |
 
-The brand-surface nav geometry is identical across landing / legal / account /
-checkout: logo left, Features / Pricing / FAQ centered in a flex-1 zone,
-AuthMenu right. `PageHeader` (in `components/pricing/`, used by /checkout and
-/account) and the inline nav on /terms + /privacy both mirror the LandingNav
-shape — change one, change them together.
+The brand-surface nav geometry is identical across landing, legal, and account:
+logo left, Features / How it works / FAQ centered in a flex-1 zone, AuthMenu
+right. `PageHeader` lives in `components/layout/` and is shared by account,
+terms, and privacy. It mirrors the LandingNav shape, so change the two together.
+
+The public product has no pricing, checkout, upgrade, or paid-tier surface.
+Predictor pills describe source availability as `Public` or `License review`;
+they never imply an Eamos subscription tier and never replace backend
+`launch_gate` or `public_serialization_allowed` metadata.
+
+The landing hero uses `HeroVariantMap`, a code-native interactive DNA locus,
+for its right-hand visual. Its bundled RPE65 example maps genomic → transcript
+→ protein → public evidence. The locus button and four representation controls
+are real buttons with visible focus and `aria-pressed`; reduced motion renders
+the helix fully drawn, and the whole instrument yields to the search-first hero
+below the desktop breakpoint.
 
 ### Hairline utility
 
@@ -644,7 +654,7 @@ PRODUCT SURFACES (/report, /workbench)
   Card rest:     box-shadow var(--elev-1)   (interactive → var(--elev-2) on hover)
   Overlay:       box-shadow var(--elev-3)
 
-BRAND SURFACES (landing, /terms, /privacy, /account, /checkout, /auth)
+BRAND SURFACES (landing, /terms, /privacy, /account, /auth)
   Page bg:       var(--page-bg) (L2 cream), var(--page-bg-deep) (L3 deeper)
   Card bg:       var(--page-card)
   Hairline:      0.5px solid var(--page-line)

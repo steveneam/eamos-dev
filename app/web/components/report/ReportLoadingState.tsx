@@ -18,7 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
  * still advances with elapsed time (state, not decoration).
  *
  * Design: Steven's "twin-strand current" direction. Two loose strands (a current
- * echoing the landing GenomicFlow) phase-lock into a tight paired double-strand,
+ * echoing the landing DNA variant map) phase-lock into a tight paired double-strand,
  * left to right, as the lookup progresses. Rendered as a clinical instrument,
  * NOT a glowing helix (PRODUCT.md anti-reference: no cutesy/neon helix).
  */

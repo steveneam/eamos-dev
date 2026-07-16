@@ -34,7 +34,7 @@ interface SourceRow {
   status: string
   version?: string | null
   href?: string | null
-  policy: 'FREE' | 'PRO' | 'GATED'
+  policy: 'PUBLIC' | 'LICENSE' | 'GATED'
   note?: string | null
 }
 
@@ -192,9 +192,9 @@ function sourceLabelFromUrl(url: string): string | null {
 
 function sourcePolicy(label: string): SourceRow['policy'] {
   const normalized = label.toLowerCase()
-  if (normalized.includes('omim')) return 'PRO'
+  if (normalized.includes('omim')) return 'LICENSE'
   if (normalized.includes('restricted')) return 'GATED'
-  return 'FREE'
+  return 'PUBLIC'
 }
 
 function rowFromProvenance(item: SourceProvenance): SourceRow {
@@ -295,7 +295,7 @@ function buildSourceRows(
       status: sourceStatus,
       version: curated.source_version,
       href: curated.source_url,
-      policy: curated.public_serialization_allowed === false ? 'GATED' : 'FREE',
+      policy: curated.public_serialization_allowed === false ? 'GATED' : 'PUBLIC',
       note: hasClinVarSource
         ? sourceStatus === 'fixture'
           ? 'Fixture aggregate from installed ClinVar rows'
@@ -306,14 +306,14 @@ function buildSourceRows(
       addSourceRow(rows, {
         label: 'UniProt',
         status: 'legacy',
-        policy: 'FREE',
+        policy: 'PUBLIC',
         note: 'Distribution payload, pending source-row contract',
       })
     }
   }
 
   const priority = (row: SourceRow) => {
-    if (row.policy === 'PRO') return 20
+    if (row.policy === 'LICENSE') return 20
     if (row.status === 'legacy') return 15
     if (row.status === 'fixture' || row.status === 'fallback') return 10
     return 0
@@ -377,18 +377,19 @@ function StatusChip({ label }: { label: string }) {
 }
 
 function PolicyChip({ policy }: { policy: SourceRow['policy'] }) {
-  const pro = policy !== 'FREE'
+  const gated = policy !== 'PUBLIC'
+  const label = policy === 'PUBLIC' ? 'Public' : policy === 'LICENSE' ? 'License review' : 'Launch gate'
   return (
     <span
       style={{
         ...chipStyle,
-        background: pro ? 'var(--cls-vus-bg)' : 'var(--bg)',
-        borderColor: pro ? 'var(--cls-vus-bdr)' : 'var(--line)',
-        color: pro ? 'var(--cls-vus-text)' : 'var(--ink-3)',
+        background: gated ? 'var(--cls-vus-bg)' : 'var(--bg)',
+        borderColor: gated ? 'var(--cls-vus-bdr)' : 'var(--line)',
+        color: gated ? 'var(--cls-vus-text)' : 'var(--ink-3)',
       }}
-      title={pro ? 'Source requires launch-time visibility or license handling.' : 'Source can render in public mode when row metadata allows it.'}
+      title={gated ? 'Source requires launch-time visibility or license handling.' : 'Source can render in public mode when row metadata allows it.'}
     >
-      {policy}
+      {label}
     </span>
   )
 }
@@ -486,7 +487,7 @@ export function DiseaseValidityDashboard({
   const curatedIsClinVar = curated?.source_id === 'ncbi_clinvar_vcf'
   const curatedIsFixture = curatedIsClinVar && curatedSourceStatus === 'fixture'
   const curatedSourceBacked = curatedIsClinVar && curatedSourceStatus !== 'legacy'
-  const proSourceCount = sourceRows.filter((row) => row.policy !== 'FREE').length
+  const gatedSourceCount = sourceRows.filter((row) => row.policy !== 'PUBLIC').length
   const nonReadySourceCount = sourceRows.filter((row) =>
     ['fixture', 'fallback', 'legacy', 'missing', 'error', 'failed'].includes(row.status.toLowerCase()),
   ).length
@@ -592,7 +593,7 @@ export function DiseaseValidityDashboard({
           </span>
           <span style={sourceSummaryMetaStyle}>
             <span style={chipStyle}>{sourceRows.length} sources</span>
-            {proSourceCount > 0 && <PolicyChip policy="PRO" />}
+            {gatedSourceCount > 0 && <PolicyChip policy="LICENSE" />}
             {nonReadySourceCount > 0 && <StatusChip label={`${nonReadySourceCount} not launch-ready`} />}
           </span>
         </summary>

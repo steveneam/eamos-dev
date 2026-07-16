@@ -15,6 +15,7 @@ do not recreate a second hand-maintained frontend or contract mirror.
 
 | File | Owner | Scope |
 | ---- | ----- | ----- |
+| [`landing-free-public/plan.md`](landing-free-public/plan.md) | Codex | Active free-public landing reposition, monetization removal, and reproducible real-product feature captures. |
 | [`v2-backend.md`](v2-backend.md) | Codex | Backend extensions and historical backend ledger. Prefer newer scoped docs when present. |
 | [`v2-frontend.md`](v2-frontend.md) | Historical | Superseded frontend port notes for the old Vite app. Active frontend work now lives in `app/web`. |
 | [`frontend-rebuild.md`](frontend-rebuild.md) | Historical | Original React/Vite rebuild. Keep for reference; do not execute. |

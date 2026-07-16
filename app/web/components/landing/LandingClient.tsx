@@ -2,13 +2,12 @@
 import { useRouter } from 'next/navigation'
 import { LandingNav } from '@/components/landing/LandingNav'
 import { EamosSearch } from '@/components/landing/EamosSearch'
-import { GenomicFlow } from '@/components/landing/GenomicFlow'
+import { HeroVariantMap } from '@/components/landing/HeroVariantMap'
 import { SourceStrip } from '@/components/landing/SourceStrip'
 import { MetricBelt } from '@/components/landing/MetricBelt'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { FeaturesGrid } from '@/components/landing/FeaturesGrid'
 import { Testimonials } from '@/components/landing/Testimonials'
-import { Pricing } from '@/components/landing/Pricing'
 import { Faq } from '@/components/landing/Faq'
 import { SiteFooter } from '@/components/landing/SiteFooter'
 import { Pill, PillStyles } from '@/components/landing/ui/Pill'
@@ -31,7 +30,7 @@ export function LandingClient() {
     <div style={{ background: 'var(--hero-top)', minHeight: '100vh' }}>
       <LandingNav onSubmit={handleSubmit} />
 
-      {/* Hero — warm-brown editorial ground; evidence converges into the search */}
+      {/* Hero: query on the left, inspectable variant mapping on the right. */}
       <section
         id="hero"
         className="relative overflow-hidden"
@@ -41,8 +40,11 @@ export function LandingClient() {
           padding: '96px 0 112px',
         }}
       >
-        <GenomicFlow />
-        <div className="relative z-10 mx-auto flex flex-col items-start px-8 text-left" style={{ maxWidth: 1180 }}>
+        <div
+          className="relative z-10 mx-auto grid items-center gap-14 px-6 text-left sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(350px,5fr)] lg:gap-12"
+          style={{ maxWidth: 1180 }}
+        >
+          <div className="min-w-0">
           <span
             className="mb-7 inline-flex items-center gap-2 rounded-full"
             style={{
@@ -66,19 +68,19 @@ export function LandingClient() {
                 boxShadow: '0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent)',
               }}
             />
-            Genomics for everyone
+            Free public access
           </span>
 
           <h1
             style={{
               fontFamily: 'var(--display)',
               fontWeight: 400,
-              fontSize: 'clamp(42px, 5.8vw, 68px)',
+              fontSize: 'clamp(42px, 5vw, 64px)',
               lineHeight: 1.08,
               letterSpacing: '-0.02em',
               color: 'var(--hero-ink)',
               textWrap: 'balance',
-              maxWidth: 820,
+              maxWidth: 680,
               margin: '0 0 22px',
             }}
           >
@@ -95,11 +97,11 @@ export function LandingClient() {
               margin: '0 0 40px',
             }}
           >
-            Search a gene, a variant, or ask in plain words. Eamos gathers the genomic evidence and
-            returns one clear, sourced report.
+            Search a gene, a variant, or ask in plain words. Eamos gathers available public
+            evidence into one clear, sourced report, free to use.
           </p>
 
-          <div style={{ width: '100%', maxWidth: 880 }}>
+          <div style={{ width: '100%', maxWidth: 680 }}>
             <EamosSearch size="hero" tone="light" onSubmit={handleSubmit} />
           </div>
 
@@ -140,6 +142,8 @@ export function LandingClient() {
               Sample VCF →
             </Pill>
           </div>
+          </div>
+          <HeroVariantMap />
         </div>
       </section>
 
@@ -148,7 +152,6 @@ export function LandingClient() {
       <HowItWorks />
       <FeaturesGrid />
       <Testimonials />
-      <Pricing />
       <Faq />
       <SiteFooter />
     </div>

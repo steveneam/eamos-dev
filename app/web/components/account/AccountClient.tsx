@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { AcmgExplainer } from '@/components/acmg/AcmgExplainer'
-import { PageHeader } from '@/components/pricing/PageHeader'
+import { PageHeader } from '@/components/layout/PageHeader'
 import {
   addSavedVariant,
   clinvarReadiness,
@@ -133,27 +133,7 @@ function AccountStyles() {
         border-radius: 3px;
       }
 
-      /* Inline teal link (e.g. "Upgrade" in plan-status header) — same
-         teal-underline hover as .ac-text-btn. */
-      .ac-text-link {
-        color: var(--teal);
-        font-size: 12px;
-        font-weight: 600;
-        text-decoration: underline;
-        text-decoration-color: transparent;
-        text-decoration-thickness: 1.5px;
-        text-underline-offset: 4px;
-        transition: text-decoration-color var(--dur-1) var(--ease-standard);
-      }
-      .ac-text-link:hover { text-decoration-color: var(--teal); }
-      .ac-text-link:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(29,158,117,0.18);
-        border-radius: 3px;
-      }
-
-      /* Solid teal CTA Link (action cards in Empty/Notice). Matches the solid
-         pricing CTA hover: brightness step. */
+      /* Solid teal CTA Link for action cards in Empty/Notice. */
       .ac-cta-link {
         display: inline-flex;
         margin-top: 14px;
@@ -452,13 +432,8 @@ function PlanStatusHeader({ email }: { email: string }) {
               textTransform: 'uppercase',
             }}
           >
-            Free plan
+            Free public access
           </span>
-          <div className="mt-2">
-            <Link href="/#pricing" className="ac-text-link">
-              Upgrade
-            </Link>
-          </div>
         </div>
       </div>
     </header>

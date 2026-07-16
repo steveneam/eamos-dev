@@ -22,19 +22,23 @@ interface QA {
 const ITEMS: QA[] = [
   {
     q: 'Where does the functional literature count come from?',
-    a: 'Eamos queries ClinGen, ClinVar sub-ledgers, and PubMed concurrently, then passes the extracted PMIDs through a hash set to strictly eliminate duplication before counting.',
+    a: 'When a literature count is shown, it comes from source-backed publication rows. Eamos deduplicates stable publication identifiers and keeps the source status beside the result.',
   },
   {
     q: 'Does Eamos store private patient data?',
-    a: 'No. Eamos functions strictly as an evidence aggregator. No genetic sequence files (VCFs) are retained in our database pipelines; records are pulled live, per query.',
+    a: 'Eamos is designed for variant evidence, not identifiable patient records. The sample comparison starts in your browser, while saved variants and evidence submissions follow the Privacy Policy. Do not submit identifiable patient information unless you are authorised to do so.',
   },
   {
     q: 'Which databases does a single search cover?',
-    a: 'ClinVar, gnomAD, Ensembl, SpliceAI, and PubMed (plus ClinicalTrials.gov for active trials), with the ACMG/AMP rules engine applied on top of the aggregated evidence.',
+    a: 'The public-source sweep covers ClinVar, gnomAD, Ensembl, PubMed, and ClinicalTrials.gov, with an ACMG-aware rules layer applied to the aggregated evidence.',
+  },
+  {
+    q: 'Is Eamos really free?',
+    a: 'Yes. Eamos has no paid tiers or checkout. Some third-party predictor datasets require separate licenses, so Eamos only presents those results when their source and distribution terms allow it, and keeps that provenance visible.',
   },
   {
     q: 'How current is the data?',
-    a: 'Every search fetches live from each source. A cached fallback is shown only when a source is briefly unavailable, and the report flags when that happens.',
+    a: 'Each report labels its source state. Depending on availability, a row may be live, cached, bundled demo data, unavailable, or held behind a source gate; the report keeps that status visible.',
   },
 ]
 

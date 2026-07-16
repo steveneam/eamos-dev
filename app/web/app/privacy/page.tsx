@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { EamosLogo } from '@/components/brand/EamosLogo'
-import { AuthMenu } from '@/components/auth/AuthMenu'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { TextLink, TextLinkStyles } from '@/components/landing/ui/TextLink'
 import { LandingH3 } from '@/components/landing/ui/LandingHeading'
 
@@ -29,11 +28,11 @@ const SECTIONS: { h: string; p: string }[] = [
   },
   {
     h: '5. Reference genomic data is not your personal data',
-    p: 'Evidence shown in variant reports (from ClinVar, gnomAD, Ensembl, ClinicalTrials.gov, PubMed, and other public sources) is fetched live from those public databases and is reference data about variants, not personal data belonging to you. No patient sequence files are stored by Eamos.',
+    p: 'Evidence shown in variant reports (from ClinVar, gnomAD, Ensembl, ClinicalTrials.gov, PubMed, and other sources) is reference data about variants, not personal data belonging to you. Reports label whether a source row is live, cached, fixture-backed, unavailable, or gated. Eamos is not intended for identifiable patient records; do not submit identifiable patient information unless you are authorised to do so.',
   },
   {
     h: '6. How we use your information',
-    p: 'Your account identity is used solely to authenticate you, manage your subscription, and associate saved data with your account. Saved variants and Messenger submissions are stored so you can retrieve and manage them. Usage analytics are used in aggregate to improve platform features and reliability. We do not sell your personal information, use it for targeted advertising, or share it for purposes unrelated to operating Eamos.',
+    p: 'Your account identity is used solely to authenticate you, operate your account, and associate saved data with it. Saved variants and Messenger submissions are stored so you can retrieve and manage them. Usage analytics are used in aggregate to improve platform features and reliability. We do not sell your personal information, use it for targeted advertising, or share it for purposes unrelated to operating Eamos.',
   },
   {
     h: '7. Third-party processors',
@@ -65,38 +64,7 @@ export default function PrivacyPage() {
   return (
     <div style={{ background: 'var(--page-bg)', minHeight: '100vh' }}>
       <TextLinkStyles />
-
-      {/* Composed nav — same geometry as LandingNav: logo left, links
-          centered in a flex-1 zone, AuthMenu right. Static (not sticky) since
-          legal pages don't have a hero search to fold into. */}
-      <header style={{ borderBottom: '0.5px solid var(--page-line)' }}>
-        <div
-          className="relative mx-auto flex items-center gap-3 px-4 sm:gap-4 sm:px-8"
-          style={{ maxWidth: 1180, height: 'var(--nav-h)' }}
-        >
-          <div className="flex items-center gap-2">
-            <Link href="/" aria-label="Eamos home" className="brand-home-link flex shrink-0 items-center">
-              <EamosLogo size={18} tone="dark" />
-            </Link>
-          </div>
-          <div className="relative flex min-w-0 flex-1 items-center justify-center">
-            <nav className="hidden items-center gap-8 md:flex">
-              <TextLink href="/#features" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                Features
-              </TextLink>
-              <TextLink href="/#pricing" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                Pricing
-              </TextLink>
-              <TextLink href="/#faq" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                FAQ
-              </TextLink>
-            </nav>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <AuthMenu tone="light" />
-          </div>
-        </div>
-      </header>
+      <PageHeader tone="light" />
 
       <main className="mx-auto px-6 pb-28 pt-10" style={{ maxWidth: 820 }}>
         {/* Breadcrumb */}
@@ -120,7 +88,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="mt-4 text-[14px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Preview draft, last updated 25 May 2026. Written to comply with the Australian Privacy Act 1988 (Cth) and the Australian Privacy Principles (APPs).
+          Preview draft, last updated 16 July 2026. Written to comply with the Australian Privacy Act 1988 (Cth) and the Australian Privacy Principles (APPs).
         </p>
 
         <div className="mt-12 flex flex-col gap-9">

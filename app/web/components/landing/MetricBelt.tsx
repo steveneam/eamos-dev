@@ -3,7 +3,7 @@
 /**
  * Specimen strip — the "open page" of an Eamos variant report on the landing.
  *
- * Source-backed USH2A c.2276G>T specimen captured from live lookup-summary
+ * Source-backed USH2A c.2276G>T specimen captured from lookup-summary
  * output on 2026-06-01. The cream landing is the journal cover; this inset is
  * an open page from inside.
  */
@@ -182,7 +182,7 @@ export function MetricBelt() {
               </span>
             )}
             <span className="ml-auto" style={{ fontSize: 11, color: 'var(--ink-4)' }}>
-              Live demo · sourced
+              Demo snapshot · sourced
             </span>
           </div>
 
@@ -271,8 +271,8 @@ export function MetricBelt() {
         </div>
 
         <p className="mt-5 text-[11.5px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Captured from a live USH2A c.2276G&gt;T lookup summary · every value is source-scoped
-          (ClinGen · ClinVar · gnomAD v4 · functional evidence).
+          Bundled USH2A c.2276G&gt;T demo snapshot · values are scoped to ClinGen, ClinVar,
+          gnomAD v4, or functional evidence, with cached and missing states left visible.
         </p>
       </div>
     </section>

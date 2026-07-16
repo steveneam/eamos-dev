@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { EamosLogo } from '@/components/brand/EamosLogo'
-import { AuthMenu } from '@/components/auth/AuthMenu'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { TextLink, TextLinkStyles } from '@/components/landing/ui/TextLink'
 import { LandingH3 } from '@/components/landing/ui/LandingHeading'
 
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
 const SECTIONS: { h: string; p: string }[] = [
   {
     h: '1. Research use only',
-    p: 'Eamos aggregates third-party genomic evidence (ClinVar, gnomAD, SpliceAI, Ensembl, PubMed and others) into a single report. It is provided for research and informational purposes only and is not a medical device. Output must not be used as the sole basis for any clinical or diagnostic decision.',
+    p: 'Eamos aggregates available third-party genomic evidence into a single report. It is provided for research and informational purposes only and is not a medical device. Output must not be used as the sole basis for any clinical or diagnostic decision.',
   },
   {
     h: '2. No warranty on aggregated evidence',
@@ -28,8 +27,8 @@ const SECTIONS: { h: string; p: string }[] = [
     p: 'Where you submit variant evidence for onward routing (e.g. to ClinVar), you confirm you have the right to share that data, that it contains no identifiable patient information unless you are authorised to share it, and that submissions are logged for audit.',
   },
   {
-    h: '5. Subscriptions & billing',
-    p: 'Paid plans are billed in advance via our payment processor (Stripe). Prices are shown in AUD and include GST where applicable. You may cancel at any time; access continues to the end of the current billing period. Sample pricing shown during this preview is not final.',
+    h: '5. Free access and third-party sources',
+    p: 'Eamos currently provides platform access without paid tiers or checkout. Third-party databases, software, and predictor datasets remain subject to their own terms and licenses. A result may be unavailable, withheld, or shown with a source or launch gate when those terms do not allow Eamos to distribute it.',
   },
   {
     h: '6. Changes to these terms',
@@ -41,38 +40,7 @@ export default function TermsPage() {
   return (
     <div style={{ background: 'var(--page-bg)', minHeight: '100vh' }}>
       <TextLinkStyles />
-
-      {/* Composed nav — same geometry as LandingNav: logo left, links
-          centered in a flex-1 zone, AuthMenu right. Static (not sticky) since
-          legal pages don't have a hero search to fold into. */}
-      <header style={{ borderBottom: '0.5px solid var(--page-line)' }}>
-        <div
-          className="relative mx-auto flex items-center gap-3 px-4 sm:gap-4 sm:px-8"
-          style={{ maxWidth: 1180, height: 'var(--nav-h)' }}
-        >
-          <div className="flex items-center gap-2">
-            <Link href="/" aria-label="Eamos home" className="brand-home-link flex shrink-0 items-center">
-              <EamosLogo size={18} tone="dark" />
-            </Link>
-          </div>
-          <div className="relative flex min-w-0 flex-1 items-center justify-center">
-            <nav className="hidden items-center gap-8 md:flex">
-              <TextLink href="/#features" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                Features
-              </TextLink>
-              <TextLink href="/#pricing" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                Pricing
-              </TextLink>
-              <TextLink href="/#faq" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                FAQ
-              </TextLink>
-            </nav>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <AuthMenu tone="light" />
-          </div>
-        </div>
-      </header>
+      <PageHeader tone="light" />
 
       <main className="mx-auto px-6 pb-28 pt-10" style={{ maxWidth: 820 }}>
         {/* Breadcrumb */}
@@ -96,7 +64,7 @@ export default function TermsPage() {
           Terms &amp; Conditions
         </h1>
         <p className="mt-4 text-[14px]" style={{ color: 'var(--hero-ink-3)' }}>
-          Preview draft, last updated 24 May 2026. Placeholder content for the test deployment; final
+          Preview draft, last updated 16 July 2026. Placeholder content for the test deployment; final
           terms will be reviewed before public launch.
         </p>
 

@@ -16,32 +16,32 @@ const STEPS: Step[] = [
     kicker: 'Single query',
     title: 'Enter a variant',
     description:
-      'Type a gene plus HGVS, rsID, or genomic coordinate into the zero-trust search. Eamos normalises whatever you paste.',
+      'Type a gene plus HGVS, rsID, or genomic coordinate. Eamos resolves supported formats into one reviewable query.',
     visual: { lines: ['> USH2A c.2276G>T', 'parsed: NM_206933.4', 'normalised: 1-216247118-C-A'] },
   },
   {
     num: 2,
-    kicker: 'Parallel sweep',
-    title: 'Eamos queries every source at once',
+    kicker: 'Source sweep',
+    title: 'Eamos gathers the available evidence',
     description:
-      'ClinVar, gnomAD, Ensembl, SpliceAI, and PubMed, fanned out in parallel, aggregated and deduplicated, with the ACMG rules engine on top.',
+      'Public sources are queried according to availability, then aggregated with an ACMG-aware rules layer. Live, cached, fixture, and unavailable states stay visible.',
     visual: {
       lines: [
-        'ClinVar  … ok  (12 submissions)',
-        'gnomAD   … ok  (v4, exomes+genomes)',
-        'SpliceAI … ok  (Δ 0.94)',
-        'Ensembl  … ok  (CADD 32, REVEL 0.92)',
-        'PubMed   … ok  (4 citations matched)',
+        'ClinVar  … classification + status',
+        'gnomAD   … population evidence',
+        'Ensembl  … consequence mapping',
+        'Trials   … discovery links',
+        'PubMed   … cited literature',
       ],
     },
   },
   {
     num: 3,
-    kicker: 'Instant rendering',
-    title: 'Read the report',
+    kicker: 'Sourced report',
+    title: 'Inspect the report',
     description:
-      'A clean four-card matrix with an AI-led summary, ACMG verdict, evidence table, and trials; every claim cited.',
-    visual: { lines: ['Verdict: Likely path.', 'PM1, PM2, PP3', 'Trials: 3 recruiting'] },
+      'A structured view joins the evidence summary, ACMG-aware interpretation, source rows, literature, and trial discovery links for human review.',
+    visual: { lines: ['Evidence: source-backed', 'Status: visible per row', 'Next: inspect provenance'] },
   },
 ]
 
