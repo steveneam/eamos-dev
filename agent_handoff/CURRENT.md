@@ -25,12 +25,12 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** COMPLETE @ 2026-07-16 08:16 UTC — Compare batch-model fold is
-  pushed on synced `main`; CI and Vercel are green.
+- **Codex:** COMPLETE @ 2026-07-16 08:52 UTC — the read-only Render-to-syd2
+  Phase-1 readiness verifier and runbook are pushed on green `main`.
 
 ## Log Edit-Lock
 
-RELEASED: 2026-07-16 08:16 +0000 · Codex (Compare fold verified clear-safe)
+UNLOCKED · 2026-07-16 08:52 +0000 · Codex (migration-readiness slice clear-safe)
 
 ## Shared File Locks
 
@@ -39,41 +39,50 @@ RELEASED: 2026-07-16 08:16 +0000 · Codex (Compare fold verified clear-safe)
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-16 08:16 +0000 · Codex Compare batch fold
+# Resume prompt · 2026-07-16 08:52 +0000 · Codex migration readiness
 Read CURRENT.md, agent_handoff/README.md, the migration master plan, then inspect git log/status.
-Main commit 7fb5459 preserves the named CompareClient route export while moving batch request,
-progress, error, and issue-copy modeling into a focused, tested module.
-Full web tests/lint/type/build, cross-code guards, 26 batch security tests, CI run 29482675204,
-and Vercel passed. FROM-SWORDFISH.md remains watcher-owned and dirty.
-The Phase-1 dry-run itself does not need Render; the mandatory live-disk manifest proof needs
-read-only runtime shell/exec on the SG service, or an operator-provided raw manifest artifact.
-Next, perform a read-only migration-readiness audit: confirm container UID and freeze exact
-source/Render/syd2 manifest commands. Do not touch cloud, secrets, materialization, or deploy.
-Safe to clear: yes — the verified code boundary is pushed and all remote checks are green.
+Main commit 7e965ec adds a read-only source/runtime manifest verifier and exact Phase-1 runbook.
+Live source proof is green for 35 objects / 43,500,288,345 bytes; no large object was downloaded.
+The current image declares root 0:0; live Render id and the raw disk manifest remain unobserved.
+The syd2 .drill canary requires an isolated runtime subtree; Swordfish guidance is requested.
+CI run 29484848897 and Vercel passed. FROM-SWORDFISH.md remains watcher-owned and dirty.
+Next, read any Swordfish reply, then obtain an authenticated operator capture of live Render id
+and the raw manifest before running the content comparison. No seed, upload, deploy, or mutation.
+Safe to clear: yes — the verified slice is pushed, remote checks are green, and locks are released.
 ```
 
 ## Pointer
 
-- Main commit: `7fb5459`, `refactor(web): split compare batch lifecycle model`.
-- CI: run `29482675204`; dependency security, both backend shards, aggregator,
-  web, and frontend passed. Vercel deployment completed successfully.
-- Local: 160 web tests, lint, TypeScript, production build, cross-code guards,
-  and 26 focused backend batch tests passed.
+- Main commit: `7e965ec`, `feat(ops): add migration manifest verifier`.
+- CI: run `29484848897`; dependency security, both backend shards, aggregator,
+  web, and frontend passed. Automatic Vercel production status is successful.
+- Runbook: `docs/deployment/render-to-syd2-phase1.md`; exact source, Render,
+  comparison, identity, and syd2 harness commands are frozen there.
+- Swordfish asks: `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md` requests numeric
+  `deploy` UID/GID, the isolated runtime subtree, and artifact-routing guidance.
 - Worktree: only `agent_handoff/FROM-SWORDFISH.md` is modified; it is
   watcher-owned and was not staged, committed, or altered by this lane.
 
 ## Delta
 
-- `CompareClient.tsx` fell from 1,323 to 1,132 lines. The 218-line
-  `batchRunModel.ts` owns payload/filter adaptation and progress/error copy.
-- Twelve focused model tests plus 1,200/250-line budgets protect the split.
-- Security review preserved server auth, owner isolation, rate limits, upload
-  bounds, and bounded Ask-Eamos scope. No confirmed vulnerability was added.
-- No Render, Supabase, provider, schema, materialization, or deploy action ran.
+- The private bucket reconciled 35/35 objects and 40.513 GiB using list/head
+  plus 628,449 bytes of small-object reads; manifest SHA-256 is recorded.
+- The verifier fails closed on checksum/size authority disagreement and flags
+  any runtime-only content identity despite different source/runtime paths.
+- Current Docker identity is statically root `0:0`. Live identity, the raw
+  Render manifest, current-cycle egress headroom, and the ClinGen dry run remain
+  explicit Phase-1 gates.
+- `/srv/project1/assets/runtime` is proposed so Swordfish's required `.drill`
+  exclusion canary remains outside the exact application-tree diff.
+- Full backend tests, Ruff/Black, package ratchets, Next build, local FE-to-BE
+  proxy smoke, and the Swordfish manifest harness self-test passed.
+- No Render, Supabase, syd2, provider, schema, seed, materialization, or deploy
+  hook action ran.
 
 ## Next Action
 
-- Perform the read-only Phase-1 migration-readiness audit: determine the
-  container runtime UID/GID and freeze exact source-bucket, live-Render-disk,
-  and syd2 manifest/diff commands. Do not execute any cloud, secret, seed,
-  deploy, provider, or materialization action without its explicit gate.
+- Read any Swordfish reply, then obtain explicit authenticated operator access
+  or an operator-provided artifact for the live Render `id` and raw disk
+  manifest. Run the committed content comparison only after validating the
+  artifact checksum. Do not seed, upload, deploy, resize, change providers, or
+  mutate Render, Supabase, or syd2 without the applicable explicit gate.
