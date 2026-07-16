@@ -723,6 +723,320 @@ table.sr-only :where(caption, tbody, tr, th, td) {
   color: var(--ink-4);
 }
 
+/* ─── Variant report reading flow + chapter shell ───
+   The four evidence-axis cards are the only dashboard layer. Everything below
+   reads as one continuous clinical record, with numbered chapters rather than
+   a stack of generic card headers. */
+.report-reading-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.report-chapter {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--elev-1);
+}
+
+.report-chapter__header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 17px 18px 17px 20px;
+  background: color-mix(in oklab, var(--bg) 82%, var(--bg-soft));
+}
+
+.report-chapter[data-expanded='true'] .report-chapter__header {
+  border-bottom: 0.5px solid var(--line);
+}
+
+.report-chapter__toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--ink-3);
+  font: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease-standard),
+    color var(--dur-1) var(--ease-standard);
+}
+
+.report-chapter__toggle:hover {
+  background: color-mix(in oklab, var(--teal) 4%, var(--bg));
+}
+
+.report-chapter__toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--teal) 42%, transparent);
+}
+
+.report-chapter__index {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  width: 42px;
+  color: var(--teal-deep);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  border-right: 0.5px solid var(--line);
+}
+
+.report-chapter[data-verdict='Pathogenic'] .report-chapter__index {
+  color: var(--cls-path-text);
+  border-color: var(--cls-path-bdr);
+}
+.report-chapter[data-verdict='Likely pathogenic'] .report-chapter__index {
+  color: var(--cls-lpath-text);
+  border-color: var(--cls-lpath-bdr);
+}
+.report-chapter[data-verdict='VUS'] .report-chapter__index {
+  color: var(--cls-vus-text);
+  border-color: var(--cls-vus-bdr);
+}
+.report-chapter[data-verdict='Likely benign'] .report-chapter__index {
+  color: var(--cls-lben-text);
+  border-color: var(--cls-lben-bdr);
+}
+.report-chapter[data-verdict='Benign'] .report-chapter__index {
+  color: var(--cls-ben-text);
+  border-color: var(--cls-ben-bdr);
+}
+
+.report-chapter__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.report-chapter__title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  overflow-wrap: anywhere;
+}
+
+.report-chapter__meta {
+  color: var(--ink-3);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.report-chapter__disclosure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 46px;
+  color: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.report-chapter__disclosure svg {
+  transition: transform var(--dur-2) var(--ease-emphasized);
+}
+
+.report-chapter__toggle[aria-expanded='false'] .report-chapter__disclosure svg {
+  transform: rotate(-90deg);
+}
+
+.report-chapter__actions {
+  display: flex;
+  align-items: center;
+}
+
+.report-chapter__content {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 24px clamp(16px, 3vw, 28px) 28px;
+  background: var(--bg);
+  animation: report-chapter-enter var(--dur-2) var(--ease-standard) both;
+}
+
+.report-chapter__content > :first-child {
+  margin-top: 0 !important;
+}
+
+@keyframes report-chapter-enter {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.report-source-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px 13px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 1.5;
+  background: color-mix(in oklab, var(--warn-tint) 38%, var(--bg));
+  border: 0.5px solid color-mix(in oklab, var(--warn-bdr) 62%, var(--line));
+  border-radius: var(--r-md);
+}
+
+.report-source-note__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--warn-text);
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--warn-tint);
+  border: 0.5px solid var(--warn-bdr);
+  border-radius: 50%;
+}
+
+.report-source-note strong {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.report-section-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: start;
+  padding: 14px 15px;
+  color: var(--ink-3);
+  background: var(--bg-soft);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.report-section-state--failed,
+.report-section-state--partial,
+.report-section-state--stale {
+  background: color-mix(in oklab, var(--warn-tint) 46%, var(--bg));
+  border-color: color-mix(in oklab, var(--warn-bdr) 62%, var(--line));
+}
+
+.report-section-state__mark {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  background: var(--ink-5);
+  border-radius: 50%;
+}
+
+.report-section-state--failed .report-section-state__mark,
+.report-section-state--partial .report-section-state__mark,
+.report-section-state--stale .report-section-state__mark {
+  background: var(--warn);
+}
+
+.report-section-state__copy {
+  min-width: 0;
+}
+
+.report-section-state__title {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.report-section-state__detail {
+  margin-top: 3px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.report-section-state__skeleton {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.report-section-state__skeleton span {
+  display: block;
+  width: min(420px, 100%);
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  animation: report-skeleton-pulse 1.2s var(--ease-standard) infinite alternate;
+}
+
+.report-section-state__skeleton span:last-child {
+  width: min(270px, 68%);
+}
+
+@keyframes report-skeleton-pulse {
+  from { opacity: .45; }
+  to { opacity: .9; }
+}
+
+@media (max-width: 640px) {
+  .report-reading-flow { gap: 14px; }
+
+  .report-chapter__header {
+    grid-template-columns: 32px minmax(0, 1fr) auto auto;
+    gap: 10px;
+    padding: 14px 10px 14px 14px;
+  }
+
+  .report-chapter__toggle {
+    min-width: 34px;
+    padding-inline: 6px;
+  }
+
+  .report-chapter__index {
+    width: 32px;
+  }
+
+  .report-chapter__title {
+    font-size: 18px;
+  }
+
+  .report-chapter__disclosure-label {
+    display: none;
+  }
+
+  .report-chapter__content {
+    padding: 18px 14px 22px;
+  }
+
+  .report-section-state {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .report-section-state > :last-child:not(.report-section-state__copy) {
+    grid-column: 2;
+  }
+}
+
 /* ─── ACMG criteria grid (rendered inside a shared Disclosure) ─── */
 .acmg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
 .acmg-cell { padding: 8px 10px; border: 0.5px solid var(--line); border-radius: 6px; background: var(--bg-soft); font-family: var(--mono); font-size: 11px; color: var(--ink-4); display: flex; flex-direction: column; gap: 2px; }

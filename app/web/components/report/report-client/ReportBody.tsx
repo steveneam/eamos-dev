@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AIStack } from '@/components/aistack/AIStack'
 import { AcmgCriteriaFold } from '@/components/report/AcmgCriteriaFold'
-import { AdvisorySummaryStrip } from '@/components/report/AdvisorySummaryStrip'
 import { AfThermometer } from '@/components/report/AfThermometer'
 import { CalibratedInSilicoTable } from '@/components/report/CalibratedInSilicoTable'
 import { CallCardsGrid } from '@/components/report/CallCardsGrid'
@@ -66,7 +65,6 @@ import {
   ReportSectionSlot,
   ReportSectionState,
   ReportSectionStateCard,
-  ReportSignalDashboard,
   stateFromEnvelope,
 } from './ReportSectionPrimitives'
 import {
@@ -262,24 +260,11 @@ export function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = 
           fetched_at as the fallback. */}
       <DataCurrencyLine data={data} freshness={payload.report_data_currency ?? null} />
 
-      <div className="flex flex-col gap-3.5">
+      <div className="report-reading-flow">
         {/* Call cards sit just under the header as the at-a-glance verdicts.
             They're scannable summary; the numbered evidence sections begin
             below. */}
         <CallCardsGrid payload={payload} populationAf={populationAf} />
-        <ReportSignalDashboard signals={payload.report_profile?.section_signals} />
-
-        {/* The glanceable EAMOS-computed advisory (Evidence Fingerprint + posterior
-            chip), directly under the call cards. The full drawn decision (plane +
-            waterfall + gauge) is the synthesis capstone of §2; this strip links
-            down to it so the verdict is never buried. */}
-        {computedClassification && (
-          <AdvisorySummaryStrip
-            payload={payload}
-            computed={computedClassification}
-            populationAf={populationAf}
-          />
-        )}
 
         {/* 1 · Clinical evidence — ClinGen expert panel + ClinVar + ACMG.
             ClinGen leads (highest weight for classification), then ClinVar,

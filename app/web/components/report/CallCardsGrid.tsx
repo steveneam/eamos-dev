@@ -221,7 +221,12 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
             <>
               <div
                 className="eamos-kicker"
-                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  color: cardTheme ? cardTheme.color : 'var(--ink-3)',
+                }}
                 title={cardHelp ?? undefined}
               >
                 <span
@@ -264,7 +269,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
                 ) : (
                   <span
                     style={{
-                      color: 'var(--ink-4)',
+                      color: cardTheme ? cardTheme.color : 'var(--ink-3)',
                       fontSize: 11,
                     }}
                   >
@@ -278,7 +283,12 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
                   minHeight: 28,
                   fontSize: 10.5,
                   lineHeight: 1.35,
-                  color: cardWarnings.length > 0 ? 'var(--warn-text)' : 'var(--ink-4)',
+                  color:
+                    cardWarnings.length > 0
+                      ? 'var(--warn-text)'
+                      : cardTheme
+                        ? cardTheme.color
+                        : 'var(--ink-3)',
                   overflowWrap: 'anywhere',
                 }}
               >
@@ -337,14 +347,12 @@ interface InteractiveCardProps {
 
 function InteractiveCard({ card, cardBody, theme, help, onNavigate }: InteractiveCardProps) {
   const [hovered, setHovered] = useState(false)
-  const label = `${card.title}: ${card.primary_label ?? 'view detail'}`
   return (
     <button
       type="button"
       onClick={onNavigate}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      aria-label={label}
       title={help ?? undefined}
       className="call-card-btn w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
       style={{

@@ -1,271 +1,159 @@
-# Eamos — Roadmap
+# Eamos Roadmap
 
-> ⚠ **Freshness note (2026-06-06):** the header below and the "nothing is
-> committed" lines are STALE — most v2 work is committed + live on
-> `origin/main` `8a571eb`. The Workbench FE table (FE-6/7/8) was corrected this
-> date against the real tree. Treat dated status cells as point-in-time; the
-> working tree + commits are ground truth.
->
-> Updated 2026-05-16 (Session 16/17) after a whole-project Codex adversarial
-> review + a deepthink sessionized-plan pass. State is accurate to the working
-> tree; **nothing is committed** (standing "no commit unless asked"). The
-> resumable execution plan lives in
-> `C:\Users\seamegdool\.claude\plans\next-session-eamos-hardening.md`.
+Updated 2026-07-16 15:44 +0000 · Codex.
 
-## Product surfaces
+This file records the current product sequence. Git, executable guards, the
+active plan, and `agent_handoff/CURRENT.md` remain the operational ground truth.
+Historical implementation ledgers stay in `PROGRESS.md` and the scoped plans.
 
-| Surface | Route | Status |
-| ------- | ----- | ------ |
-| **Landing** | `/` | v2 shipped |
-| **Variant report** | `/report` | v2 shipped + variant-search engine **live-verified** (real APIs resolve RPE65 c.260A>G end-to-end) |
-| **Workbench** | `/workbench` | v1 partial — sequence viewer + click-to-edit shipped (FE-4/5); Primer/CRISPR/Align/Compare panels + AskEamos pill pending (FE-6/7/8) |
-| **Patient report (Layer 2)** | `/runs` | **Feature-frozen** v1 design — no new features, BUT receiving a security patch (auth) this cycle (a feature freeze is not a security freeze) |
+## Product reality
 
----
+| Surface | Route | Current state |
+| --- | --- | --- |
+| Landing | `/` | Shipped. Free-public positioning, real product examples, responsive feature gallery, safe share links, and anonymous content-free discovery telemetry are complete. |
+| Search results | `/search` | Shipped. Structured results and answer paths use the active backend contract and authenticated result surface where required. |
+| Variant Report | `/report` | Shipped and source-backed. Four evidence-axis cards hand directly to Clinical, followed by one coherent seven-chapter evidence record. |
+| Paper | `/paper` | Shipped. Paper evidence review is a first-class product surface. |
+| Batch | `/compare` | Shipped. VCF/list ingestion, panel filtering, sample flow, results, and exports are active. |
+| Workbench | `/workbench` | Shipped for Sequence Viewer, Primer, CRISPR, and Alignment. Ask Eamos is mounted in the shared rail. An embedded Workbench comparator remains a product decision because Batch already owns multi-variant comparison. |
+| Account and auth | `/account`, `/auth` | Shipped as supporting surfaces. There is no active pricing, checkout, upgrade, or paid-tier product surface. |
+| Patient report | `/runs` | Frozen on the legacy v1 interface. Security fixes remain allowed; feature and visual work wait for a separately approved Layer 2 cycle. |
 
-## Layer 1 — DONE & live-verified
+## Foundations already complete
 
-- **v1:** fixture-backed pipeline + React/Vite scaffolding, all lookup report sections.
-- **v2:** Landing v2, Report v2 modules (LocusContext / InSilicoGrid / AcmgCriteriaFold /
-  CuratedVariantsGrid / AssociatedConditions / PublicationsCallout), variant header v2.
-- **Variant-search engine (BE-8…BE-13 + FE-14):** input normalization, VariantValidator
-  strict GRCh38 coords, strict-genomic plugin loop, LitVar2/PubMed publications, frozen
-  warnings contract, persistent variant cache, frontend search robustness. **Live-verified
-  2026-05-16:** `genomic_hg38=1-68444869-T-C`, gnomAD/VariantValidator live, 10 live
-  PubMed articles, cache + `?refresh=true` correct. Offline 80/4 pytest, contract 40/40,
-  vitest 21/21.
+- `app/web` is the only active frontend. The historical Vite application and
+  duplicate TypeScript contract were retired.
+- Eamos is universal-free at the product layer. All eleven predictor rows remain
+  visible; operational availability is separate from access. Backend rows keep
+  license, provenance, launch-gate, and preflight metadata for later policy.
+- The Variant Report has a backend-generated four-axis summary, seven registered
+  evidence sections, lazy section contracts, exports, report library, source
+  currency, provenance, negative controls, and section-state handling.
+- Search, Paper, Batch, and Workbench share the same variant-oriented product
+  shell and backend contract.
+- Ask Eamos is mounted on report and Workbench rails. Metered chat routes require
+  authenticated principals and retain per-user and global caps.
+- Private source/cache schemas, source readers, provenance, provider health,
+  contract canaries, ownership checks, boundary guards, dependency security,
+  and CI branch protection are established.
+- The parallel-worktree protocol, verified-slice commit/push rule, clear-safe
+  handoff, and peer-mail boundary are executable repository policy.
 
----
+## Current execution order
 
-## Backend data live-wire roadmap
+### 1. Variant Report reading experience
 
-The site can move to full live data in staged backend-owned phases, not by
-opening every source at once.
+Status: complete, selected and verified on 2026-07-16.
 
-Current status (2026-06-01): phases 1-3 are partially implemented in the local
-backend tree and dev Supabase, and the post-reference source reader-proof gate
-is now closed locally. The dev Supabase project has private `eamos_private`
-cache/source/job tables, RLS, service-role-only DML, advisor checks, and
-backend hybrid cache wrappers for variant reports, source cache, and protein
-annotation. Approved Tier 1/2/3 source downloads are locally staged, static
-source readiness is `10/10`, and capped Linux native proof returned `10 proven /
-0 native pending` for dbSNP, ClinVar, RepeatMasker, phyloP, hg38, MANE,
-GENCODE, MONDO, HPO, ClinGen, and GenCC. The private source bucket now contains
-the large dbSNP and phyloP source assets plus checksum manifests, uploaded via
-hardened backend S3 multipart tooling after the 50 GiB Storage limit increase;
-remote sizes match local staged files. The code still must be
-committed/pushed and the Render backend must be redeployed with coordinated
-private Supabase/Postgres and source-asset runtime materialization before web
-searches can use the shared cache and local source reads.
+Outcome:
 
-1. **Supabase perimeter first:** private source metadata/status/cache schemas,
-   RLS enabled, no broad anon/authenticated grants, server-only credentials,
-   and advisor/policy checks.
-2. **Small non-commercial imports:** Mondo, HPO, ClinGen gene validity, and
-   GenCC imported through backend jobs with source version, checksum, row-count,
-   provenance, and backend API smoke tests.
-3. **Private large-asset storage:** immutable Supabase Storage objects with
-   checksum manifests, no public bucket listing or raw genomic object reads,
-   and backend local-cache verification.
-4. **Bounded local-source runtime reads:** enable request-time dbSNP/ClinVar/
-   RepeatMasker/phyloP/reference reads only after cache/materialization,
-   timeouts, rate limits, stale/fallback behavior, and live smoke tests pass.
-5. **Licensed/pro-tier sources last:** InterVar/ANNOVAR/OMIM and restricted
-   predictors (SpliceAI/CADD/REVEL/PrimateAI-3D/raw dbNSFP) require commercial
-   rights, product-tier gates, `licensed_enabled` policy rows, and leak tests
-   proving public/free payloads cannot expose restricted fields.
+- Preserve the four evidence-axis cards as the only top summary display.
+- Hand directly from those cards to Clinical evidence.
+- Remove the backend-ranked mini-card dashboard and standalone evidence-
+  fingerprint strip from the top flow. The full Eamos computation remains in
+  the auditable In-silico section.
+- Present Clinical, In-silico, Population, Gene and locus, Disease,
+  Publications, and Trials as a coherent numbered evidence record with strong
+  source hierarchy, calm disclosure controls, and complete loading, empty,
+  partial, stale, and failed states.
+- Verify the hierarchy on the offline negative-control fixture without changing
+  backend contracts. Representative live-variant evidence auditing belongs to
+  the next source-closure cycle.
 
-Unsafe defaults: direct frontend SQL over source tables, public genomic buckets,
-startup downloads on Render, unrestricted storage uploads, and request-time
-restricted predictor or InterVar/OMIM use before the gates above.
+Verified result:
 
----
+- Structural boundary guard locks Call cards → Clinical as the top read order.
+- Full repository verification, the independent frontend-contract canary, local
+  Next -> FastAPI report smoke, 1024/1280/1440 desktop preflight, 1440 browser
+  review, keyboard/console review, and the accessibility audit are green for
+  this slice. Remaining dense-widget contrast debt is recorded in the plan and
+  `PROGRESS.md`.
 
-## Protein Annotation Roadmap
+Active plan: `plans/variant-report-experience/plan.md`.
 
-The Workbench protein view needs a local/offline protein-annotation track before
-it can match UniProt/Pfam-style references safely.
+### 2. Report evidence and runtime closure
 
-1. **Terms recorded:** UniProtKB is CC BY 4.0, InterPro/Pfam downloadable data
-   is CC0, InterProScan core is Apache licensed, and HMMER is BSD 3-clause.
-   Core commercial/local use is feasible with attribution, citation,
-   retained notices, checksum/version manifests, and no endorsement claims.
-2. **Core bundle staged locally:** ignored downloads are staged under
-   `app/backend/data/bio_assets/protein_annotation/downloads/` for
-   Swiss-Prot, Pfam-A HMM/metadata, HMMER source, and InterProScan source.
-   They are not committed or public; Pfam extraction/pressing is now a
-   backend prep step, but it has not been run on Render.
-3. **Local annotation engine:** annotate user protein sequences by translating
-   coding DNA to protein and running InterProScan standalone, or HMMER
-   `hmmscan` against a local Pfam-A bundle, in a bounded backend worker with
-   `--no-matches-api` or a local match lookup service.
-4. **Reviewed static mirrors:** mirror only approved, release-pinned UniProtKB
-   reviewed/Swiss-Prot and InterPro/Pfam data with source version, checksum,
-   license/attribution text, and release metadata.
-5. **ProteinDomainTrack contract:** feed protein-coordinate domain/site ranges,
-   Pfam/InterPro accessions, labels, scores, and provenance into the Workbench
-   protein track. Ensembl translation overlap remains a fallback, not the rich
-   source of record.
+Status: next report cycle after the presentation slice.
 
-Still gated: live UniProt/InterPro/Pfam API dependency, startup downloads,
-Render env/deploy mutation, external protein-asset materialization, and
-optional InterProScan licensed apps (`SignalP`, `Phobius`, `DeepTMHMM`) until
-separate provider licenses and leak tests are recorded.
+Prioritize source-backed gaps visible to a curator, not another page redesign:
 
-### Eamos Protein Annotation Super Tool
+1. Audit representative pathogenic, benign, unresolved, and source-empty
+   variants across all seven sections.
+2. Close any remaining ClinGen VCEP attribution, ClinVar interpretation,
+   structured ClinicalTrials.gov, gene-constraint, protein-track, or source-
+   freshness gaps only where the current payload proves them missing.
+3. Keep missing sources explicit. Never turn a fixture, cache fallback, or
+   unavailable predictor into a clinical claim.
+4. Keep the seven-section registry, lazy-fetch contract, export contract, and
+   backend/frontend schema canary aligned.
 
-This is the proprietary Eamos layer built on top of upstream licensed/open data
-and tools. Eamos can own the worker orchestration, parsers, normalized schema,
-cache, provenance model, UI contract, and live-wire policy. Eamos does not
-relicense UniProtKB, Pfam/InterPro, HMMER, or InterProScan themselves.
+Founder-gated runtime work stays separate: persistent-disk materialization,
+provider or environment changes, Supabase mutations, migrations, deployment,
+and large source downloads require their existing approval and preflight gates.
 
-Current implementation status (2026-05-31): the first local/offline backend
-slice is implemented and verified. It includes asset preflight,
-`ProteinDomainTrack`, HMMER/Pfam `domtblout` parsing, UniProtKB/Swiss-Prot
-flatfile feature parsing, fail-closed runtime behavior, sequence-hash caching,
-Workbench/report cache hydration hooks, and private Supabase metadata/cache
-migration scaffolding. Follow-up runtime-prep work added Linux/Render HMMER
-packaging plus `Pfam-A.hmm.gz` extraction and `hmmpress`; SG one-off proof now
-confirms `hmmscan`/`hmmpress` are present in the image. The Pfam gz bundle is
-verified in private Supabase Storage and a backend-only materialization CLI can
-download, checksum, prep, and PCARE-smoke it from service-role credentials.
-Render one-off proof on `4b17ce4` now confirms the full private Pfam
-materialize -> extract -> `hmmpress` -> PCARE -> real ABCA4 fixture CDS smoke
-path; ABCA4 is loaded from the committed transcript-model fixture
-(`NM_000350.3`, `ENSP00000359245`, CDS `6822`, translated protein length
-`2273`) and produced `38` Pfam features. The actual web-service provider-cache
-ready state still requires persistent service-instance materialization through
-Render Shell, a persistent disk, or an approved startup/runtime materialization
-design plus coordinated Render env enablement. The renderer contract
-intentionally separates source label, compact abbreviation, and functional
-legend description so gene/protein-specific biology can be shown without
-falsifying upstream provenance.
+### 3. Workbench completeness
 
-1. **Asset preflight:** verify staged Swiss-Prot, Pfam-A, HMMER, and
-   InterProScan files by expected size/hash and report usable/missing status.
-2. **ProteinDomainTrack contract:** define a backend contract for domains,
-   sites, motifs, accession IDs, AA ranges, scores/e-values, release metadata,
-   checksum provenance, and fail-closed states.
-3. **Lean local worker:** translate coding DNA/protein input, run a configured
-   local HMMER/Pfam interface, parse `domtblout`, normalize AA-coordinate
-   features, and cache by sequence hash plus Pfam/HMMER release.
-4. **Fail-closed runtime gate:** expose no live API fallback; if `hmmscan`,
-   Pfam indexes, or provenance are missing, return explicit unavailable states
-   rather than external calls or fabricated domains.
-5. **Workbench/report read path:** feed cached local domain/site features into
-   Workbench and report protein tracks with UniProt/Pfam-style provenance.
-6. **Backend live wiring:** after local preflight, parser, cache, and leak
-   tests pass, add private Supabase metadata/cache tables for source versions,
-   checksums, jobs, and annotation results; keep frontend direct SQL and public
-   buckets blocked.
+Status: active product, no rebuild planned.
 
----
+- Keep Sequence Viewer, Primer, CRISPR, Alignment, protein context, edits, and
+  tool-aware Ask Eamos on the shared product shell.
+- Decide whether an embedded comparator creates value beyond `/compare`. If it
+  does, define one frozen cross-surface contract and build it. If it does not,
+  remove the remaining ghost `compare` metadata and CSS rather than advertising
+  an unreachable tool.
+- Continue source-backed runtime and browser verification for real engines;
+  preserve explicit unavailable states when a local engine or asset is absent.
 
-## Workbench v1 (active)
+### 4. Release feedback loop
 
-Source: `Eamos Workbench v1.html` + `Workbench/*.{js,css}`. Plan: `plans/v2-frontend.md`.
+Status: follows a normal approved deployment of the current product state.
 
-| ID | Milestone | Status |
-| -- | --------- | ------ |
-| FE-4 | Workbench shell — layout chrome, tool state, context strip | ✅ Done |
-| FE-5 | Sequence Viewer + click-to-edit — codon table, tracks, popover, scratchpad | ✅ Done |
-| FE-6 | Primer + CRISPR panels — segmented mode tabs, output tables, HDR ssODN | ✅ Done + mock-wired (Primer **and** CRISPR; corrected 2026-06-06 — was stale "Pending"). Live engines flag-gated behind `use_real_apis`. |
-| FE-7 | Alignment + Comparator — Canvas chromatogram, pairwise, 2–3 variant grid | 🟡 Alignment done + mock-wired; **Comparator NOT built** (ghost tool: `tools.ts` has meta but no component, absent from `TOOL_ORDER`). Corrected 2026-06-06. |
-| FE-8 | AskEamos pill (tool-aware) — floating panel, per-tool chips, persistent | ⏳ PARKED — pill not mounted (orphaned CSS only); LLM key unfunded → "COMING SOON". |
-| BE-4 | Workbench engine stubs — `/api/v1/primer | /crispr | /align` | ✅ Done |
-| BE-5 | Test sweep — `test_frontend_contract.py` v2 schema | ✅ Done (40/40) |
+- Review only aggregate, anonymous discovery events. Never inspect person
+  profiles, genomic query content, raw URLs, account identifiers, or session
+  replay.
+- Re-run route-level performance, accessibility, responsive, and browser
+  verification after material UI changes.
+- Use measured product behavior to select the next slice. Do not revive pricing
+  or entitlement UI as a proxy for validation.
 
----
+## Held and future cycles
 
-## Hardening cycle (active — from the whole-project Codex review, 2026-05-16)
+- Layer 2 v2: redesign `/runs` only as its own approved patient-report cycle.
+- Mouse mm39: reuse the human lookup architecture with a separately sourced and
+  verified database stack; keep it hidden until complete.
+- Large local evidence bundles and protein annotation: continue only through the
+  persistent-volume, checksum, provenance, and provider-health gates.
+- Multi-instance durable rate limiting and counters: required before horizontal
+  backend scaling or stronger spend guarantees.
+- Layer 3 remains internal and is not part of the public roadmap.
 
-Risk-ordered: patient-data security → evidence correctness → invariant hardening →
-features → docs. The historical role-pinned lane split is retired; current work
-uses agent-agnostic ownership with disjoint globs from `COORDINATION.md`.
+## Retired assumptions
 
-| Sev | Finding | Owner | Session |
-| --- | ------- | ----- | ------- |
-| CRITICAL | C1/C2 — `/runs,/reports,/reviews,/search` unauthenticated; `/reports/upload` open | Codex | **1 — ✅ fixed & verified** |
-| HIGH | H1 — `/report?q=` silently rendered the RPE65 demo for arbitrary queries | Claude | **1 — ✅ fixed** |
-| HIGH | H2 — `spliceai.py` violates strict-genomic invariant (re-queries by gene instead of `live_stub`) | Codex | **2 — ✅ fixed & verified** |
-| HIGH | H3 — `variant_validator.py` `_mutate_variant()` fabricates consequence/variation_type when no coords | Codex | **2 — ✅ fixed & verified** |
-| MED | M1 — `variant_cache_repo` select-then-insert race → IntegrityError | Codex | **2 — ✅ fixed (atomic upsert)** |
-| MED | M2 — `pubmed.py` miss path returns `raw=None` vs zero-schema (`{}`) | Codex | **2 — ✅ fixed** |
-| MED | M3 — `base.py` `load_fixture()` unprotected JSON read breaks never-raise | Codex | **2 — ✅ fixed** |
-| MED | M4 — PublicationsCallout AI-summary button was a dead control | Claude | **1 — ✅ fixed** |
-| LOW | L1 — Report card meta hardcoded `RPE65 · NM_000329.3` | Claude | **1 — ✅ fixed** |
-| LOW | L2 — inert Workbench settings button (no onClick/aria-label) | Claude | **1 — ✅ fixed** |
-| LOW | L3 — `plans/v2-backend.md:11` stale BE-5 sentence | Codex | **2 — ✅ fixed** |
-| LOW | L4 — `plans/v2-frontend.md:317` obsolete FE-3.6 "remaining" block | Claude | **1 — ✅ fixed** |
+The following statements in historical plans must not drive new work:
 
----
+- The old React/Vite frontend is active or needs a second maintained contract.
+- Work is divided by Claude frontend and Codex backend roles.
+- The product has Free, Pro, Max, checkout, upgrade, or predictor entitlement
+  surfaces.
+- AlphaMissense or any other predictor is hidden from the product because of a
+  commercial tier. Runtime availability and backend metadata remain honest,
+  but access is universal-free.
+- Ask Eamos is an unfunded orphan or the chat route is public and uncapped.
+- Workbench Primer, CRISPR, and Alignment are pending mock panels.
+- The repository has dozens of uncommitted May changes or uses a no-commit rule.
+- The May 2026 session plan is the current execution queue.
 
-## Session plan (deepthink output, 2026-05-16; re-sequenced backend-first)
+## Release gates
 
-> **Re-sequenced 2026-05-16 (user decision):** Codex completes ALL backend
-> first — S2 hardening, then the M-002 real engines underpinning FE-6/7/8 —
-> *then a user checkpoint* before Claude builds any FE-6/7/8 frontend.
-> Rationale: frontend consumes the backend contract (never the reverse).
->
-> **STATUS 2026-05-16: PAUSED at the checkpoint by user choice ("stop here
-> for now").** Sessions 1 (auth) + 2 (hardening) done & verified. FE-6/7/8 and
-> M-002 engines NOT started — awaiting the user's direction at the checkpoint
-> (FE-6/7/8 contracts are already frozen, so frontend is unblocked whenever
-> they choose to proceed).
+Every product slice finishes at a committed and pushed verified boundary:
 
-- **Session 1 — Security + frontend cleanup + docs ✅ COMPLETE & VERIFIED.** Claude: H1,
-  M4, L1, L2, L4 (vitest 21/21, build clean). Codex: C1/C2 auth on runs/reports/reviews/
-  search + `current_user` dep + authed conftest fixture + 7 test files migrated +
-  `test_auth_guard.py` 401 test. Verified: offline pytest 81 passed / 4 skipped, contract
-  40/40; live smoke — public `/lookup`+`/primer`→200, protected `/runs`+`/reports/upload`
-  →401. AuthN only; object-level authz deferred (no owner column — `# TODO`, Session 6+).
-- **Session 2 — Backend correctness/invariant batch ✅ COMPLETE & VERIFIED.**
-  H2 (spliceai live_stub), H3 (no fabricated consequence), M1 (atomic upsert),
-  M2 (pubmed `raw={}`), M3 (safe `load_fixture`), L3 (doc). Codex job
-  `task-mp848are-gq0blv`. Verified: offline pytest **86 passed / 4 skipped**,
-  contract 40/40, `test_tool_invariants.py` 5 passed; live smoke — all evidence
-  `live`, `genomic_hg38=1-68444869-T-C`, spliceai stays `live` on resolved path,
-  10 publications.
-- **Session 3 — Workbench FE-6** (Claude): Primer + CRISPR panels (BE-4 stub data exists).
-- **Session 4 — Workbench FE-7** (Claude): Alignment + Comparator.
-- **Session 5 — Workbench FE-8** (Claude ‖ small Codex): tool-aware AskEamos pill
-  (ships against mock chat; live `/api/v1/chat` is M-002).
-- **Session 6+ — M-002 follow-ups** (post-feature): real Primer3 / CRISPOR /
-  Needleman–Wunsch + biopython AB1, live `/api/v1/chat`, live data feeds for the 6
-  report modules, object-level authz + owner/tenant column, live-smoke CI.
-
----
-
-## Future phases
-
-- **Mouse mm39 lookup** — same architecture; DB stack swap (MGI, IMPC, VEP-mouse, dbSNP). Hidden from v2 UI.
-- **Layer 2 v2 redesign** — patient report flow onto v2 design system. Out of scope this cycle.
-- **Layer 3** — internal; not discussed publicly.
-
----
-
-## Known blockers / hygiene
-
-| Item | Detail |
-| ---- | ------ |
-| ~~Live API verification~~ | ✅ RESOLVED 2026-05-16 — variant-search engine live-verified against real APIs. |
-| Uncommitted work | ~53+ working-tree changes (variant-search engine, workbench fixes, Session-1 hardening) on `master`, nothing committed. Recommended commit grouping is in the handoff file. |
-| ~~Codex dispatch reliability~~ | **Historical / plugin-specific (2026-05-17).** The stale-`state.json` phantom-"running" issue was a property of the shared *plugin-mediated* Codex runtime. Direct Codex app sessions have verified full workspace + outbound-network access and don't use that runtime; cross-agent coordination is now via `agent_handoff/`. Plugin-path reaping notes retained in memory `reference-codex-parallel-workflow` for the historical flow. |
-| GitHub PAT rotation | Legacy note (Session 4 token once visible in chat). Rotate + update `.env` before any push if still valid. |
-
----
-
-## Architecture reference
-
-```
-Layer 1 lookup:   POST /api/v1/lookup              (public, no auth — by design)
-Layer 1 chat:     POST /api/v1/chat (+ /stream)    (lookup/Workbench scoped, public)
-Workbench tools:  POST /api/v1/primer|/crispr|/align (public, stub responses)
-Layer 2 reports:  POST /api/v1/reports/upload → /api/v1/runs   (AUTH REQUIRED — Session 1)
-Layer 2 reviews/search/run-chat:  /api/v1/reviews | /search | /runs/{id}/chat (AUTH REQUIRED — Session 1)
-
-Default mode:     USE_REAL_APIS=false (fixture JSON) | LLM_PROVIDER=mock
-                  USE_REAL_APIS=true  → live external calls (variant-search verified)
-Database:         SQLite (file-backed); variant cache table active when use_real_apis=true
-Dev server:       npm run dev → http://localhost:5173 ; backend uvicorn :8000
-```
+1. Preserve `app/backend/tests/test_boundary.py`,
+   `scripts/eamos-web-boundary.mjs`, and the frontend-contract canary.
+2. Run focused tests first, then the relevant frontend build and backend
+   contract/integration checks.
+3. Browser-check representative ready, loading, empty, partial, and failure
+   states in proportion to the change.
+4. Stage only owned paths. Never stage watcher-owned inboxes or unrelated work.
+5. Push and watch CI. Production merge/deploy, destructive Git, cloud, provider,
+   migration, source-materialization, and secret-bearing actions keep their
+   separate approval gates.

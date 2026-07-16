@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
+
 import { cn } from '@/lib/utils'
 
 export type Verdict =
@@ -14,27 +15,17 @@ interface CardProps {
   number?: number
   title: string
   meta?: ReactNode
-  /** Optional action slot rendered on the far right of the header — used for
-   *  the CopyButton so users can grab the section data into Excel. Click
-   *  events inside should call e.stopPropagation() so the Card header
-   *  doesn't also toggle collapse. */
+  /** Optional action slot rendered beside the disclosure control. */
   actions?: ReactNode
   children: ReactNode
   className?: string
-  /** Start collapsed. The report renders open by default — the chevron is the
-   *  affordance, not the resting state. */
+  /** Start collapsed. Report chapters render open by default. */
   defaultOpen?: boolean
-  /** When provided, renders a 3px frozen-ramp accent on the left border. */
+  /** Gives the clinical chapter index the matching ACMG-ramp treatment. */
   verdict?: Verdict | null
 }
 
-/**
- * Section card on the variant report. The header is a collapse toggle —
- * left-aligned chevron (matches the workbench windows + side panel) →
- * optional numeric badge → display-serif title → meta on the right.
- *
- * Click anywhere on the header row to collapse or expand. Defaults open.
- */
+/** A numbered report chapter with a semantic heading and explicit disclosure. */
 export function Card({
   number,
   title,
@@ -43,149 +34,64 @@ export function Card({
   children,
   className,
   defaultOpen = true,
+  verdict,
 }: CardProps) {
   const [open, setOpen] = useState(defaultOpen)
+  const contentId = useId()
+  const headingId = useId()
+  const displayNumber = number === undefined ? null : String(number).padStart(2, '0')
 
   return (
-    <div
-      className={cn(
-        'rounded-[14px] bg-[var(--bg)] border border-[var(--line)] overflow-hidden',
-        className,
-      )}
-      style={{
-        borderWidth: '0.5px',
-        boxShadow: 'var(--elev-1)',
-      }}
+    <article
+      className={cn('report-chapter', className)}
+      data-report-chapter={number ?? undefined}
+      data-expanded={open}
+      data-verdict={verdict ?? undefined}
     >
-      <div
-        // Using role="button" instead of <button> so the CopyButton in the
-        // actions slot doesn't end up as a nested interactive control.
-        role="button"
-        tabIndex={0}
-        className="text-left transition-colors select-none"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          columnGap: 12,
-          rowGap: 4,
-          width: '100%',
-          padding: '16px 24px',
-          minWidth: 0,
-          borderBottom: open ? '0.5px solid var(--line)' : 'none',
-          background: 'transparent',
-          cursor: 'pointer',
-        }}
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setOpen((o) => !o)
-          }
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'var(--bg-soft)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent'
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            minWidth: 0,
-            flex: '1 1 180px',
-            overflow: 'hidden',
-          }}
+      <header className="report-chapter__header">
+        {displayNumber && (
+          <span className="report-chapter__index" aria-hidden="true">
+            {displayNumber}
+          </span>
+        )}
+        <div className="report-chapter__heading">
+          <h2 id={headingId} className="report-chapter__title">
+            {title}
+          </h2>
+          {meta && <div className="report-chapter__meta">{meta}</div>}
+        </div>
+        {actions && <div className="report-chapter__actions">{actions}</div>}
+        <button
+          type="button"
+          className="report-chapter__toggle"
+          aria-expanded={open}
+          aria-controls={contentId}
+          aria-label={`${open ? 'Hide' : 'Show'} ${title}`}
+          onClick={() => setOpen((value) => !value)}
         >
-          <span
-            aria-hidden="true"
-            className="inline-flex h-4 w-4 shrink-0 items-center justify-center"
-            style={{
-              color: 'var(--ink-3)',
-              transition: 'transform .2s ease',
-              transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
-              flex: '0 0 auto',
-            }}
-          >
+          <span className="report-chapter__disclosure" aria-hidden="true">
+            <span className="report-chapter__disclosure-label">{open ? 'Hide' : 'Show'}</span>
             <svg
               viewBox="0 0 24 24"
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               fill="none"
               stroke="currentColor"
-              strokeWidth={2.4}
+              strokeWidth={2.2}
               strokeLinecap="round"
               strokeLinejoin="round"
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </span>
-          {number !== undefined && (
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-              style={{ background: 'var(--teal)', fontFamily: 'var(--mono)', flex: '0 0 auto' }}
-            >
-              {number}
-            </span>
-          )}
-          <h2
-            className="text-[18px] font-normal tracking-[-0.01em]"
-            style={{
-              color: 'var(--ink)',
-              fontFamily: 'var(--display)',
-              overflowWrap: 'anywhere',
-              minWidth: 0,
-              flex: '1 1 auto',
-            }}
-          >
-            {title}
-          </h2>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            columnGap: 12,
-            rowGap: 4,
-            minWidth: 0,
-            maxWidth: '100%',
-          }}
-        >
-          {meta && (
-            <span className="text-[12px]" style={{ color: 'var(--ink-4)', overflowWrap: 'anywhere' }}>
-              {meta}
-            </span>
-          )}
-          {actions && (
-            <span
-              className="inline-flex items-center"
-              // Headers are click-to-toggle; without this the copy button
-              // click would also bubble up and collapse the section.
-              onClick={(e) => e.stopPropagation()}
-            >
-              {actions}
-            </span>
-          )}
-        </div>
-      </div>
+        </button>
+      </header>
+
       {open && (
-        <div
-          style={{
-            minWidth: 0,
-            maxWidth: '100%',
-            overflowX: 'auto',
-            padding: '20px clamp(14px, 4vw, 24px)',
-          }}
-        >
+        <div id={contentId} className="report-chapter__content">
           {children}
         </div>
       )}
-    </div>
+    </article>
   )
 }

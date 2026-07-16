@@ -1,5 +1,55 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-16 15:44 +0000 - Codex - Variant Report clinical reading experience
+
+Completed the Steven-approved Variant Report presentation slice and reconciled
+the roadmap with the product that is actually shipped.
+
+- Preserved the four evidence-axis call cards as the only dashboard layer and
+  made Clinical evidence the first detailed content beneath them.
+- Removed the redundant signal mini-card dashboard and standalone advisory
+  summary strip. The complete Eamos-computed ACMG/AMP analysis remains inside
+  In-silico, where its evidence and point calculation can be audited.
+- Reworked all seven report sections into a coherent numbered clinical record:
+  semantic level-two headings, explicit Hide/Show controls, separate action
+  slots, compact source metadata, consistent reading surfaces, and restrained
+  ACMG-semantic chapter accents.
+- Replaced ad hoc loading, empty, partial, stale, and failed placeholders with
+  a common accessible state presentation. The expected ClinGen/VCEP partial
+  state is now a compact source-scope note rather than a large warning panel.
+- Improved small-text contrast in the four call cards and fixed their
+  interactive accessible name. The refined Lighthouse pass cleared the prior
+  heading-order and visible-label/name failures.
+- Added an executable boundary ratchet that requires Call cards -> Clinical
+  order and blocks either retired summary layer from returning.
+- Replaced the stale May roadmap with the July product reality: Next.js-only,
+  universal-free eleven-predictor catalog, shipped Search/Paper/Batch/Workbench,
+  authenticated capped chat, and no active pricing or entitlement surface.
+
+Verification:
+
+- `npm run verify` passed in 155.2 seconds: structural and contract guards,
+  ESLint, Ruff, Black, TypeScript, 8 coordination tests, 19 Vitest files / 163
+  tests, full backend pytest, and the 17-route production Next build.
+- `node scripts/eamos-report-preflight.mjs --validate-registry` passed with all
+  7 required sections; desktop preflight at 1024, 1280, and 1440 px reported
+  zero overflow, zero fixable offenders, and zero missing slots or anchors.
+- Browser review at 1440 px confirmed the four-card -> Clinical read order,
+  all seven level-two section headings, native mouse/keyboard disclosure,
+  correct `aria-expanded` / `aria-controls`, and no console errors.
+- Refined desktop Lighthouse snapshot: Accessibility 94, Best Practices 100,
+  SEO 100. Remaining failures are the pre-existing low-contrast microcopy in
+  dense evidence widgets and the shared rail's small Import VCF target; they
+  are a deliberate accessibility follow-up rather than hidden by this slice.
+- `tests/test_frontend_contract.py` passed independently. A local Next proxy ->
+  FastAPI fixture-mode smoke returned HTTP 200 for `RPE65:c.260A>G`, all four
+  call-card IDs, the expected GRCh38 coordinate, and 12 source-currency rows.
+- `git diff --check` and focused changed-file ESLint passed.
+
+No provider, source-materialization, Supabase, migration, environment, cloud,
+or deploy mutation occurred. The watcher-owned
+`agent_handoff/FROM-SWORDFISH.md` append was not edited or staged.
+
 ## 2026-07-16 14:51 +0000 - Codex - Landing Pass 4 privacy-safe discovery loop
 
 Completed the free-product discovery loop at a locally verified boundary without

@@ -21,6 +21,8 @@
 //   6. Analytics privacy: only explicit route-level pageviews and four fixed,
 //      content-free discovery events are enabled; identity, query strings, and
 //      automatic interaction/page-leave/replay/survey capture stay out.
+//   7. Report hierarchy: the four evidence-axis cards hand directly to Clinical;
+//      retired signal/fingerprint dashboards cannot return between them.
 //
 // Usage:
 //   node scripts/eamos-web-boundary.mjs           # scan app/web
@@ -417,8 +419,41 @@ for (const [rel, pattern, boundary] of [
   }
 }
 
+// 7) The report's clinical read order is a product boundary, not incidental
+// markup. The four call cards are the only summary dashboard above the numbered
+// evidence record, and Clinical must be the first chapter.
+const reportBodyRel = 'app/web/components/report/report-client/ReportBody.tsx'
+const reportBodyText = existsSync(join(REPO_ROOT, reportBodyRel))
+  ? readFileSync(join(REPO_ROOT, reportBodyRel), 'utf8')
+  : ''
+const reportCallCardsAt = reportBodyText.indexOf('<CallCardsGrid')
+const reportClinicalAt = reportBodyText.indexOf('<ReportSectionSlot sectionId="clinical_evidence">')
+if (reportCallCardsAt < 0 || reportClinicalAt < 0 || reportCallCardsAt >= reportClinicalAt) {
+  violations.push({
+    kind: 'report-read-order-drift',
+    file: reportBodyRel,
+    line: 0,
+    detail: 'the four evidence call cards must precede Clinical evidence, the first numbered chapter',
+  })
+}
+for (const retiredLayer of ['<ReportSignalDashboard', '<AdvisorySummaryStrip']) {
+  if (reportBodyText.includes(retiredLayer)) {
+    violations.push({
+      kind: 'report-summary-layer-returned',
+      file: reportBodyRel,
+      line: 0,
+      detail: `${retiredLayer.slice(1)} must not sit between the four call cards and Clinical evidence`,
+    })
+  }
+}
+
 for (const rel of files) {
-  const text = readFileSync(join(REPO_ROOT, rel), 'utf8')
+  const absolute = join(REPO_ROOT, rel)
+  // `git ls-files` includes an unstaged deletion until it is added to the
+  // index. A deleted source cannot violate a content boundary, so keep the
+  // guard usable while a structural removal is still under review.
+  if (!existsSync(absolute)) continue
+  const text = readFileSync(absolute, 'utf8')
   if (/posthog\.(?:identify|alias|group|register)\s*\(/.test(text)) {
     violations.push({
       kind: 'analytics-account-identity',

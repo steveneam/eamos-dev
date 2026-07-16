@@ -2,6 +2,8 @@
 
 Active and historical work plans for Eamos.
 
+Plan index refreshed: 2026-07-16 15:44 +0000 · Codex.
+
 ## Universal-Free Product Ratchet
 
 Stamped: 2026-07-16 13:19 +0000 · Codex.
@@ -26,8 +28,11 @@ do not recreate a second hand-maintained frontend or contract mirror.
 
 | File | Owner | Scope |
 | ---- | ----- | ----- |
-| [`landing-free-public/plan.md`](landing-free-public/plan.md) | Codex | Active free-public landing reposition, monetization removal, and reproducible real-product feature captures. |
+| [`variant-report-experience/plan.md`](variant-report-experience/plan.md) | Codex | **Complete.** Four call cards hand directly to Clinical, with one coherent chapter system across all report sections. |
+| [`landing-free-public/plan.md`](landing-free-public/plan.md) | Codex | **Complete.** Free-public landing, universal-free predictor presentation, responsive product gallery, safe share paths, and privacy-safe discovery telemetry. |
 | [`batch-vcf-and-panels/`](batch-vcf-and-panels/) | Historical/active architecture | Batch and panel architecture remains useful; its old tier gates are explicitly superseded by neutral operational safety bounds. |
+| [`variant-report-layout/`](variant-report-layout/) | Historical | May call-card/backend plan. The four-card contract shipped; current presentation work is owned by `variant-report-experience/plan.md`. |
+| [`variant-report-data-orchestration/`](variant-report-data-orchestration/) | Historical/reference | Detailed report source and section ledger. Audit live contracts before treating any old `planned` cell as current work. |
 | [`auth-pricing/`](auth-pricing/) | Historical | Auth notes are historical context; all pricing/payment product requirements are superseded. Dormant backend payment controls remain hardened. |
 | [`v2-redesign-impeccable.md`](v2-redesign-impeccable.md) | Historical | Superseded design execution plan. Durable design decisions live in `DESIGN.md`; paid-wall and predictor-gating passages are void. |
 | [`v2-backend.md`](v2-backend.md) | Codex | Backend extensions and historical backend ledger. Prefer newer scoped docs when present. |
