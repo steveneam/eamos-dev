@@ -59,6 +59,9 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/report/ReportClient.tsx` | 148 | Stable report route shell; lookup control, load states, section primitives, and report rendering are focused modules. |
 | `app/web/components/report/report-client/ReportBody.tsx` | 676 | Numbered report composition and lazy-section rendering. |
 | `app/web/components/report/report-client/useReportClient.ts` | 272 | URL interpretation, redirects, cancellation, cache use, and lookup state. |
+| `app/web/components/compare/CompareClient.tsx` | 1,132 | Stable Compare route shell; batch request adaptation, progress/error modeling, and issue copy now have a focused model. |
+| `app/web/components/compare/batchRunModel.ts` | 218 | Allowlisted batch payload/filter conversion plus job/error presentation state. |
+| `app/web/components/paper/PaperClient.tsx` | 1,274 | Paper intake, extraction state, review/editing, selection, and export orchestration remain mixed. |
 
 These are the refactor targets. Generated lockfiles, generated JSON fixtures,
 contract mirrors, and historical plans are not structure problems by themselves.
@@ -150,6 +153,14 @@ state primitives, and body rendering are likewise separated. Per-module line
 budgets prevent the two shells from reabsorbing those responsibilities, while
 focused model tests cover dataset selection, raw exports, lazy overrides,
 request identity, cache isolation, and classification mapping.
+
+The 2026-07-16 Compare first fold reduced `CompareClient.tsx` from 1,323 to
+1,132 lines while preserving the named route export and rendered behavior.
+The exact browser-to-batch payload allowlist, supported filter translation,
+job progress/error state, and issue severity copy now live in
+`components/compare/batchRunModel.ts`; focused tests lock the auth, expiry,
+rate-limit, validation, availability, and stalled-poll mappings. Budgets of
+1,200 and 250 lines keep the route shell and model from collapsing together.
 
 ## Refactor sequence
 
@@ -393,6 +404,14 @@ focused characterization proving route contracts, cache behavior, and
 source/provider posture remain unchanged.
 
 ### R5 - Report and Compare frontend decomposition
+
+Status update: 2026-07-16 08:09 +0000 · Codex.
+
+The Report viewer, population frequency, and report shell folds are complete.
+The first Compare slice is complete: batch request/progress/error modeling now
+lives in `components/compare/batchRunModel.ts` behind the unchanged named
+`CompareClient` route export. Continue Compare only at another characterized
+state/behavior boundary; `PaperClient.tsx` remains the next untouched R5 target.
 
 Targets:
 

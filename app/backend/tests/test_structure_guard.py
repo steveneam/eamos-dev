@@ -110,7 +110,8 @@ HOTSPOT_LINE_BUDGETS = {
     "app/web/components/report/report-client/ReportSectionPrimitives.tsx": 325,
     "app/web/components/report/report-client/reportClientModel.ts": 225,
     "app/web/components/report/report-client/useReportClient.ts": 300,
-    "app/web/components/compare/CompareClient.tsx": 1400,
+    "app/web/components/compare/CompareClient.tsx": 1200,
+    "app/web/components/compare/batchRunModel.ts": 250,
 }
 
 LIVE_VITE_DOC_PATTERNS = (
