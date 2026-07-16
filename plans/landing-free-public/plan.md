@@ -1,7 +1,7 @@
 # Free-access landing and product gallery
 
-Status: Pass 2 trust/comprehension implemented and verified; broader Pass 3 pending.
-Stamped: 2026-07-16 13:43 +0000 · Codex.
+Status: Pass 3 responsive/accessibility/performance implemented and verified; Pass 4 pending.
+Stamped: 2026-07-16 14:18 +0000 · Codex.
 
 ## Outcome
 
@@ -219,7 +219,7 @@ Verified: 2026-07-16 13:43 +0000 · Codex.
 - Explain source outages, cached fallbacks, and unavailable scores in one compact
   trust note instead of scattering caveats.
 
-### Pass 3: responsive, accessible, and fast
+### Pass 3: responsive, accessible, and fast (complete 2026-07-16)
 
 - Browser-test 360, 390, 768, 1024, 1440, and 1920 px widths, including the
   interactive hero, screenshot crops, sticky nav, and keyboard order.
@@ -243,3 +243,35 @@ Verified: 2026-07-16 13:43 +0000 · Codex.
 Each pass ends with desktop/mobile browser evidence, the structural canaries,
 and a measured before/after. None reintroduces billing, entitlement tiers,
 predictor-access labels, or a client-side security boundary.
+
+## Pass 3 implementation evidence
+
+Verified: 2026-07-16 14:18 +0000 · Codex.
+
+- Added one dependency-free browser gate covering 360, 390, 768, 1024, 1440,
+  and 1920 px widths. Every width verifies horizontal containment, compact versus
+  interactive hero behavior, sticky-nav handoff, nine real keyboard targets,
+  all three deterministic screenshot crops, and an actual viewport screenshot.
+- Fixed the initially hidden back-to-top control so it is absent from the tab
+  order and accessibility tree until the scrolled nav makes it visible. The
+  existing mouse, keyboard, accessibility-tree, focus-visible, reduced-motion,
+  and compact-hero canary remains green.
+- Replaced the landing nav's GSAP/ScrollTrigger handoff with one passive,
+  requestAnimationFrame-aligned transform/opacity update and removed both GSAP
+  packages. Production landing JavaScript fell from 575,214 to 443,644 bytes,
+  a 131,570-byte (22.9%) reduction.
+- Established executable budgets: LCP at most 2.5 s, CLS at most 0.1, shipped
+  JavaScript at most 460 KiB, feature captures at most 192 KiB total, and the
+  social card at most 96 KiB. The final local production audit measured LCP
+  248 ms, CLS 0.0003, 443,644 JavaScript bytes, and 134,822 capture bytes.
+- Disabled implicit PostHog page-leave, autocapture, session-recording, and
+  survey channels so rendered genomic content and query strings cannot enter
+  analytics through an automatic path. The explicit route-only pageview remains;
+  the web boundary guard now enforces all five controls.
+- Replaced the legacy social image with a reproducible 77,898-byte 1200 × 630
+  free-public card, a tracked SVG source, and a source/output hash manifest.
+  Open Graph and Twitter title, description, image, alt, content type, dimensions,
+  and served bytes are browser-verified.
+- `npm run verify` passed in 252.7 seconds through the full backend suite and
+  17-route production build. No source, provider, auth, payment, Supabase,
+  Render, Vercel, migration, or deploy mutation ran.

@@ -172,6 +172,7 @@ export function FeaturesGrid() {
                     </div>
                     <div className="relative" style={{ aspectRatio: '3 / 2' }}>
                       <Image
+                        data-landing-feature-image={feature.index}
                         src={feature.src}
                         alt={feature.alt}
                         fill

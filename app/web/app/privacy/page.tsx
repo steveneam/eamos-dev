@@ -20,7 +20,7 @@ const SECTIONS: { h: string; p: string }[] = [
   },
   {
     h: '3. What personal information we collect',
-    p: 'We collect the following categories of personal information: (a) Account identity, being your name, email address, and OAuth profile information provided when you sign in via Google, Microsoft, or LinkedIn, or when you register with an email address directly. This is managed through Supabase Auth. (b) Saved variants and evidence submissions, being any variant records you choose to save in your account, and any evidence submissions you make through the Messenger feature. (c) Usage analytics, being page-visit and interaction events collected by PostHog to help us understand how the platform is used and improve it.',
+    p: 'We collect the following categories of personal information: (a) Account identity, being your name, email address, and OAuth profile information provided when you sign in via Google, Microsoft, or LinkedIn, or when you register with an email address directly. This is managed through Supabase Auth. (b) Saved variants and evidence submissions, being any variant records you choose to save in your account, and any evidence submissions you make through the Messenger feature. (c) Usage analytics, being route-level page visits collected by PostHog to help us understand how the platform is used and improve it. Automatic interaction capture, session recording, and surveys are disabled.',
   },
   {
     h: '4. How genomic queries are de-identified in analytics',

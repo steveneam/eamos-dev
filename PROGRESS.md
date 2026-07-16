@@ -8124,6 +8124,42 @@ Coordination:
 - Post-checkpoint backend changes remain uncommitted unless the user asks for
   another commit.
 
+## 2026-07-16 14:20 +0000 - Codex - Landing Pass 3 responsive, accessible, and fast
+
+Completed the third free-public landing pass without changing the frozen
+universal-free eleven-engine contract or mutating providers, cloud services,
+sources, deployments, migrations, authentication, or payments.
+
+Completed:
+- Added a deterministic six-width browser matrix at 360, 390, 768, 1024,
+  1440, and 1920 px. It checks horizontal containment, hero breakpoints,
+  sticky navigation, real keyboard targets, the mobile menu, screenshot crops,
+  and viewport dimensions.
+- Removed GSAP and ScrollTrigger from the landing navigation. A passive,
+  animation-frame-aligned scroll handoff now drives only transform, opacity,
+  and pointer state; reduced-motion users receive the instant state.
+- Kept the initially hidden back-to-top control out of the accessibility tree
+  and tab order until it is visible.
+- Reduced production landing JavaScript from 575,214 to 443,644 bytes: 131,570
+  bytes, or 22.9%.
+- Added executable budgets for LCP, CLS, JavaScript, feature captures, and the
+  social card. The final production audit measured LCP 248 ms, CLS 0.0003,
+  443,644 JavaScript bytes, and 134,822 feature-capture bytes.
+- Disabled implicit PostHog page-leave, autocapture, session-recording, and
+  survey channels. Explicit analytics remains route-only; the web boundary
+  guard now enforces the privacy contract.
+- Replaced the legacy Open Graph image with a reproducible 1200 x 630 free
+  public card, tracked SVG source, PNG output, and source/output hash manifest.
+
+Verification:
+- `node scripts/eamos-capture-landing-features.mjs --verify-hero --base-url=http://127.0.0.1:3002`
+  -> passed mouse, keyboard, accessibility, reduced-motion, and mobile checks.
+- `node scripts/eamos-capture-landing-features.mjs --verify-pass3 --base-url=http://127.0.0.1:3002`
+  -> passed performance, metadata, asset, privacy, and all six responsive widths.
+- `npm run verify` -> passed in 252.7 seconds through the full backend suite,
+  161 frontend tests, structural guards, and the 17-route production build.
+- `git diff --check` -> passed.
+
 ## 2026-06-26 00:20 +1000 - Codex - Task E live performance and memory evidence
 
 Pushed the local Task D/E commits Steven requested:

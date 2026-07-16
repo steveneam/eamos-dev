@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "source": "scripts/assets/landing-social-card.svg",
+  "output": "app/web/public/og-image.png",
+  "width": 1200,
+  "height": 630,
+  "bytes": 77898,
+  "source_sha256": "c32bb6ee1f06ec989fe1019b395e6efb0a39843dcd18ea7d11845de6f4da42f4",
+  "output_sha256": "6ada69d2d43cf0f6d4e8b893dcd0bbc2dd5e11b1e30ea3dcd3bb368a74df9515"
+}

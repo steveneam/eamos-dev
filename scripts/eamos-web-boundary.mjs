@@ -18,6 +18,8 @@
 //      engine catalog stays visible, and REVEL + SpliceAI remain in product copy.
 //   5. Landing trust contract: bundled hero identities match tracked backend
 //      evidence, source states stay explained, and audited overclaims stay gone.
+//   6. Analytics privacy: only explicit route-level pageviews are enabled;
+//      automatic interaction, page-leave, replay, and survey capture stay off.
 //
 // Usage:
 //   node scripts/eamos-web-boundary.mjs           # scan app/web
@@ -202,6 +204,7 @@ for (const predictor of REQUIRED_PREDICTORS) {
 // universal variant coverage, measured time savings, or clinical outcomes.
 const landingTrustFiles = [
   'app/web/components/landing/LandingClient.tsx',
+  'app/web/components/landing/LandingNav.tsx',
   'app/web/components/landing/HeroVariantMap.tsx',
   'app/web/components/landing/HowItWorks.tsx',
   'app/web/components/landing/MetricBelt.tsx',
@@ -229,6 +232,14 @@ for (const [pattern, claim] of retiredLandingClaims) {
       detail: `${claim} claim returned without a reproducible artifact`,
     })
   }
+}
+if (/from\s+['"](?:@gsap\/react|gsap(?:\/[^'"]*)?)['"]/.test(landingTrustText)) {
+  violations.push({
+    kind: 'landing-performance-drift',
+    file: 'app/web/components/landing/LandingNav.tsx',
+    line: 0,
+    detail: 'the landing nav scroll handoff must remain dependency-free',
+  })
 }
 
 // 5b) The hero's bundled RPE65 identities are generated from the same tracked
@@ -318,6 +329,32 @@ for (const retiredSpecimenClaim of ['Low Frequency', '3 Unique']) {
       file: specimenRel,
       line: 0,
       detail: `${retiredSpecimenClaim} must not return to the audited USH2A snapshot`,
+    })
+  }
+}
+
+// 6) The route-only analytics claim is an executable client boundary. Automatic
+// capture can include rendered variant text or a full query URL, so every
+// implicit PostHog channel stays disabled until a separately reviewed event is
+// instrumented with content-free properties.
+const providersRel = 'app/web/app/providers.tsx'
+const providersText = existsSync(join(REPO_ROOT, providersRel))
+  ? readFileSync(join(REPO_ROOT, providersRel), 'utf8')
+  : ''
+const requiredAnalyticsGuards = [
+  [/capture_pageleave:\s*false/, 'automatic page-leave capture'],
+  [/autocapture:\s*false/, 'automatic interaction capture'],
+  [/disable_session_recording:\s*true/, 'session recording'],
+  [/disable_surveys:\s*true/, 'survey extension loading'],
+  [/\$current_url:\s*window\.location\.origin\s*\+\s*pathname/, 'route-only pageview URL'],
+]
+for (const [pattern, boundary] of requiredAnalyticsGuards) {
+  if (!pattern.test(providersText)) {
+    violations.push({
+      kind: 'analytics-privacy-drift',
+      file: providersRel,
+      line: 0,
+      detail: `${boundary} no longer preserves the route-only analytics contract`,
     })
   }
 }

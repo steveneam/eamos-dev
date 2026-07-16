@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Eamos free genomic variant evidence</title>
+  <desc id="description">Trace one genetic variant through source-linked evidence, eleven predictor engines, Workbench, and Batch.</desc>
+
+  <rect width="1200" height="630" fill="#f7f3ea"/>
+
+  <g aria-label="Eamos">
+    <path d="M80 52l4.2 10.8L95 67l-10.8 4.2L80 82l-4.2-10.8L65 67l10.8-4.2L80 52z" fill="#1d9e75"/>
+    <text x="108" y="75" fill="#2a1c17" font-family="Georgia, 'Times New Roman', serif" font-size="28" font-weight="700">Eamos</text>
+  </g>
+
+  <g aria-label="Free access">
+    <rect x="80" y="119" width="151" height="34" rx="17" fill="#fbf8f2" stroke="#d9cfc0"/>
+    <circle cx="99" cy="136" r="5" fill="#1d9e75"/>
+    <circle cx="99" cy="136" r="9" fill="none" stroke="#1d9e75" stroke-opacity="0.2"/>
+    <text x="116" y="141" fill="#00795a" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.7">FREE ACCESS</text>
+  </g>
+
+  <text x="80" y="234" fill="#2a1c17" font-family="Georgia, 'Times New Roman', serif" font-size="66" font-weight="400" letter-spacing="-1.4">Trace a genetic</text>
+  <text x="80" y="306" fill="#008f68" font-family="Georgia, 'Times New Roman', serif" font-size="66" font-weight="400" letter-spacing="-1.4">variant.</text>
+
+  <text x="80" y="364" fill="#65463a" font-family="Arial, sans-serif" font-size="23">
+    <tspan x="80" dy="0">Source-linked research reports with 11 predictor</tspan>
+    <tspan x="80" dy="35">engines, Workbench, and Batch.</tspan>
+  </text>
+
+  <g aria-label="Example variant">
+    <rect x="80" y="454" width="568" height="68" rx="14" fill="#fbf8f2" stroke="#d9cfc0"/>
+    <path d="M108 488h16m-8-8v16" stroke="#1d9e75" stroke-width="2" stroke-linecap="round"/>
+    <text x="142" y="494" fill="#8a6a5b" font-family="Arial, sans-serif" font-size="17">Try RPE65 c.260A&gt;G</text>
+    <circle cx="614" cy="488" r="23" fill="#1d9e75"/>
+    <path d="M606 488h15m-6-6l6 6-6 6" fill="none" stroke="#f7f3ea" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="80" y="577" fill="#8a6a5b" font-family="Arial, sans-serif" font-size="14" letter-spacing="0.3">RESEARCH USE ONLY</text>
+  <circle cx="248" cy="572" r="2" fill="#1d9e75"/>
+  <text x="262" y="577" fill="#65463a" font-family="Arial, sans-serif" font-size="14">eamos.com.au</text>
+
+  <g aria-label="RPE65 variant map">
+    <rect x="726" y="52" width="394" height="526" fill="#fbf8f2" stroke="#d9cfc0"/>
+    <text x="756" y="91" fill="#8a6a5b" font-family="'Courier New', monospace" font-size="11" font-weight="700" letter-spacing="1.6">ONE CHANGE, FOUR VIEWS</text>
+    <text x="1090" y="91" fill="#00795a" font-family="'Courier New', monospace" font-size="11" font-weight="700" letter-spacing="1.1" text-anchor="end">RPE65 DEMO</text>
+    <line x1="1031" y1="99" x2="1090" y2="99" stroke="#1d9e75"/>
+
+    <text x="756" y="137" fill="#2a1c17" font-family="Georgia, 'Times New Roman', serif" font-size="25">Follow the variant through</text>
+    <text x="756" y="165" fill="#2a1c17" font-family="Georgia, 'Times New Roman', serif" font-size="25">the evidence.</text>
+
+    <path d="M842 204C787 248 895 276 835 323C780 366 886 408 832 451" fill="none" stroke="#597a94" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1006 204C1061 248 953 276 1013 323C1068 366 962 408 1016 451" fill="none" stroke="#1d9e75" stroke-width="4" stroke-linecap="round"/>
+
+    <g fill="none" stroke="#d9cfc0" stroke-dasharray="3 5">
+      <path d="M850 231h148"/><path d="M864 263h120"/><path d="M850 295h148"/>
+      <path d="M850 351h148"/><path d="M864 383h120"/><path d="M850 415h148"/>
+    </g>
+    <g fill="#fbf8f2" stroke="#d9cfc0">
+      <circle cx="850" cy="231" r="4"/><circle cx="998" cy="231" r="4"/>
+      <circle cx="864" cy="263" r="4"/><circle cx="984" cy="263" r="4"/>
+      <circle cx="850" cy="295" r="4"/><circle cx="998" cy="295" r="4"/>
+      <circle cx="850" cy="351" r="4"/><circle cx="998" cy="351" r="4"/>
+      <circle cx="864" cy="383" r="4"/><circle cx="984" cy="383" r="4"/>
+      <circle cx="850" cy="415" r="4"/><circle cx="998" cy="415" r="4"/>
+    </g>
+
+    <line x1="835" y1="323" x2="1013" y2="323" stroke="#1d9e75" stroke-width="2"/>
+    <circle cx="835" cy="323" r="6" fill="#315b78"/>
+    <circle cx="1013" cy="323" r="6" fill="#008f68"/>
+    <circle cx="924" cy="323" r="55" fill="#e8f5ef" stroke="#b9ddcf"/>
+    <circle cx="924" cy="323" r="43" fill="#fbf8f2" stroke="#1d9e75"/>
+    <text x="924" y="319" fill="#2a1c17" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700" text-anchor="middle">A→G</text>
+    <text x="924" y="341" fill="#00795a" font-family="'Courier New', monospace" font-size="10" font-weight="700" letter-spacing="0.9" text-anchor="middle">TRANSCRIPT</text>
+
+    <g transform="translate(778 400)">
+      <rect width="276" height="56" fill="#f7f3ea"/>
+      <line x1="0" y1="0" x2="0" y2="56" stroke="#1d9e75" stroke-width="3"/>
+      <text x="18" y="22" fill="#8a6a5b" font-family="Arial, sans-serif" font-size="11">NM_000329.3 · exon 4</text>
+      <text x="18" y="42" fill="#2a1c17" font-family="'Courier New', monospace" font-size="12" font-weight="700">RPE65 c.260A&gt;G</text>
+    </g>
+
+    <g transform="translate(756 492)" font-family="Arial, sans-serif">
+      <rect width="334" height="48" fill="#f7f3ea"/>
+      <rect x="83.5" width="83.5" height="48" fill="#dff2ea"/>
+      <path d="M83.5 0v48M167 0v48M250.5 0v48" stroke="#d9cfc0"/>
+      <g fill="#8a6a5b" font-family="'Courier New', monospace" font-size="9">
+        <text x="10" y="15">01</text><text x="94" y="15">02</text><text x="177" y="15">03</text><text x="261" y="15">04</text>
+      </g>
+      <g fill="#2a1c17" font-size="11" font-weight="700">
+        <text x="10" y="35">Genomic</text><text x="94" y="35" fill="#00795a">Transcript</text><text x="177" y="35">Protein</text><text x="261" y="35">Evidence</text>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,9 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Link from 'next/link'
 import { EamosLogo } from '@/components/brand/EamosLogo'
 import { EamosSearch } from '@/components/landing/EamosSearch'
@@ -28,11 +25,52 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
   // keyboard tab order at the top of the page (a11y trip).
   const [compactVisible, setCompactVisible] = useState(false)
 
+  // Keep the scroll handoff dependency-free. A single passive listener queues
+  // one paint-aligned update, then writes only opacity and transform. This
+  // preserves the original scrubbed transition without shipping GSAP to every
+  // landing visitor.
   useEffect(() => {
-    const onScroll = () => setCompactVisible(window.scrollY > 240)
-    onScroll()
+    let frame: number | null = null
+    let lastCompactVisible = false
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    const update = () => {
+      const visible = window.scrollY > 240
+      const rawProgress = Math.min(1, Math.max(0, window.scrollY / 440))
+      const progress = reducedMotion ? (visible ? 1 : 0) : rawProgress
+
+      if (bgRef.current) bgRef.current.style.opacity = String(progress)
+      if (linksRef.current) {
+        linksRef.current.style.opacity = String(1 - progress)
+        linksRef.current.style.transform = `translateY(${-6 * progress}px)`
+        linksRef.current.style.pointerEvents = visible ? 'none' : 'auto'
+      }
+      if (upRef.current) {
+        upRef.current.style.opacity = String(progress)
+        upRef.current.style.transform = `scale(${0.8 + 0.2 * progress})`
+        upRef.current.style.pointerEvents = visible ? 'auto' : 'none'
+      }
+      if (searchRef.current) {
+        searchRef.current.style.opacity = String(progress)
+        searchRef.current.style.transform = `translateY(${8 * (1 - progress)}%) scale(${0.96 + 0.04 * progress})`
+        searchRef.current.style.pointerEvents = visible ? 'auto' : 'none'
+      }
+      if (visible !== lastCompactVisible) {
+        lastCompactVisible = visible
+        setCompactVisible(visible)
+      }
+      frame = null
+    }
+
+    const onScroll = () => {
+      if (frame == null) frame = window.requestAnimationFrame(update)
+    }
+    update()
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame != null) window.cancelAnimationFrame(frame)
+    }
   }, [])
 
   // Mobile menu: close on outside-click / Esc. Links + the panel both carry
@@ -51,37 +89,6 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
     }
   }, [menuOpen])
 
-  useGSAP(
-    () => {
-      gsap.registerPlugin(ScrollTrigger)
-      // Trigger off the hero (a normal-flow element) via a global query — not a
-      // useGSAP-scoped selector string (which would look inside the nav) and not
-      // the sticky nav itself (a sticky element misreports its position to
-      // ScrollTrigger). One scrubbed timeline ties the whole nav handoff to
-      // scroll position so it glides instead of snapping: the hero search
-      // scrolls away while the bar solidifies, links fade out, and the compact
-      // search fades in.
-      const hero = document.querySelector('#hero')
-      if (!hero) return
-      const tl = gsap.timeline({
-        scrollTrigger: { trigger: hero, start: 'top top', end: '+=440', scrub: 0.6 },
-      })
-      tl.to(bgRef.current, { opacity: 1, ease: 'none' }, 0)
-        .to(linksRef.current, { opacity: 0, y: -6, pointerEvents: 'none', ease: 'none' }, 0)
-        .fromTo(upRef.current, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, ease: 'none' }, 0)
-        // The compact search starts invisible AND pointer-inert — otherwise its
-        // input sits on top of the nav links at scroll=0 and swallows mouse
-        // clicks (the links work via keyboard/.click() but not by pointing).
-        .fromTo(
-          searchRef.current,
-          { opacity: 0, scale: 0.96, yPercent: 8, pointerEvents: 'none' },
-          { opacity: 1, scale: 1, yPercent: 0, pointerEvents: 'auto', ease: 'none' },
-          0,
-        )
-    },
-    { scope: root },
-  )
-
   const scrollToTop = () =>
     window.scrollTo({
       top: 0,
@@ -93,7 +100,7 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
   return (
     <>
       <LandingNavStyles />
-      <div ref={root} className="sticky top-0 z-50">
+      <div ref={root} data-landing-nav className="sticky top-0 z-50">
         <div
           ref={bgRef}
           aria-hidden
@@ -131,6 +138,8 @@ export function LandingNav({ onSubmit }: { onSubmit: (query: string) => void }) 
               type="button"
               onClick={scrollToTop}
               aria-label="Back to top"
+              aria-hidden={compactVisible ? undefined : true}
+              tabIndex={compactVisible ? 0 : -1}
               className="lnav-icon-btn inline-flex shrink-0 items-center justify-center"
               style={{
                 width: 30,

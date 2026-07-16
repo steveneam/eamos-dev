@@ -40,9 +40,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
   : new URL('https://eamos.com.au')
 
-const defaultTitle = 'Eamos: Genomic Intelligence Platform'
+const defaultTitle = 'Eamos: Free Genomic Variant Evidence'
 const defaultDescription =
   'Free genomic variant evidence and predictor scores, including SpliceAI and REVEL, gathered into one cited research report. Research use only.'
+const socialImageAlt =
+  'Eamos free genomic variant evidence: trace one variant through 11 predictor engines, Workbench, and Batch.'
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,
@@ -56,9 +58,7 @@ export const metadata: Metadata = {
     description: defaultDescription,
     url: siteUrl.toString(),
     siteName: 'Eamos',
-    // NOTE: og-image.png (1200×630) must be placed at
-    // D:\eamos\app\web\public\og-image.png — the human supplies this file.
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: socialImageAlt }],
     type: 'website',
     locale: 'en_AU',
   },
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: defaultTitle,
     description: defaultDescription,
-    images: ['/og-image.png'],
+    images: [{ url: '/og-image.png', alt: socialImageAlt }],
   },
 }
 

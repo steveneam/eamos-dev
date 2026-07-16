@@ -20,7 +20,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       ui_host: 'https://us.posthog.com',
       // App Router does full pageviews only on first load; captured manually below.
       capture_pageview: false,
-      capture_pageleave: true,
+      // Genomic query strings and rendered report text must never reach
+      // analytics implicitly. Keep telemetry to the explicit route-only event
+      // below; product interactions can add named, content-free events later.
+      capture_pageleave: false,
+      autocapture: false,
+      disable_session_recording: true,
+      disable_surveys: true,
       person_profiles: 'identified_only',
     })
   }, [])
