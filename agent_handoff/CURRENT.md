@@ -25,12 +25,12 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PAUSED @ 2026-07-16 06:48 UTC — PR #14 is reviewed and fully
-  green; waiting at Steven's explicit merge-approval gate.
+- **Codex:** COMPLETE @ 2026-07-16 07:28 UTC — PR #14 is merged, local `main`
+  matches `origin/main`, and the post-merge boundary is verified.
 
 ## Log Edit-Lock
 
-RELEASED: 2026-07-16 06:48 +0000 · Codex (PR #14 review boundary clear-safe)
+RELEASED: 2026-07-16 07:29 +0000 · Codex (PR #14 post-merge boundary clear-safe)
 
 ## Shared File Locks
 
@@ -39,40 +39,45 @@ RELEASED: 2026-07-16 06:48 +0000 · Codex (PR #14 review boundary clear-safe)
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-16 06:48 +0000 · Codex PR #14 merge gate
-Read CURRENT.md, agent_handoff/README.md, then inspect PR #14 and git status.
-PR #14 splits ReportGeneViewer by adapter/controller/presentation/protein responsibility
-behind its unchanged exported component contract; commit 19f04f2 is pushed.
-Lead review found no blockers. Focused local checks, CI run 29477496972, and the
-Vercel preview are green; the prior full root verify and report browser smoke passed.
-Do not merge until Steven explicitly approves PR #14.
-After approval, merge as lead, fast-forward local main, verify the merged boundary,
-and write the post-merge handoff. Keep cloud/provider/schema/deploy actions gated.
-Safe to clear: yes — the implementation and handoff are pushed; only merge approval remains.
+# Resume prompt · 2026-07-16 07:28 +0000 · Codex report folds merged
+Read CURRENT.md, agent_handoff/README.md, then inspect git log/status and the structure plan.
+PR #14 rebase-merged at fe85bc5; local main and origin/main match.
+ReportGeneViewer, PopulationFrequencySection, and ReportClient retain stable public contracts
+while adapter/controller/model/rendering responsibilities now live in focused modules.
+Full verify, audit, protein regression, browser QA, CI, and Vercel passed; post-merge guards
+and 13 focused tests also pass. FROM-SWORDFISH.md is watcher-owned and remains dirty.
+Next, perform a read-only audit of the next approved non-gated structure-plan hotspot and
+freeze a bounded contract before edits; keep schema/provider/cloud/materialization/deploy gated.
+Safe to clear: yes — PR #14 is merged, main is synced, and the verified boundary is durable.
 ```
 
 ## Pointer
 
-- PR: #14, `refactor(web): split report gene viewer responsibilities`.
-- Branch: `codex/report-gene-viewer-fold`; implementation commit `19f04f2`.
-- CI: run `29477496972`; all six repository jobs passed.
-- Preview: Vercel deployment `ArtZYAag3ahogHWDaE3SqX4N3neK`, Ready.
-- Local resumed checks: adapter/controller Vitest 3/3, protein-architecture
-  regression, and structure guard 10/10 passed.
+- PR: #14, `refactor(web): split report rendering responsibilities`, merged
+  2026-07-16 07:26 UTC by rebase.
+- Main commits: `e932d3d` gene-viewer fold, `2a20031` review handoff, and
+  `fe85bc5` population/report-shell fold.
+- CI: run `29479731408`; all repository jobs passed. Vercel preview is Ready.
+- Post-merge: `HEAD == origin/main == fe85bc5`; root guard passed and focused
+  gene-viewer/population/report-client Vitest passed 13/13.
+- Worktree: only `agent_handoff/FROM-SWORDFISH.md` is modified; it is
+  watcher-owned and was not staged, committed, or altered by this lane.
 
 ## Delta
 
-- `ReportGeneViewer.tsx` fell from 2,487 to 845 lines while remaining the stable
-  public component and gene-locus renderer.
-- Snapshot adaptation, request/state control, shared presentation, protein view
-  modeling, and protein SVG rendering now have focused modules and line budgets.
-- Focused tests preserve snapshot semantics and fixture/live-fetch decisions;
-  the existing report fixture visuals, copy, controls, and provenance remain.
-- Lead review found no blocker, attribution footer, boundary drift, or unowned
-  product/cloud/schema/deploy change.
+- `ReportGeneViewer.tsx` fell from 2,487 to 845 lines,
+  `PopulationFrequencySection.tsx` from 1,580 to 326, and `ReportClient.tsx`
+  from 1,770 to 148 while their exported component contracts stayed stable.
+- Snapshot adaptation, request/state control, population modeling/readouts/map,
+  load states, section primitives, and body/protein rendering now have focused
+  owners, structural budgets, and model/controller regression tests.
+- Existing report fixture visuals, copy, controls, exports, provenance, and
+  backend contract shapes remain unchanged; no provider/cloud/schema/deploy
+  action was taken.
 
 ## Next Action
 
-- Wait for Steven's explicit approval to merge PR #14. Once approved, perform
-  the lead-run merge, update local `main`, run the post-merge checks, and record
-  the final clear-safe boundary.
+- Start with a read-only audit of the next already-approved, non-gated hotspot
+  in `docs/repo-structure/plan.md`. Freeze its public contract and propose the
+  smallest serial slice before editing; do not sweep the watcher-owned handoff
+  change or cross any schema/provider/cloud/materialization/deploy gate.
