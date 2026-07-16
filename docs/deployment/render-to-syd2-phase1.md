@@ -1,13 +1,15 @@
 # Render to syd2 Phase-1 Migration Readiness
 
-Status: read-only audit complete; Phase 1 execution is not complete
+Status: Phase 1 dry run approved and in progress; later migration phases remain gated
 
-Last verified: 2026-07-16 08:37 +0000 - Codex
+Last verified: 2026-07-16 09:14 +0000 - Codex
 
 This runbook freezes the manifest and identity commands needed before Eamos
-moves its Render asset cache to the Project 1 landing zone on syd2. It does not
-authorize a seed, upload, deploy, provider change, Supabase mutation, VPS
-change, resize, or Render cancellation.
+moves its Render asset cache to the Project 1 landing zone on syd2. Steven
+explicitly authorized the isolated Phase-1 ClinGen dry run and its necessary
+preparation at 2026-07-16 09:10 UTC. That approval does not authorize a resize,
+bulk seed, full-corpus transfer, cutover, provider change, source-bucket
+mutation, destructive cleanup, or Render cancellation.
 
 The controlling sequence and gates remain:
 
@@ -21,11 +23,12 @@ The controlling sequence and gates remain:
 | --- | --- | --- |
 | Private source-bucket inventory | Green: 35 objects, 43,500,288,345 bytes (40.513 GiB) | Complete |
 | Source checksum authorities | Green for all 35 objects | Complete, with the legacy-object limitation below |
-| Current container identity | Image-declared `0:0`; live `id` is not yet observed | Blocked on authenticated Render shell/exec |
+| Target container identity | Tracked image is numeric `1000:1000`; focused ratchet and app-construction smoke are green | Awaiting full CI and immutable built-image digest |
+| Current live Render identity | Deployed image may predate hardening; live `id` is not yet observed | Blocked on authenticated Render shell/exec |
 | Live Render regular-file manifest | Exact command frozen; raw artifact not yet captured | Blocked on authenticated Render shell/exec |
 | Nothing-only-on-Render comparison | Comparator tested; live artifact not yet available | Blocked on the Render manifest |
-| syd2 `deploy` numeric UID/GID | Name/ownership reported by Swordfish; numeric values not yet observed here | Blocked on Swordfish CI-as-hands proof |
-| syd2 asset-root contract | Runtime subtree proposed below because `.drill` is a required sibling | Awaiting Swordfish acknowledgement |
+| syd2 `deploy` numeric UID/GID | Swordfish froze derived `1000:1000` | Live verify-before-write assertion still required |
+| syd2 asset-root contract | Runtime and isolated dry-run subtrees frozen; `.drill` remains an untouched sibling | Awaiting live preflight |
 | Supabase egress headroom | Published allowance known; current-cycle account usage unknown | Blocked on dashboard proof |
 
 Phase 1 remains closed until the live identity, raw Render manifest,
@@ -81,18 +84,21 @@ The tracked override file contains one reviewed checksum for the legacy Pfam
 source object that predates adjacent SHA-256 sidecars. All other large-object
 checksums come from agreeing content-addressed paths and/or adjacent manifests.
 
-## 2. Observe the live Render identity
+## 2. Verify the target image and observe the live Render identity
 
-The tracked `app/backend/Dockerfile` has no `USER` instruction. The current
-image therefore declares the base image's root identity, `uid=0 gid=0`; this is
-a static inference, not a substitute for observing the running SG instance.
-Run these read-only commands in an authenticated shell on service
-`srv-d8ctvoh9rddc73a27nb0`:
+The tracked `app/backend/Dockerfile` now switches to numeric `USER 1000:1000`
+after assigning only `/home/eamos` and `/app/data` to that identity. The numeric
+form deliberately requires no passwd entry. The currently deployed Render
+image may predate this hardening, so it is not a substitute for observing the
+running SG instance. Run these read-only commands in an authenticated shell on
+service `srv-d8ctvoh9rddc73a27nb0`:
 
 ```bash
 set -euo pipefail
+user="$(id -un 2>/dev/null || printf 'numeric-only')"
+group="$(id -gn 2>/dev/null || printf 'numeric-only')"
 printf 'uid=%s gid=%s user=%s group=%s\n' \
-  "$(id -u)" "$(id -g)" "$(id -un)" "$(id -gn)"
+  "$(id -u)" "$(id -g)" "$user" "$group"
 stat -c 'path=%n owner=%u:%g mode=%a' \
   /var/data/eamos \
   /var/data/eamos/bio_assets
@@ -103,14 +109,15 @@ else
 fi
 ```
 
-Record raw stdout. The expected current result is `uid=0 gid=0`, but a result
-is not evidence until it is captured from the live instance.
+Record raw stdout. The old deployed image is expected to report `uid=0 gid=0`;
+the new syd2 image must report `uid=1000 gid=1000`. Neither expectation is
+evidence until captured from its live instance and tied to an immutable image
+digest.
 
 Root can write the current `deploy:deploy 0755` landing zone but would create
-root-owned files. Do not make that the final container contract. The proposed
-target is a non-root image identity numerically matching syd2 `deploy`; the
-actual numbers must be proven before the dry run and then encoded in the image
-or service definition as a separately reviewed change.
+root-owned files. The frozen target is therefore the numeric image identity
+`1000:1000`, matching syd2 `deploy`; the live owner assertion must pass before
+the dry run writes anything.
 
 ## 3. Capture the complete live Render disk manifest
 
@@ -206,8 +213,9 @@ target-tree contract for the syd2 cache.
 ## 5. Freeze the syd2 identity and tree contract
 
 Swordfish reports `/srv/project1/assets` and `/srv/project1/manifests` as
-`deploy:deploy 0755`. Capture numeric proof through its supported CI-as-hands
-route before any container writes:
+`deploy:deploy 0755` and froze the derived first-boot identity as `1000:1000`.
+Capture live numeric proof through its supported CI-as-hands route before any
+container writes:
 
 ```bash
 set -euo pipefail
@@ -226,13 +234,14 @@ Swordfish intentionally maintains
 exclusion; the exact Render manifest would therefore always fail with
 `EXTRA: .drill/exclusion-canary.bin`.
 
-Freeze this isolated contract with Swordfish before the dry run:
+Swordfish confirmed this isolated contract at 2026-07-16 09:00 UTC:
 
 ```text
 syd2 host runtime root: /srv/project1/assets/runtime
 container runtime root: /var/data/eamos/bio_assets
 bind mount:             /srv/project1/assets/runtime -> /var/data/eamos/bio_assets
 dry-run scratch root:   /srv/project1/assets/phase1-dry-run
+dry-run container root: /var/data/eamos/phase1-dry-run
 ```
 
 The `.drill` canary remains untouched as a sibling. The small ClinGen dry run
@@ -265,7 +274,7 @@ printf 'syd2_manifest=%s\n' "$SYD2_MANIFEST"
 `asset-manifest diff` must emit exactly one `OK: tree matches manifest ...`
 line and exit `0`. `MISSING`, `EXTRA`, or `MISMATCH` blocks cutover.
 
-## 6. Confirm egress before bulk transfer
+## 6. Confirm egress before an approved transfer
 
 Supabase currently documents 250 GB of included uncached egress for Pro/Team
 organizations and overage billing after the quota. The private inventory is
@@ -274,10 +283,71 @@ organization's plan and current billing-cycle usage have not been observed:
 
 - <https://supabase.com/docs/guides/platform/manage-your-usage/egress>
 
-Before Phase 3, record the dashboard plan, billing-cycle dates, current uncached
-egress, and remaining included headroom. The current inventory must fit with a
-deliberate safety margin. A published maximum alone is not account-specific
-proof.
+Before the Phase-1 ClinGen download, record the dashboard plan, billing-cycle
+dates, current uncached egress, and at least 527,925,248 bytes of remaining
+included headroom plus a deliberate safety margin. Repeat the same proof for
+the full inventory before Phase 3. A published maximum alone is not
+account-specific proof.
+
+## 7. Run the isolated ClinGen pipe proof
+
+The selected current ClinGen object is the pinned 527,925,248-byte SQLite
+artifact already present in `app/materialization-manifest-sg.json`. Run this
+only after the image digest, numeric ownership, free-space, credential channel,
+and egress preflights are green. The S3 credentials must arrive through the
+owner-only operator channel; never paste them into this command or a log.
+
+Bind `/srv/project1/assets/phase1-dry-run` to
+`/var/data/eamos/phase1-dry-run` in the digest-pinned app shell. Then run as the
+container's numeric `1000:1000` identity:
+
+```bash
+set -euo pipefail
+umask 027
+DRY_ROOT=/var/data/eamos/phase1-dry-run
+PAYLOAD="$DRY_ROOT/payload"
+METADATA="$DRY_ROOT/metadata"
+test "$(id -u):$(id -g)" = "1000:1000"
+test -d "$DRY_ROOT"
+test -z "$(find "$DRY_ROOT" -mindepth 1 -print -quit)"
+mkdir -p "$PAYLOAD" "$METADATA"
+python -m app.cli.eamos_generated_artifact_sync \
+  --artifact clingen_local \
+  --source-object-uri supabase://eamos-source-assets/generated/eamos_clingen_local/clingen_local_sqlite/sha256-50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b/clingen-local.sqlite \
+  --destination "$PAYLOAD/clingen-local.sqlite" \
+  --manifest-destination "$METADATA/clingen-local.manifest.json" \
+  --expected-size-bytes 527925248 \
+  --expected-md5 60997c2c9a6837bd8614f489e79021fb \
+  --expected-sha256 50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b \
+  --download-mode s3_multipart \
+  --require-ready
+```
+
+The sanitized report must say `ready`, `downloaded`, `md5_verified`, and
+`sha256_verified` are true. On syd2, independently close the host-side proof:
+
+```bash
+set -euo pipefail
+EXPECTED=/srv/project1/manifests/phase1-clingen-source.manifest
+printf '%s  %s  %s\n' \
+  50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b \
+  527925248 \
+  clingen-local.sqlite > "$EXPECTED"
+chmod 640 "$EXPECTED"
+asset-manifest diff \
+  "$EXPECTED" \
+  /srv/project1/assets/phase1-dry-run/payload
+stat -c 'path=%n owner=%u:%g mode=%a size=%s' \
+  /srv/project1/assets/phase1-dry-run/payload/clingen-local.sqlite
+sha256sum \
+  /srv/project1/assets/phase1-dry-run/payload/clingen-local.sqlite \
+  "$EXPECTED"
+```
+
+The harness must emit exactly its single `OK` verdict, the payload owner must
+be `1000:1000`, and the payload SHA-256 must equal the pinned value. Any
+mismatch stops Phase 1; do not retry with `--force`, broaden the asset set, or
+move the dry-run payload into the final runtime tree.
 
 ## Checksum limitation
 

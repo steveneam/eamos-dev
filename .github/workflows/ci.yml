@@ -77,16 +77,83 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pytest -q --eamos-shard-count=2 --eamos-shard-index=${{ matrix.shard_index }}
 
+  backend_container:
+    name: backend container contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build backend image
+        run: docker build --tag eamos-backend:ci app/backend
+      - name: Verify numeric runtime identity and writable paths
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' eamos-backend:ci)" = "1000:1000"
+          docker run --rm --entrypoint sh eamos-backend:ci -ec '
+            test "$(id -u):$(id -g)" = "1000:1000"
+            test "$HOME" = "/home/eamos"
+            touch /app/data/.container-contract-write
+            rm /app/data/.container-contract-write
+          '
+
   backend:
     name: backend (pytest)
     if: ${{ always() }}
-    needs: backend_tests
+    needs: [backend_tests, backend_container]
     runs-on: ubuntu-latest
     steps:
       - name: Confirm all backend shards passed
         env:
           SHARD_RESULT: ${{ needs.backend_tests.result }}
-        run: test "$SHARD_RESULT" = "success"
+          CONTAINER_RESULT: ${{ needs.backend_container.result }}
+        run: |
+          test "$SHARD_RESULT" = "success"
+          test "$CONTAINER_RESULT" = "success"
+
+  publish_backend_image:
+    name: publish backend image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, dependency_security, frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_REF: ghcr.io/${{ github.repository_owner }}/eamos-backend
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish commit-addressed backend image
+        id: publish
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: app/backend
+          push: true
+          tags: ${{ env.IMAGE_REF }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=eamos-backend
+          cache-to: type=gha,mode=max,scope=eamos-backend
+      - name: Pull and verify the immutable registry artifact
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          immutable_ref="${IMAGE_REF}@${DIGEST}"
+          docker pull "$immutable_ref"
+          test "$(docker image inspect --format '{{.Config.User}}' "$immutable_ref")" = "1000:1000"
+          docker run --rm --entrypoint sh "$immutable_ref" -ec '
+            test "$(id -u):$(id -g)" = "1000:1000"
+            test "$HOME" = "/home/eamos"
+            touch /app/data/.registry-contract-write
+            rm /app/data/.registry-contract-write
+          '
+          printf 'image_ref=%s\n' "$immutable_ref" >> "$GITHUB_STEP_SUMMARY"
 
   dependency_security:
     name: dependency security
