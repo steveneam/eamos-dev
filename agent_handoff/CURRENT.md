@@ -31,7 +31,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-16 11:19 +0000 · Codex (coordination-ratchet lane queued; lock released)
+UNLOCKED · 2026-07-16 11:20 +0000 · Codex (clear-safe ratchet queued; lock released)
 
 ## Resume Prompt
 
@@ -41,8 +41,9 @@ Read CURRENT.md, README.md, CLAUDE.md, git log/status, and the live mailbox conv
 Phase 1 is complete; head f6474a2 and CI 29492555791 are green. Migration stays held.
 Steven explicitly approved the next-session Eamos-local coordination-ratchet lane.
 Build a peer-mailbox registry and tested CLI for send, check, wait, and status.
-Enforce inbound/outbound ownership, append ordering, UTC stamps, CURRENT lock hygiene,
-secret scanning, stale-lock detection, and pre-commit refusal of watcher-owned inbound files.
+Enforce mailbox ownership/order, UTC stamps, lock hygiene, secret/stale-lock checks, and staging guards.
+Add a clear-safe verifier: refuse unless CURRENT has the concrete next plan, is unlocked,
+strict-lint clean, committed, and pushed; never tell Steven to clear/start before it passes.
 Document a neutral cross-project contract and prepare a Swordfish adoption packet.
 Use mock mailboxes for tests; never edit/stage FROM-SWORDFISH.md or Swordfish's repository.
 Do not contact Swordfish or start Phase 2/3, resize, bulk seed, cutover, cancellation, or cleanup.
@@ -89,8 +90,8 @@ Safe to clear: yes — the next action and its exclusions are durable in CURRENT
 
 - On bare `gogogo`, immediately implement the approved Eamos-local coordination
   ratchet: registry; `send`/`check`/`wait`/`status` CLI; ownership, append-order,
-  timestamp, lock, secret, and staging guards; tests; neutral protocol docs; and
-  a ready-but-unsent Swordfish adoption packet.
+  timestamp, lock, secret, staging, and durable clear-safe guards; tests; neutral
+  protocol docs; and a ready-but-unsent Swordfish adoption packet.
 - Do not ask Steven to restate approval. Do not edit/stage the watcher-owned
   inbound file, touch Swordfish's repository, contact its agent, or mutate any
   cloud/host/provider state. Keep every migration phase held.
