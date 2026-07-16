@@ -25,12 +25,12 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED @ 2026-07-15 16:06 UTC — repository cleanup slice merged
-  through PR #13 after Steven's explicit approval and all local/remote gates.
+- **Codex:** PAUSED @ 2026-07-16 06:48 UTC — PR #14 is reviewed and fully
+  green; waiting at Steven's explicit merge-approval gate.
 
 ## Log Edit-Lock
 
-RELEASED: 2026-07-15 16:06 +0000 · Codex (repo cleanup merged and clear-safe)
+RELEASED: 2026-07-16 06:48 +0000 · Codex (PR #14 review boundary clear-safe)
 
 ## Shared File Locks
 
@@ -39,53 +39,40 @@ RELEASED: 2026-07-15 16:06 +0000 · Codex (repo cleanup merged and clear-safe)
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-15 16:06 +0000 · post-cleanup continuation
-Read CURRENT.md, agent_handoff/README.md, then docs/repo-structure/audit-2026-07-15.md.
-PR #13 consolidated the product on app/web, retired app/frontend, moved 13 useful tests,
-removed seven dead active-web components, split the Workbench CSS and population age chart,
-and split the variant-report orchestrator plus data-source registry behind stable facades.
-The root npm gate now covers guard/lint/typecheck/test/build; dependency audit is separate.
-Local npm run verify and audit passed; CI run 29430745226 and Vercel preview were green.
-Start the next local-only responsibility fold from ReportGeneViewer.tsx behind its current API.
-Use the impeccable skill, preserve behavior and visual output, add line-budget ratchets, and verify.
-Do not mutate Supabase, Render, VPS, provider state, migrations, or deploy hooks without their gates.
-Safe to clear: yes — PR #13 is merged, shared locks are released, and the next slice is local-only.
+# Resume prompt · 2026-07-16 06:48 +0000 · Codex PR #14 merge gate
+Read CURRENT.md, agent_handoff/README.md, then inspect PR #14 and git status.
+PR #14 splits ReportGeneViewer by adapter/controller/presentation/protein responsibility
+behind its unchanged exported component contract; commit 19f04f2 is pushed.
+Lead review found no blockers. Focused local checks, CI run 29477496972, and the
+Vercel preview are green; the prior full root verify and report browser smoke passed.
+Do not merge until Steven explicitly approves PR #14.
+After approval, merge as lead, fast-forward local main, verify the merged boundary,
+and write the post-merge handoff. Keep cloud/provider/schema/deploy actions gated.
+Safe to clear: yes — the implementation and handoff are pushed; only merge approval remains.
 ```
 
 ## Pointer
 
-- Merged target: PR #13 (`codex/repo-cleanup-optimization`).
-- Cleanup commits: `b90e33d` and protected-check alignment `929b002`.
-- Final pre-merge CI: run `29430745226`; all jobs and Vercel preview green.
-- Personal security skill: `~/.codex/skills/evidence-security/` (validated,
-  secret-safe scanner included; intentionally not repository-tracked).
+- PR: #14, `refactor(web): split report gene viewer responsibilities`.
+- Branch: `codex/report-gene-viewer-fold`; implementation commit `19f04f2`.
+- CI: run `29477496972`; all six repository jobs passed.
+- Preview: Vercel deployment `ArtZYAag3ahogHWDaE3SqX4N3neK`, Ready.
+- Local resumed checks: adapter/controller Vitest 3/3, protein-architecture
+  regression, and structure guard 10/10 passed.
 
 ## Delta
 
-- The duplicate Vite application is gone. `app/web` is the sole frontend and
-  owns all 13 retained pure tests (135 passing Vitest assertions).
-- Seven no-importer active-web components and 380 lines of their orphaned CSS
-  were removed. Workbench CSS is now five responsibility-owned sheets with the
-  original rule order preserved.
-- `PopulationFrequencySection.tsx` now delegates its age visualization/export;
-  variant-report helpers/signals and registry models/records are focused modules
-  behind their original public imports.
-- The verified diff changed 188 files: 7,911 insertions and 42,084 deletions.
-- Backend constraints no longer install unused LangChain/community or async-test
-  packages. Local and CI `pip-audit` report no known backend vulnerabilities.
-- The frontend high/critical advisory gate passes. Three moderate advisories
-  remain in Next's nested PostCSS; npm only offers an unsafe Next 9 downgrade.
-- The evidence-security scanner inspected 896 tracked text files. Its six high
-  leads were triaged as loopback developer tooling, verified JWT decoding, or
-  tests that prohibit public service-role variables; none was a confirmed flaw.
-- No Supabase/database, provider, Render/VPS, deployment, or other cloud mutation
-  occurred. No frontend redesign or generated image was needed for this slice.
+- `ReportGeneViewer.tsx` fell from 2,487 to 845 lines while remaining the stable
+  public component and gene-locus renderer.
+- Snapshot adaptation, request/state control, shared presentation, protein view
+  modeling, and protein SVG rendering now have focused modules and line budgets.
+- Focused tests preserve snapshot semantics and fixture/live-fetch decisions;
+  the existing report fixture visuals, copy, controls, and provenance remain.
+- Lead review found no blocker, attribution footer, boundary drift, or unowned
+  product/cloud/schema/deploy change.
 
 ## Next Action
 
-- Start a fresh branch from current `main` and split
-  `app/web/components/report/ReportGeneViewer.tsx` by controller/adapter/rendering
-  responsibility behind the unchanged exported component contract.
-- Preserve visual output, use focused tests plus the full root verification gate,
-  and lower the structure budget only after the responsibility split lands.
-- Keep all cloud/provider/schema/deploy actions founder-gated.
+- Wait for Steven's explicit approval to merge PR #14. Once approved, perform
+  the lead-run merge, update local `main`, run the post-merge checks, and record
+  the final clear-safe boundary.
