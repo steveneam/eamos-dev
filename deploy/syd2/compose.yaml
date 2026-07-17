@@ -1,0 +1,123 @@
+# Eamos backend on syd2. This raw Compose file is the deployment source of
+# truth; Dokploy's Application model cannot represent the security properties
+# below. Secrets remain in Dokploy's environment store and are injected only
+# through the explicit allowlist in this file.
+
+name: eamos-syd2
+
+services:
+  backend:
+    image: ghcr.io/steveneam/eamos-backend@sha256:910dc159b3b2de8fec8f389ec7c328a6046733403793ba5f98b6cf83155a3fe1
+    user: "1000:1000"
+    command:
+      - /bin/sh
+      - -c
+      - umask 077 && exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=536870912,mode=1777
+    environment:
+      ADMIN_MATERIALIZATION_ENABLED: ${ADMIN_MATERIALIZATION_ENABLED:?required}
+      AI_CHAT_DEV_DAILY_CAP: ${AI_CHAT_DEV_DAILY_CAP:?required}
+      AI_CHAT_DEV_DAILY_CAP_ENABLED: ${AI_CHAT_DEV_DAILY_CAP_ENABLED:?required}
+      AI_CHAT_USER_DAILY_CAP: ${AI_CHAT_USER_DAILY_CAP:?required}
+      AI_CHAT_USER_DAILY_CAP_ENABLED: ${AI_CHAT_USER_DAILY_CAP_ENABLED:?required}
+      AI_CHAT_USER_DAILY_CAP_WINDOW_SECONDS: ${AI_CHAT_USER_DAILY_CAP_WINDOW_SECONDS:?required}
+      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:?required}
+      ALLOWED_ORIGINS_RAW: ${ALLOWED_ORIGINS_RAW:?required}
+      ALPHAMISSENSE_HG38_RUNTIME_ASSET_MODE: ${ALPHAMISSENSE_HG38_RUNTIME_ASSET_MODE:?required}
+      ALPHAMISSENSE_HG38_RUNTIME_ASSET_PATH: ${ALPHAMISSENSE_HG38_RUNTIME_ASSET_PATH:?required}
+      APP_NAME: ${APP_NAME:?required}
+      CLINGEN_LOCAL_ENABLED: ${CLINGEN_LOCAL_ENABLED:?required}
+      CLINGEN_LOCAL_MANIFEST_PATH: ${CLINGEN_LOCAL_MANIFEST_PATH:?required}
+      CLINGEN_LOCAL_SQLITE_PATH: ${CLINGEN_LOCAL_SQLITE_PATH:?required}
+      CLINVAR_GENE_DISTRIBUTION_INDEX_PATH: ${CLINVAR_GENE_DISTRIBUTION_INDEX_PATH:?required}
+      CLINVAR_GENE_DISTRIBUTION_MANIFEST_PATH: ${CLINVAR_GENE_DISTRIBUTION_MANIFEST_PATH:?required}
+      CLINVAR_RUNTIME_INDEX_PATH: ${CLINVAR_RUNTIME_INDEX_PATH:?required}
+      CLINVAR_RUNTIME_VCF_PATH: ${CLINVAR_RUNTIME_VCF_PATH:?required}
+      COORDINATE_RESOLVER_ASSET_MATERIALIZATION_ENABLED: ${COORDINATE_RESOLVER_ASSET_MATERIALIZATION_ENABLED:?required}
+      COORDINATE_RESOLVER_COMPACT_INDEX_MAX_TRANSCRIPTS: ${COORDINATE_RESOLVER_COMPACT_INDEX_MAX_TRANSCRIPTS:?required}
+      COORDINATE_RESOLVER_COMPACT_INDEX_PATH: ${COORDINATE_RESOLVER_COMPACT_INDEX_PATH:?required}
+      COORDINATE_RESOLVER_MANE_GFF_PATH: ${COORDINATE_RESOLVER_MANE_GFF_PATH:?required}
+      COORDINATE_RESOLVER_REFSEQ_GFF_PATH: ${COORDINATE_RESOLVER_REFSEQ_GFF_PATH:?required}
+      DATABASE_URL: ${DATABASE_URL:?required}
+      DBSNP_RUNTIME_INDEX_PATH: ${DBSNP_RUNTIME_INDEX_PATH:?required}
+      DBSNP_RUNTIME_VCF_PATH: ${DBSNP_RUNTIME_VCF_PATH:?required}
+      DEBUG: ${DEBUG:?required}
+      ENV: ${ENV:?required}
+      FINAL_REPORT_DIR: ${FINAL_REPORT_DIR:?required}
+      HG38_2BIT_RUNTIME_ASSET_PATH: ${HG38_2BIT_RUNTIME_ASSET_PATH:?required}
+      HOST: ${HOST:?required}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      LLM_PROVIDER: ${LLM_PROVIDER:?required}
+      LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW: ${LOCAL_EVIDENCE_ALLOWED_FLOWS_RAW:?required}
+      LOCAL_EVIDENCE_ENABLED: ${LOCAL_EVIDENCE_ENABLED:?required}
+      LOCAL_EVIDENCE_REQUIRE_REAL_APIS: ${LOCAL_EVIDENCE_REQUIRE_REAL_APIS:?required}
+      PHYLOP_RUNTIME_BIGWIG_PATH: ${PHYLOP_RUNTIME_BIGWIG_PATH:?required}
+      PORT: ${PORT:?required}
+      PROTEIN_ANNOTATION_ENABLED: ${PROTEIN_ANNOTATION_ENABLED:?required}
+      PROTEIN_ANNOTATION_PFAM_HMM_GZ_PATH: ${PROTEIN_ANNOTATION_PFAM_HMM_GZ_PATH:?required}
+      PROTEIN_ANNOTATION_PFAM_HMM_PATH: ${PROTEIN_ANNOTATION_PFAM_HMM_PATH:?required}
+      PUBMED_LOCAL_STARTUP_MATERIALIZATION_ENABLED: ${PUBMED_LOCAL_STARTUP_MATERIALIZATION_ENABLED:?required}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:?required}
+      RATE_LIMIT_TRUST_PROXY_HEADERS: ${RATE_LIMIT_TRUST_PROXY_HEADERS:?required}
+      REPEATMASKER_RUNTIME_INDEX_PATH: ${REPEATMASKER_RUNTIME_INDEX_PATH:?required}
+      SENTRY_DSN: ${SENTRY_DSN:?required}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:?required}
+      SUPABASE_JWT_ALGORITHM: ${SUPABASE_JWT_ALGORITHM:?required}
+      SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL: ${SUPABASE_LOCAL_MODEL_CACHE_DATABASE_URL:?required}
+      SUPABASE_LOCAL_MODEL_CACHE_ENABLED: ${SUPABASE_LOCAL_MODEL_CACHE_ENABLED:?required}
+      SUPABASE_LOCAL_MODEL_CACHE_SCHEMA: ${SUPABASE_LOCAL_MODEL_CACHE_SCHEMA:?required}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?required}
+      SUPABASE_URL: ${SUPABASE_URL:?required}
+      UPLOAD_DIR: ${UPLOAD_DIR:?required}
+      USE_REAL_APIS: ${USE_REAL_APIS:?required}
+    expose:
+      - "8000"
+    volumes:
+      - /srv/project1/assets/runtime:/app/data/bio_assets:ro
+      - /srv/project1/assets/runtime:/var/data/eamos/bio_assets:ro
+      - /srv/project1/app-state:/app/state
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/healthz", timeout=3).read()
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+          pids: 256
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
