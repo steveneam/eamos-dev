@@ -301,7 +301,13 @@ export function inspectMailbox(mailbox, direction) {
   const descriptor = mailbox[direction]
   const text = readMailbox(descriptor.absolute, `${mailbox.id} ${direction} mailbox`)
   const levels = direction === 'outbound' ? [descriptor.headingLevel] : descriptor.headingLevels
-  const order = orderFindings(text, levels, { requireTimes: direction === 'outbound' })
+  // The local writer controls outbound chronology, so it remains a fail-closed
+  // invariant. An inbound peer may append a delayed or backfilled message with
+  // an older heading stamp; physical append order is authoritative for inbox
+  // notification and must not hide the newest bytes from check/wait.
+  const order = direction === 'outbound'
+    ? orderFindings(text, levels, { requireTimes: true })
+    : { stamps: headingStamps(text, levels), findings: [] }
   const secrets = secretFindings(text)
   const markerMissing = direction === 'outbound' && !text.includes(descriptor.appendMarker)
   const stamps = order.stamps

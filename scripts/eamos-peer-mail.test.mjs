@@ -56,7 +56,7 @@ function registryFixture() {
           headingLevel: 2,
           appendMarker: '_Append below._',
         },
-        inbound: { path: 'agent_handoff/FROM-BRAVO.md', headingLevels: [1] },
+        inbound: { path: 'agent_handoff/FROM-BRAVO.md', headingLevels: [1, 2] },
         allowDirtyInbound: true,
       },
     ],
@@ -204,6 +204,21 @@ test('check acknowledges by fingerprint without editing the inbound mailbox', ()
   assert.equal(readFileSync(mailbox.inbound.absolute, 'utf8'), before)
 })
 
+test('check reports the physically latest accepted inbound heading when peer timestamps regress', () => {
+  const root = makeRepo()
+  const registry = loadRegistry({ root })
+  const mailbox = selectMailbox(registry, 'bravo')
+  appendFileSync(
+    mailbox.inbound.absolute,
+    '\n## 2026-07-16 08:10 UTC · bravo → alpha — First append\n\nFirst.\n' +
+      '\n## 2026-07-16 08:09 UTC · bravo → alpha — Delayed append\n\nSecond.\n',
+  )
+
+  const result = checkMailbox(registry, mailbox)
+
+  assert.match(result.latestHeading, /Delayed append/)
+})
+
 test('wait detects a new peer append without acknowledging or modifying it', async () => {
   const root = makeRepo()
   const registry = loadRegistry({ root })
@@ -211,7 +226,7 @@ test('wait detects a new peer append without acknowledging or modifying it', asy
   setTimeout(() => {
     appendFileSync(
       mailbox.inbound.absolute,
-      '\n# Follow-up (2026-07-16 08:06 UTC)\n\nA bounded update.\n',
+      '\n## Follow-up (2026-07-16 08:06 UTC)\n\nA bounded update.\n',
     )
   }, 30)
   const result = await waitForMailbox(registry, mailbox, { timeoutSeconds: 1, intervalSeconds: 0.01 })

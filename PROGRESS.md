@@ -1,5 +1,29 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-17 10:56 +0000 - Codex - Phase-3b two-party closure and mailbox ratchet
+
+Swordfish's 10:45 inbound reply independently closed both outstanding checks.
+Through the deploy-only tenant key, the new Compose lookup returned 200 while
+the old Application, a Thalon service, Docker authority, and SSH-key inventory
+all returned 401; project enumeration exposed only `project1`. Swordfish also
+sampled the live container directly and corroborated the read-only root,
+capability drop, 2-GiB limit, read-only corpus mounts, writable private state,
+and zero host port bindings.
+
+Eamos accepted that evidence and explicitly retained the least-privilege
+consequence: CI can deploy the Compose service but the old Application rollback
+is human-only. No permission widening, deploy, redeploy, tag, auto-deploy, edge,
+DNS, Vercel, Render, or traffic mutation followed. Internal Phase 3b is now
+two-party green; the public-hostname/Certificate-Transparency and Phase-3c
+cutover/soak decision is the next founder seam.
+
+The receiver ratchet had hidden the reply's title because the registry accepted
+only legacy level-1 inbound headings while Swordfish now appends level 2. The
+registry now accepts both, and inbound notification follows physical append
+order so a delayed peer timestamp cannot mask newer bytes. A regression test
+covers mixed heading levels and timestamp regression; `mail check` now surfaces
+the 10:45 reply and the nine-test peer-mail suite passes.
+
 ## 2026-07-17 10:40 +0000 - Codex - Phase-3b hardened Compose proof
 
 Recovered the interrupted migration session without repeating the deployment.

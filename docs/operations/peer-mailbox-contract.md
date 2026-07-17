@@ -11,8 +11,10 @@ not grant authority for the action described in a message.
 1. One file has one writer. The local actor appends only to its registered
    outbound file. The peer-owned inbound file is read-only.
 2. Messages append at EOF. Existing bytes are never rewritten by `send`.
-3. Every generated heading carries a UTC minute stamp. Dated headings remain
-   monotonic; outbound headings always include a time.
+3. Every locally generated heading carries a UTC minute stamp, and locally
+   owned outbound dated headings remain monotonic. For inbound mail, the final
+   physically appended accepted heading is latest: a delayed peer message with
+   an older stamp must not suppress notification of newer bytes.
 4. A per-peer exclusive lock serializes writers. Active and stale locks fail
    closed. The tool reports a stale lock but never removes one implicitly.
 5. Message subjects and bodies are scanned for common credential shapes before
@@ -50,8 +52,9 @@ All commands accept `--json`, `--root=<repo>`, and
 
 ### `status`
 
-Validates both directions, reports fingerprints/latest headings, scans secrets
-and ordering, reports locks, and flags protected staged paths. Use
+Validates both directions, reports fingerprints/latest headings, scans secrets,
+checks locally owned outbound ordering, reports locks, and flags protected
+staged paths. Use
 `--staging-only` for the commit-time ownership guard.
 
 ### `check`
@@ -113,8 +116,9 @@ agent remembering the rule.
 
 1. Identify the physical two-file channel and freeze one writer per file.
 2. Create an actor-specific version-1 registry with exact paths and owners.
-3. Baseline `status`; fix order, marker, or secret findings before enabling
-   writes.
+3. Baseline `status`; fix outbound order, marker, or secret findings before
+   enabling writes, and confirm every inbound heading level used by the peer is
+   registered.
 4. Run the mock test suite unchanged.
 5. Install the staging-only guard in the tracked commit hook and CI.
 6. Exercise `check --ack` and a short `wait` against mock or disposable files.

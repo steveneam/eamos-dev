@@ -25,35 +25,37 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED AT CROSS-AGENT GATE @ 2026-07-17 10:46 +0000 — recovered
-  and completed the internal Phase-3b Compose proof. Swordfish's independent
-  deploy-only tenant-grant move/consumption proof is pending after three
-  bounded waits. No edge, DNS, Vercel, Render, or traffic mutation is in flight.
+- **Codex:** STOPPED AT FOUNDER GATE @ 2026-07-17 10:57 +0000 — Phase 3a and
+  internal Phase 3b are two-party green. Swordfish moved and independently
+  consume-tested the deploy-only tenant grant. The public-hostname/Certificate-
+  Transparency and Phase-3c cutover/soak decision is now held for Steven; no
+  edge, DNS, Vercel, Render, or traffic mutation is in flight.
 - **Runtime:** Codex is inside the persistent `eamos` tmux session under
   `agent-tmux.service`; the code-server terminal profile now defaults to that
   seam, so a code-server restart no longer owns this process cgroup.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 10:46 +0000 · Codex
+UNLOCKED · 2026-07-17 10:57 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the Phase-3b proof-wrap locks at
-  2026-07-17 10:46 +0000.
+- None. Codex released the Phase-3b two-party closure locks at
+  2026-07-17 10:57 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 10:46 +0000 · Codex Phase-3b grant/edge gate
+# Resume prompt · 2026-07-17 10:57 +0000 · Codex Phase-3c founder gate
 Read CURRENT.md, README.md, the latest Swordfish ASK/FROM entries, and the Phase-3 runbook.
-Phase 3a and the no-domain hardened Compose service are exact-proof green.
-Actual CI 29571532636 is fully green; Compose 5rBnRf20ht4wGRQ856ZLO is healthy.
-Hash/source preflight, real predictors/APIs, clean-restart memory, and both rollbacks passed.
-First poll Swordfish mail for the requested tenant-grant move and positive/negative proof.
-Do not duplicate that move through the org-admin credential or stage FROM-SWORDFISH.md.
-After proof, stop at the public-hostname/CT-log decision before any external proxy or traffic.
-Keep Render and the old Application live; tags, workflows, Vercel, DNS, and Phase 4 stay held.
+Phase 3a and internal Phase 3b are two-party green on Compose 5rBnRf20ht4wGRQ856ZLO.
+Swordfish moved the tenant grant and proved Compose positive plus old-app/cross-tenant/Docker/SSH denial.
+The old Application rollback is deliberately human-only from CI; do not widen the grant.
+The mixed-heading mail ratchet now surfaces Swordfish's physically latest 10:45 reply.
+Stop for Steven's public preview-api hostname/CT-log and Phase-3c cutover/soak decision.
+If approved, freeze the external-routing and evidence-based soak contract before mutation.
+Keep Render and the old Application live; auto-deploy, tags, Phase 4, and Supabase stay held.
+Codex runs inside persistent tmux via agent-tmux.service; continue from that seam.
 ```
 
 ## Pointer
@@ -62,30 +64,34 @@ Keep Render and the old Application live; tags, workflows, Vercel, DNS, and Phas
   `app/backend/tests/test_syd2_compose_contract.py`; commit `2374dbc`.
 - Actual green workflow: `29571532636` on `ac6d3e8`; internal Compose ID:
   `5rBnRf20ht4wGRQ856ZLO`; deployment: `6FfxABW5Aplk_G7HWb1Z7`.
+- Proof-wrap workflow `29574642738` is fully green for `3048633`, including
+  image publication and immutable pull-back.
 - Full retained proof and credential boundary:
   `docs/deployment/render-to-syd2-phase3.md` → Phase 3b internal Compose proof.
-- Latest outbound evidence/reminder: the 10:40 entry in
-  `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`; inbound reply remains pending.
+- Cross-agent closure: Swordfish's 10:45 inbound reply and Eamos's 10:56
+  acceptance in `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
+- Mailbox regression ratchet: `.agent-mailboxes.json` and
+  `scripts/eamos-peer-mail.test.mjs` mixed-level/physical-latest coverage.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Effective runtime is exact-digest, `1000:1000`, read-only-root, cap-drop ALL,
-  no-new-privileges, no-port, bounded to 2 GiB / 2 CPUs / 256 PIDs, with both
-  47.94-GB corpus views read-only and private state writable.
-- Resume preflight exact-hashed all 23 files and HEAD-verified all 23 private
-  sources with zero downloads. Four S3 keys used the encrypted-stdin/mode-0600
-  tmpfs channel and were removed; the serving environment does not retain them.
-- AlphaMissense, the bounded coordinate index, viewer, uncached Pfam/HMMER,
-  summary, and full lookup passed. After controlled restart, clean warm peak was
-  54.11% / 1.073 GiB with zero pressure, restart, or OOM events.
+- Through the tenant key, Compose returned 200; the old Application, a Thalon
+  service, Docker inventory, and SSH-key inventory returned 401; project scope
+  exposed only `project1`. The grant was moved, not copied.
+- Swordfish's direct container inspection independently corroborated healthy
+  state, read-only root, cap-drop ALL, 2-GiB limit, read-only corpus mounts,
+  writable private state, and zero host bindings.
+- The receiver registry now accepts legacy level-1 and current level-2 inbound
+  headings. Physical append order determines the latest inbound title, so a
+  delayed peer timestamp cannot mask new bytes; nine peer-mail tests pass.
 - The old hardened Application and Singapore Render service are both healthy.
   Phase 3c has not started and no external hostname or production traffic moved.
 
 ## Next Action
 
-- Poll Swordfish mail and verify its promised positive Compose visibility plus
-  negative cross-tenant/Docker-authority proof for the moved deploy-only grant.
-  Do not duplicate the permission mutation. Once it is green, present the
-  irreversible public-hostname/Certificate-Transparency seam to Steven before
-  creating the external Phase-3b proxy or moving any production traffic.
+- Steven decides whether to create the public `preview-api.swordfish.cfd`
+  hostname, accepting its durable Certificate-Transparency footprint, and
+  authorizes the external proxy/Vercel Phase-3c path. If approved, freeze the
+  routing and evidence-based soak exit contract with Swordfish before any
+  mutation. Otherwise hold the internal Compose exactly as proved.

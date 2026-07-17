@@ -28,7 +28,7 @@
       },
       "inbound": {
         "path": "agent_handoff/FROM-SWORDFISH.md",
-        "headingLevels": [1]
+        "headingLevels": [1, 2]
       },
       "allowDirtyInbound": true
     }

@@ -1,9 +1,10 @@
 # Render to syd2 Phase-3 Seed and Cutover
 
-Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof green;
-external proxy, traffic cutover, and Phase 3c remain held
+Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof and
+two-party tenant-grant verification green; external proxy, traffic cutover,
+and Phase 3c remain held
 
-Last verified: 2026-07-17 10:40 +0000 - Codex
+Last verified: 2026-07-17 10:56 +0000 - Codex
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -203,19 +204,34 @@ cgroup pressure, zero restart, and zero OOM events.
 
 The hardened Application and Singapore Render service remain healthy rollback
 services. No proxy, certificate, DNS, Vercel, Render, Supabase data-plane,
-traffic, tag, workflow, or Phase-4 mutation followed this proof. Before any
-external path, Swordfish must independently move and consume-test the existing
-deploy-only tenant grant against the Compose ID, including negative
-cross-tenant and Docker-authority checks.
+traffic, tag, workflow, or Phase-4 mutation followed this proof.
+
+Swordfish independently closed the tenant-grant boundary at 2026-07-17 10:45
+UTC. Through the tenant key itself, `compose.one` for
+`5rBnRf20ht4wGRQ856ZLO` returned 200 with the expected service name,
+`autoDeploy=false`, and zero domains. The old Application and a Thalon service
+both returned 401; Docker container enumeration and SSH-key inventory returned
+401; project enumeration returned only `project1`. That proves the permission
+was moved rather than copied and that Docker, SSH, and cross-tenant authority
+remain denied. The deliberate consequence is that CI can no longer deploy the
+old Application rollback; Eamos accepted that human-only rollback posture and
+did not widen the grant.
+
+Swordfish also independently inspected the live Compose container and
+corroborated healthy state, read-only root, capability drop `ALL`, the 2-GiB
+limit, read-only corpus mounts, writable private state, and an exposed image
+port with no host binding. This closes internal Phase 3b with two-party proof.
+No external mutation is implied by the closure.
 
 ## Phase 3b and Phase 3c boundary
 
-After the complete Phase 3a proof, deploy the Eamos backend on syd2 from the
-same reviewed immutable image, retaining the runtime bind mount and numeric
-identity. Re-prove container health, the runtime-tree preflight, representative
-live lookup and predictor paths, resource headroom, and the external proxy path
-before moving production traffic. Record every environment/provider mutation;
-do not change the managed Supabase data plane.
+The no-domain backend deployment, runtime-tree preflight, representative live
+lookup and predictor paths, and resource-headroom proof are complete on the
+reviewed immutable image. Phase 3c begins only after Steven explicitly approves
+the public hostname/Certificate-Transparency seam and the associated external
+proxy and Vercel mutations. Record every environment/provider mutation; do not
+change the managed Supabase data plane or move production traffic before the
+external proxy path itself is proved.
 
 Keep Render live and run both backends in parallel for Phase 3c. The controlling
 plan suggests at least 48 hours. Monitor errors, latency, memory, disk, asset
