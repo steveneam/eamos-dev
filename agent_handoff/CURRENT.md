@@ -25,66 +25,67 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED @ 2026-07-17 07:51 +0000 — global Codex is stable
-  `0.144.5`; Eamos and Swordfish are coordinated on the held Phase-3 pre-brief.
-  Two evidence packets were sent at 07:46/07:49 UTC; no live reply arrived in
-  the 60-second watch. No product code, bulk seed, cloud/provider, Supabase data,
-  migration, environment, host, or deploy mutation was performed.
+- **Codex:** STOPPED AT FOUNDER GATE @ 2026-07-17 09:52 +0000 — Phase 3a is
+  checksum-green and the internal Phase-3b Application is functionally green.
+  Hardened Compose commit `2374dbc` is pushed and fully green locally, but CI
+  `29571230013` started no steps because GitHub reports failed account payments
+  or an insufficient Actions spending limit. No Compose, edge, DNS, Vercel, or
+  Render mutation followed the red gate.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 07:52 +0000 · Codex
+UNLOCKED · 2026-07-17 09:52 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the handoff lock at 2026-07-17 07:52 +0000 after the
-  verified coordination closeout.
+- None. Codex released the handoff lock at 2026-07-17 09:52 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 07:51 +0000 · Codex Swordfish migration coordination
-Read CURRENT.md, README.md, CLAUDE.md, and the two latest ASK-BACKS-FOR-SWORDFISH.md entries.
-Codex is 0.144.5; handoff commit b628432 and CI 29563846225 are green.
-Phase 1 is green; Phase 3, cutover, provider, Render, and cleanup gates remain held.
-The current fresh seven-item seed peaks at 40,847,382,851 B plus tiny metadata, not 2x.
-The full landing contract is not frozen: 10 preserved Render objects are outside that manifest.
-Conditional run-of-show and fresh-egress preflight were sent; check once for Swordfish's reply.
-Local lanes are frontend 3532 and backend 8532; no repository port change has landed.
-Without a new gate or redirect, resume the read-only representative variant report matrix.
-Never edit or stage FROM-SWORDFISH.md.
-Do not bulk-seed or mutate Supabase, providers, cloud, migrations, deploys, or env.
+# Resume prompt · 2026-07-17 09:52 +0000 · Codex Phase-3b Compose gate
+Read CURRENT.md, README.md, the latest Swordfish ASK/FROM entries, and the Phase-3 runbook.
+Phase 3a is exact-manifest green; the internal Application and real lookup matrix are green.
+Commit 2374dbc freezes the hardened no-port Compose contract and is pushed.
+Local full verify and the syd2 Compose parser are green.
+CI 29571230013 ran no steps: GitHub account payment/Actions spending gate.
+After Steven clears Billing & plans, rerun CI and require every job green.
+Only then create the no-domain Compose replacement and repeat the full proof matrix.
+Keep Render live and the current Application as rollback; Phase 4 stays held.
+Do not edit or stage FROM-SWORDFISH.md or move credentials, tags, DNS, or traffic.
 ```
 
 ## Pointer
 
-- Coordination record: the 2026-07-17 07:46 and 07:49 UTC entries at the end
-  of `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
-- Disk evidence: `app/backend/app/materialization-manifest-sg.json`,
-  `app/backend/app/services/materialization_orchestrator.py`,
-  `local_evidence_runtime_seed.py`, and `generated_source_artifacts.py`.
-- Current roadmap remains Report evidence and runtime closure in `ROADMAP.md`.
-- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` may be dirty; never edit or
-  stage it.
+- Durable service contract: `deploy/syd2/compose.yaml`; ratchet:
+  `app/backend/tests/test_syd2_compose_contract.py`; commit `2374dbc`.
+- Blocked workflow: GitHub Actions run `29571230013` on `2374dbc`.
+- Phase-3 procedure and retained proof paths:
+  `docs/deployment/render-to-syd2-phase3.md`.
+- Latest Swordfish coordination: the 09:55 inbound and 09:51 outbound entries
+  in the watcher-owned FROM and Eamos-owned ASK mailboxes.
+- Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- The seven-item orchestrator is sequential: each object streams to one temp
-  file beside its destination, verifies, then atomically replaces it. A fresh
-  empty-root seed peaks at its 38.042-GiB final payload, not 2x; `--force`
-  against an existing corpus has a larger refresh profile and is excluded.
-- The current manifest omits the ten preserved AlphaMissense/Pfam Render
-  objects. Swordfish was asked to freeze the exact Phase-3 landing set before
-  release; no transfer starts against an ambiguous contract.
-- Authenticated Supabase readback confirms Pro; official guidance confirms the
-  250-GB uncached quota. Current-cycle usage is unavailable through the
-  connector and remains a fresh dashboard preflight. The conditional one-off
-  filesystem-only runbook uses no force or metadata reconciliation.
+- Phase 3a landed 23 files / 47,943,536,945 bytes with canonical SHA-256
+  `c907fa2aab78eb31a5ae30dcbc3e914ed89d90584d5aea845f360cdc25c20cbb`;
+  exact sizes/hashes, ownership/modes, canary, residue, and reserve all passed.
+- The internal Application is healthy at 2 GiB with no domain or published port.
+  Real AlphaMissense, coordinate, viewer, Pfam/HMMER, summary, and full lookup
+  probes passed; the bounded compact-index ceiling is 131,000 transcripts.
+- A Dokploy Application redeploy erased manual read-only-root, cap-drop, tmpfs,
+  and read-only-bind hardening. The overlay was restored, and the tracked raw
+  Compose contract now makes those properties declarative.
+- Swordfish independently confirmed the durability gap and Compose-first order.
+  Push-to-box automation remains held; future fixed-tag/deploy-only-key posture
+  is a separate post-Compose decision, with no credential movement authorized.
 
 ## Next Action
 
-- Check peer-mail once for Swordfish's manifest-freeze response. If no new gate
-  or redirect exists, run the read-only representative-variant matrix across
-  all seven report sections and recommend the smallest evidence/runtime closure
-  slice. Keep every cloud, provider, materialization, migration, environment,
-  and deploy gate closed.
+- Steven clears the GitHub Actions account payment/spending-limit gate. Then
+  rerun the latest main workflow and require all jobs green. If green, create
+  the no-domain raw Compose replacement, transfer the existing 55-name
+  environment securely without logging values, and repeat the hardening,
+  corpus, real-functional, memory, restart, and rollback checks. Do not expose
+  an edge or alter Render/Vercel until that internal Compose proof is green.
