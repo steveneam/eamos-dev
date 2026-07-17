@@ -17,7 +17,7 @@ export const ACMG_LABELS: Record<AcmgCode, string> = {
   PM6:  'Assumed de novo',
   PP1:  'Co-segregation with disease',
   PP2:  'Missense in low-tolerance gene',
-  PP3:  'Multiple in-silico predictors converge',
+  PP3:  'Preselected computational evidence supports pathogenic impact',
   PP4:  'Phenotype highly specific for gene',
   PP5:  'Reputable source reports as path. (retired)',
   BA1:  'AF > 5% in any pop',

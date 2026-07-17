@@ -470,33 +470,48 @@ artifact unless Steven explicitly accepts an internal-only, non-commercial
 source path. The commercial-safe path remains regeneration from the MIT model
 with MANE/reference/source checksums recorded in the Eamos manifest.
 
-Steven decision 2026-06-17: use the commercial-safe MIT regeneration path. The
-runtime artifact launch gate is now manifest-driven:
+Steven decision 2026-06-17: use the commercial-safe clean-regeneration path.
+Security and scientific-proof ratchet, 2026-07-17 17:13 +0000 · Codex:
 
 - missing or legacy ESM1b artifacts report `esm1b_mit_regeneration_required`;
 - manifests that identify the precomputed/non-commercial score zip stay gated;
-- manifests written from MIT-regenerated scores carry `license_gate: null` and
-  clear the ESM1b launch gate in provider-cache/build-ledger output.
+- `license_gate: null` is not proof and no longer clears the launch gate;
+- fixture manifests and the old v1 materializer remain gated; and
+- only a release-ready schema-v2 manifest with verified route, model,
+  environment, sequence inputs, raw/final data, index hashes, numerical parity,
+  no-precomputed-archive proof, and no outstanding gates can clear it. The
+  declared route hash and final asset/index names, sizes, and SHA-256 values
+  must match the mounted files; hash-shaped metadata alone is not sufficient.
 
-After the operator-side MIT ESM1b scoring run produces a score CSV, run from
-`app/backend` and materialize the Eamos runtime artifact without using the
-Hugging Face score zip:
+The legacy command below is intentionally disabled and exits before writing:
 
 ```bash
 python -m app.cli.eamos_esm1b_regenerated_scores_materialize \
-  --score-csv <staging>/esm1b-mit-regenerated-scores.csv \
-  --codon-context-jsonl <staging>/esm1b-mane-codon-contexts.jsonl \
-  --target-path data/bio_assets/predictors/esm1b/esm1b_hg38.tsv.gz \
-  --mane-version <MANE release/version> \
-  --grch38-reference-sha256 <hg38 reference SHA256> \
-  --require-ready \
+  --help
+```
+
+Small approved synthetic fixtures may exercise the new worker from
+`app/backend` only after supplying a schema-v2 context manifest and scorer proof:
+
+```bash
+python -m app.cli.eamos_esm1b_clean_regeneration_fixture \
+  --fixture-only \
+  --input-root <synthetic-fixture-root> \
+  --score-csv scores.csv \
+  --context-jsonl contexts.jsonl \
+  --context-manifest contexts.manifest.json \
+  --scorer-proof scores.proof.json \
+  --output-root <fixture-output-root> \
   --compact
 ```
 
-Then rerun the read-only upload planner. The expected clean result is a complete
-`esm1b_hg38_scores` plan with two components and `launch_gate: null`; Storage
-upload, Supabase metadata registration, Render disk sync, and provider/env flips
-remain separate approvals.
+This produces deterministic raw shards, a build log, and a fixture-only
+manifest. Score and context inputs are capped at 100,000 rows. It does not run
+the model, download the NC archive, create bgzip or
+Tabix artifacts, upload, register Supabase metadata, seed Render, or flip a
+provider. The official Meta `.pt` SHA-256, locked scorer image, full parity and
+validation proofs, full asset generation, Storage upload, Render sync, and
+activation each retain their existing operator/founder gates.
 
 | Artifact set | Component | Expected default path | Current status |
 | --- | --- | --- | --- |

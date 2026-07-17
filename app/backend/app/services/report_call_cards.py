@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from app.schemas.run import (
+    ComputationalEvidenceDecision,
     PopulationAgeDistribution,
     PopulationAgeHistogram,
     PopulationFrequencyAncestryGroup,
@@ -197,6 +199,18 @@ def _computational_card(
     evidence_statuses: dict[str, str],
 ) -> ReportCallCard:
     annotations = evidence_map.get("computational_annotations", {})
+    decision = (
+        payload.report_profile.computational_decision
+        if payload.report_profile is not None
+        else None
+    )
+    if decision is not None:
+        return _computational_card_from_decision(
+            decision,
+            annotations,
+            evidence_statuses,
+        )
+
     annotation_card = _computational_card_from_annotations(
         annotations,
         payload,
@@ -205,6 +219,112 @@ def _computational_card(
     )
     if annotation_card is not None:
         return annotation_card
+    return _legacy_computational_card(payload, evidence_statuses)
+
+
+def _computational_card_from_decision(
+    decision: ComputationalEvidenceDecision,
+    annotations: dict[str, Any],
+    evidence_statuses: dict[str, str],
+) -> ReportCallCard:
+    score = decision.calibration_normalized_score
+    if score is None:
+        score = decision.raw_score
+
+    score_badge = ReportCallBadge(
+        text=f"Score {_format_score(score)}" if score is not None else "Score unavailable",
+        kind="metric" if score is not None else "warning",
+    )
+    code_badge = ReportCallBadge(
+        text=decision.evidence_code or "No PP3/BP4",
+        kind="acmg" if decision.evidence_code else "neutral",
+    )
+    points_badge = ReportCallBadge(
+        text=_format_evidence_points(decision.evidence_points),
+        kind="metric" if decision.evidence_points else "neutral",
+    )
+
+    selected = _display_predictor_id(decision.selected_predictor_id)
+    primary_label = _decision_display_label(decision, selected)
+    provenance = [_decision_provenance(decision, selected)]
+    annotation_warnings = [
+        str(item) for item in annotations.get("warnings", []) if isinstance(item, str)
+    ]
+
+    return ReportCallCard(
+        card_id="computational",
+        title="Computational",
+        primary_label=primary_label,
+        support_badges=[score_badge, code_badge, points_badge],
+        ui_color_theme=_computational_decision_theme(decision),
+        source_status=_displayed_annotation_status(evidence_statuses),
+        provenance=provenance,
+        warnings=_dedupe_strings([*decision.warnings, *annotation_warnings]),
+    )
+
+
+def _decision_display_label(
+    decision: ComputationalEvidenceDecision,
+    selected: str | None,
+) -> str:
+    label = decision.evidence_label.strip()
+    if selected and label.casefold().startswith(f"{selected.casefold()} "):
+        suffix = label[len(selected) :].strip()
+        if suffix and suffix.casefold() not in {"unavailable", "not applicable"}:
+            return f"{selected} · {suffix}"
+    return label or (f"{selected} unavailable" if selected else "Not assessed")
+
+
+def _computational_decision_theme(decision: ComputationalEvidenceDecision) -> str:
+    if decision.applicability != "applicable":
+        return "neutral_slate_state"
+    points = decision.evidence_points
+    if points >= 4:
+        return "danger_red_state"
+    if points > 0:
+        return "caution_orange_state"
+    if points <= -2:
+        return "benign_green_state"
+    if points < 0:
+        return "support_green_state"
+    return "neutral_slate_state"
+
+
+def _decision_provenance(
+    decision: ComputationalEvidenceDecision,
+    selected: str | None,
+) -> str:
+    parts = [
+        f"{selected} selected by Eamos policy" if selected else "Class-specific Eamos policy",
+        decision.calibration_version,
+        f"{decision.standard_label} ({decision.ruleset_version})",
+    ]
+    return " · ".join(part for part in parts if part)
+
+
+def _display_predictor_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    known = {
+        "revel": "REVEL",
+        "alphamissense": "AlphaMissense",
+        "esm1b": "ESM-1b",
+        "spliceai": "SpliceAI",
+    }
+    return known.get(value.casefold(), value)
+
+
+def _format_evidence_points(points: Decimal) -> str:
+    rendered = "0" if points == 0 else format(points.normalize(), "f")
+    prefix = "+" if points > 0 else ""
+    unit = "point" if abs(points) == 1 else "points"
+    return f"{prefix}{rendered} {unit}"
+
+
+def _legacy_computational_card(
+    payload: ReportPayload,
+    evidence_statuses: dict[str, str],
+) -> ReportCallCard:
 
     predictions = payload.in_silico_predictions
     if predictions is None or not predictions.cards:
@@ -670,14 +790,15 @@ def _format_percent(value: float | None) -> str:
     return f"{percent:.2f}%"
 
 
-def _format_score(value: float | None) -> str:
+def _format_score(value: Any) -> str:
     if value is None:
         return "n/a"
-    if value == 0:
+    number = float(value)
+    if number == 0:
         return "0"
-    if abs(value) < 1:
-        return f"{value:.3g}"
-    return f"{value:g}"
+    if abs(number) < 1:
+        return f"{number:.3g}"
+    return f"{number:g}"
 
 
 def _dedupe_strings(items: list[str]) -> list[str]:

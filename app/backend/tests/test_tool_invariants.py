@@ -881,8 +881,23 @@ class FakeAlphaMissenseAdapter:
 
 
 class FakeEsm1bAdapter:
-    def lookup(self, *, chrom: str, position: int, ref: str, alt: str):
+    def lookup(
+        self,
+        *,
+        chrom: str,
+        position: int,
+        ref: str,
+        alt: str,
+        transcript_id: str | None = None,
+        gene: str | None = None,
+        protein_change: str | None = None,
+    ):
         assert (chrom, position, ref, alt) == ("1", 68444869, "T", "C")
+        assert (transcript_id, gene, protein_change) == (
+            "NM_000329.3",
+            "RPE65",
+            "p.Asp87Gly",
+        )
         return SimpleNamespace(
             available=True,
             prediction=Esm1bPrediction(

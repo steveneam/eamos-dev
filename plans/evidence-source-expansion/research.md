@@ -304,31 +304,37 @@ duplicate frontend threshold table should remain.
 
 ### Existing Eamos work
 
+Checkpoint: 2026-07-17 17:13 +0000 · Codex.
+
 Eamos already has a meaningful base:
 
 - assembly, MANE-context, and local Tabix lookup services;
-- materialization CLIs and targeted tests;
+- a fixture-only clean-regeneration CLI, disk-backed worker, and targeted tests;
 - data-source registry and health/ledger hooks; and
 - an in-silico catalog row.
 
-The runtime lookup is appropriately fail-closed. The missing work is source
-route resolution, calibration correctness, full-scale generation, and actual
-materialization—not a new request-time model service.
+The runtime lookup is fail-closed and now disambiguates repeated genomic keys
+with transcript/gene/protein context. The missing work is the operator-side
+official-weight hash, scorer image digest, full numerical and clinical proof,
+full-scale generation, and actual materialization, not a request-time model
+service.
 
 ### Source and license route
 
 | Component | Observed terms | Research decision |
 | --- | --- | --- |
 | Meta ESM repository/code | MIT | Pin commit and preserve notice. |
-| official ESM1b model repository/weights | repository tagged MIT; approximately 2.61 GB | Snapshot terms and hash the exact weights; do not assume code and weights are interchangeable legal objects. |
+| official Meta ESM1b `.pt` weights | repository tagged MIT; Meta endpoint reports 7,828,576,466 bytes and a multipart ETag, not SHA-256 | Acquire only at the operator gate, preserve terms, and compute SHA-256; do not treat the ETag as a content hash. |
+| official Meta Hugging Face conversion | `facebook/esm1b_t33_650M_UR50S` exposes a distinct approximately 2.61 GB `pytorch_model.bin` | Do not substitute it into the pinned fair-esm/ntranos route without a separately proved numerical-parity decision. |
 | ntranoslab scoring code | MIT | Suitable pinned reference implementation. |
 | precomputed all-human-isoform score archive | hosting Space declares CC BY-NC 4.0 | Do not download, stage, or use without a written NonCommercial determination and attribution decision. |
 | clean Eamos regeneration | derived from pinned model/code and independently sourced sequence inputs | Preferred route, with allowlisted input hashes and a reproducible build log proving the NC score archive was not an input. |
 
-The source registry is internally inconsistent today: the registry describes a
-commercial-review/internal-fixture gate while the clean-regeneration
-materializer can emit commercially allowed metadata. Resolve it only after the
-source route and evidence are frozen.
+The prior clean-regeneration materializer could clear its gate from caller
+metadata alone. It is disabled. Runtime activation now requires complete
+schema-v2 source-route, input, model, environment, final asset, and index proof;
+the route hash and mounted final asset/index identity are verified rather than
+trusted as declarations, and fixture manifests remain gated.
 
 The detailed predictor UI currently describes ESM-1b simply as `MIT`. That can
 conflate an MIT model/scorer route with the hosted CC BY-NC score archive.
@@ -356,21 +362,25 @@ versioned MANE sequence inputs
   -> exact request-time lookup on syd2
 ```
 
-The current builder retains all scores, contexts, output rows, and final TSV in
-memory. A full-proteome build needs streaming reads, a disk-backed context
-index, deterministic sharding, and external sort.
+The v1 fixture assembler retains its inputs and output in memory and remains
+fixture-only. The v2 worker streams bounded inputs, joins and externally sorts
+through SQLite, writes deterministic chromosome shards, and records raw-score
+hashes without an embedded `acmg_band`. The fixture worker rejects score or
+context inputs above 100,000 rows. Full bgzip/Tabix finalization is held behind
+the separate materialization gate.
 
 The reproducible execution contract must pin model
 `esm1b_t33_650M_UR50S`, weight URL/SHA-256, Meta and ntranos commits,
 `fair-esm`/Torch versions, eval mode, dtype, device, determinism controls,
-WT-marginal strategy, and the versioned 1,022-residue window/511-residue
-overlap/weighting algorithm. An allowlist of all input hashes and a reproducible
+WT-marginal strategy, and the executable scorer's versioned 1,022-residue
+window/512-residue minimum-overlap/scale-20 weighting algorithm. An allowlist
+of all input hashes and a reproducible
 build log—not a declaration alone—proves the NC archive was not used.
 The exact MANE GFF/FASTA and GRCh38 2bit/reference inputs also need canonical
 URLs, versions, terms/license snapshots, and SHA-256 hashes; “independently
 sourced” is not sufficient provenance.
 
-Current assets can embed an `acmg_band` at build time while the runtime also
+Legacy assets can embed an `acmg_band` at build time while the runtime also
 recalibrates the raw score. That creates two drifting authorities. The durable
 asset should carry raw score plus validated build provenance; calibration comes
 from one active runtime registry. Otherwise fail closed unless embedded and

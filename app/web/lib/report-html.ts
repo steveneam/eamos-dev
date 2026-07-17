@@ -284,11 +284,12 @@ export function htmlEvidenceBySource(
         ),
       )
     })
-    if (inSilico.consensus_note) {
+    const accounting = payload.report_profile?.computational_deep_dive?.selection_accounting
+    if (accounting) {
       parts.push(
         bodyRow(
           inSilico.cards.length,
-          `<td colspan="4" style="font-family:${FONT_STACK};font-size:10.5pt;font-style:italic;color:${C.variant_fg};padding:6px 9px;border:1px solid ${C.border};">${esc('Consensus: ' + inSilico.consensus_note)}</td>`,
+          `<td colspan="4" style="font-family:${FONT_STACK};font-size:10.5pt;font-style:italic;color:${C.variant_fg};padding:6px 9px;border:1px solid ${C.border};">${esc('Evidence accounting: ' + accounting)}</td>`,
         ),
       )
     }

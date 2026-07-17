@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import replace
 from enum import Enum
+from hashlib import sha256
 import json
 from pathlib import Path
 import re
@@ -303,7 +304,15 @@ def inspect_esm1b_runtime_asset(
     )
     if not base.ready:
         return replace(base, launch_gate=ESM1B_REGENERATION_REQUIRED_GATE)
-    base = replace(base, launch_gate=_esm1b_launch_gate_from_manifest(plan.manifest_path))
+    base = replace(
+        base,
+        launch_gate=_esm1b_launch_gate_from_manifest(
+            plan.manifest_path,
+            asset_path=plan.path,
+            index_path=plan.index_path,
+            verify_checksums=verify_checksum,
+        ),
+    )
     if materialization_store is None:
         if plan.mode == RuntimeAssetMode.OBJECT_STORAGE_LOCAL_CACHE.value:
             return _inspection(
@@ -1061,21 +1070,118 @@ def _inspection(
     )
 
 
-def _esm1b_launch_gate_from_manifest(manifest_path: Path) -> str | None:
+def _esm1b_launch_gate_from_manifest(
+    manifest_path: Path,
+    *,
+    asset_path: Path,
+    index_path: Path,
+    verify_checksums: bool,
+) -> str | None:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return ESM1B_LICENSE_GATE
 
-    for key in ("license_gate", "launch_gate"):
-        if key not in manifest:
-            continue
-        value = manifest.get(key)
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
+    license_gate = manifest.get("license_gate")
+    if license_gate is not None:
+        text = str(license_gate).strip()
+        if text:
+            return text
+
+    if manifest.get("source_id") == "esm1b_clean_regenerated_scores":
+        if manifest.get("manifest_schema_version") != "2":
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if manifest.get("fixture_only") is not False:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if manifest.get("runtime_activation_allowed") is not True:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        launch_gates = manifest.get("launch_gates")
+        if not isinstance(launch_gates, list) or launch_gates:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        source_route = manifest.get("source_route")
+        score_provenance = manifest.get("score_provenance")
+        output_contract = manifest.get("output_contract")
+        guardrails = manifest.get("guardrails")
+        inputs = manifest.get("inputs")
+        final_asset = manifest.get("final_asset")
+        tabix_index = manifest.get("tabix_index")
+        if not isinstance(source_route, dict) or source_route.get("status") != "release_ready":
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if source_route.get("release_gates") != []:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if manifest.get("source_route_sha256") != _canonical_json_sha256(source_route):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if not isinstance(score_provenance, dict) or not isinstance(output_contract, dict):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if not isinstance(guardrails, dict) or not isinstance(inputs, dict):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if not isinstance(final_asset, dict) or not isinstance(tabix_index, dict):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if score_provenance.get("precomputed_score_archive_used") is not False:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if output_contract.get("acmg_band_embedded") is not False:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if guardrails.get("precomputed_score_archive_used") is not False:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if score_provenance.get("numerical_parity_status") != "passed":
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if (
+            re.fullmatch(
+                r"sha256:[0-9a-f]{64}",
+                str(score_provenance.get("container_digest") or ""),
+            )
+            is None
+        ):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        required_hashes = (
+            manifest.get("source_route_sha256"),
+            score_provenance.get("model_weight_sha256"),
+            score_provenance.get("environment_lock_sha256"),
+            inputs.get("score_csv_sha256"),
+            inputs.get("context_jsonl_sha256"),
+            inputs.get("protein_fasta_sha256"),
+            inputs.get("mane_gff_sha256"),
+            inputs.get("reference_sha256"),
+            final_asset.get("sha256"),
+            tabix_index.get("sha256"),
+        )
+        if any(
+            re.fullmatch(r"[0-9a-f]{64}", str(value or "")) is None for value in required_hashes
+        ):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if not verify_checksums:
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if not _runtime_artifact_record_matches(final_asset, asset_path):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        if not _runtime_artifact_record_matches(tabix_index, index_path):
+            return ESM1B_REGENERATION_REQUIRED_GATE
+        return None
+
+    # A nullable legacy license_gate is not proof of clean local regeneration.
+    # Only the validated schema-v2 route above may clear the launch gate.
     return ESM1B_LICENSE_GATE
+
+
+def _runtime_artifact_record_matches(record: dict[str, object], path: Path) -> bool:
+    if record.get("file_name") != path.name:
+        return False
+    if record.get("size_bytes") != path.stat().st_size:
+        return False
+    expected_sha256 = str(record.get("sha256") or "")
+    return _compute_sha256(path) == expected_sha256
+
+
+def _compute_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _canonical_json_sha256(payload: dict[str, object]) -> str:
+    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return sha256(encoded).hexdigest()
 
 
 def _resolve_backend_path(settings: Settings, path: Path) -> Path:

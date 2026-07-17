@@ -34,6 +34,7 @@ from app.services.predictor_runtime import (
     CI_SPLICEAI_REFERENCE_ASSET_ROLE,
     CI_SPLICEAI_SCORE_CACHE_ASSET_ROLE,
     CI_SPLICEAI_SOURCE_ID,
+    ESM1B_LICENSE_GATE,
 )
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures"
@@ -737,7 +738,7 @@ def test_provider_cache_health_reports_ready_admin_predictors_without_paths(
     assert "supabase://" not in encoded
 
 
-def test_provider_cache_health_reports_clean_esm1b_manifest_without_launch_gate(
+def test_provider_cache_health_does_not_trust_legacy_nullable_esm1b_launch_gate(
     tmp_path: Path,
 ) -> None:
     esm1b = _write_indexed_runtime_file(tmp_path / "esm1b" / "esm1b_hg38.tsv.gz", b"scores")
@@ -760,10 +761,10 @@ def test_provider_cache_health_reports_clean_esm1b_manifest_without_launch_gate(
     body = response.json()
     indexed = body["providers"]["indexed_predictors"]
     assert indexed["esm1b"]["status"] == "ready"
-    assert indexed["esm1b"]["launch_gate"] is None
+    assert indexed["esm1b"]["launch_gate"] == ESM1B_LICENSE_GATE
     ledger_items = {item["item_id"]: item for item in body["build_ledger"]["items"]}
     assert ledger_items["esm1b"]["status"] == "ready"
-    assert ledger_items["esm1b"]["launch_gate"] is None
+    assert ledger_items["esm1b"]["launch_gate"] == ESM1B_LICENSE_GATE
 
 
 def test_provider_cache_health_summarizes_source_cache_without_identity_leaks(client) -> None:

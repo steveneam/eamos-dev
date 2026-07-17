@@ -1,9 +1,11 @@
 # Evidence Source Expansion — Implementation Plan
 
-Status: Phase 0 complete at `49cdacb`; Phase 1 authorized for the next session;
-Phase 2 remains unapproved.
+Status: Phase 0 complete at `49cdacb`; Phase 1 and the synthetic-fixture Phase 2
+implementation were directly authorized on 2026-07-17. Full ESM-1b model/corpus
+acquisition, scoring, bgzip/Tabix materialization, upload, and activation remain
+separate gates.
 
-Stamped: 2026-07-17 13:39 +0000 · Codex.
+Stamped: 2026-07-17 17:13 +0000 · Codex.
 
 ## Goal
 
@@ -392,6 +394,16 @@ newly activated for clinical points.
 
 ## Phase 1 — REVEL-Led Computational Card
 
+Implementation checkpoint: 2026-07-17 17:13 +0000 · Codex.
+
+- The backend-selected REVEL decision now owns the call-card label, score,
+  code, points, theme, and provenance while alternate predictors remain
+  context-only and splice evidence stays separate.
+- Browser proof covers pathogenic, indeterminate, benign, unavailable, and
+  not-applicable states at 390, 768, 1024, and 1440 pixels. The mobile
+  carousel keeps its compact dots inside 24-by-24-pixel tap targets; the
+  refined mobile Lighthouse accessibility score is 97.
+
 ### Backend
 
 - Add the clinically approved capped REVEL profile as the initial applied
@@ -436,6 +448,22 @@ newly activated for clinical points.
 
 ## Phase 2 — ESM-1b Clean Offline Regeneration
 
+Implementation checkpoint: 2026-07-17 17:13 +0000 · Codex.
+
+- The fixture-only source route, exact long-protein tiling contract, bounded
+  streamed parser, SQLite join/sort, deterministic chromosome shards, raw-score
+  manifest, contextual duplicate handling, and fail-closed runtime proof gate
+  are implemented and tested. Fixture score/context inputs have a hard
+  100,000-row ceiling.
+- The old materializer is disabled because a nullable `license_gate` was not
+  build proof. Only a complete release-ready schema-v2 manifest whose declared
+  route hash and final asset/index names, sizes, and SHA-256 values match the
+  mounted files can eventually clear the runtime launch gate.
+- The official Meta `.pt` object publishes a multipart ETag, not SHA-256. Its
+  acquisition/hash, scorer image digest, full numerical parity, transport and
+  clinical validation, 2-GiB runtime proof, and final materialization remain
+  explicit exit gates. No model, score archive, or corpus was downloaded.
+
 ### Freeze the scientific build
 
 - source route: pinned official ESM1b model/code plus independently sourced
@@ -448,14 +476,16 @@ newly activated for clinical points.
   Meta and ntranos commits, `fair-esm`/Torch versions, eval mode, dtype, device,
   determinism controls, and scorer container/environment hash;
 - score: published WT-marginal LLR;
-- long proteins: a versioned 1,022-residue window, 511-residue overlap, and
-  exact Brandes/ntranos weighting behavior;
+- long proteins: a versioned 1,022-residue window, 512-residue minimum overlap,
+  sigmoid scale 20, and exact pinned ntranos weighting behavior. The helper's
+  unused default is 511, but the executable scorer calls it with 512;
 - scope: MANE Select v1.5, GRCh38, exact versions, missense SNVs only; and
 - identifiers: separate RefSeq, Ensembl, UniProt, and neutral protein-sequence
   identifiers.
 
-Freeze whether MANE patch-contig genes are included and how their reference
-sequence is supplied; a primary-chromosome-only hg38 2bit can omit them.
+The first route is frozen to primary chromosomes from the pinned UCSC
+`hg38.2bit`. MANE v1.5 patch-contig genes are excluded with an explicit
+64-gene skipped ledger; they must not disappear silently or be marked covered.
 
 ### Build a scalable worker
 

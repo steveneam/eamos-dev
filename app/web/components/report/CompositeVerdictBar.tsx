@@ -1,78 +1,48 @@
-import type { ComputationalPredictorRow } from '@/lib/backend'
-import {
-  StackedCountBar,
-  type RampVerdict,
-  type StackedCountSegment,
-} from '@/components/ui/StackedCountBar'
-
 interface CompositeVerdictBarProps {
-  predictors?: ComputationalPredictorRow[] | null
+  selectionAccounting?: string | null
 }
 
-const RAMP_ORDER: RampVerdict[] = [
-  'Pathogenic',
-  'Likely pathogenic',
-  'VUS',
-  'Likely benign',
-  'Benign',
-]
+export function computationalAccountingItems(value?: string | null): string[] {
+  return (value ?? '')
+    .split('|')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
 
-export function CompositeVerdictBar({ predictors }: CompositeVerdictBarProps) {
-  // AlphaMissense re-enabled in §2 (Steven 2026-06-08) — count all live engines.
-  const visible = predictors ?? []
-  const totalEngines = visible.length
-
-  const counts: Record<RampVerdict, number> = {
-    'Pathogenic': 0,
-    'Likely pathogenic': 0,
-    'VUS': 0,
-    'Likely benign': 0,
-    'Benign': 0,
-  }
-  let calibratedCount = 0
-  for (const row of visible) {
-    const bucket = row.calibration_bucket
-    if (bucket && bucket in counts) {
-      counts[bucket] += 1
-      calibratedCount += 1
-    }
-  }
-
-  if (totalEngines === 0) return null
-
-  const segments: StackedCountSegment[] = RAMP_ORDER
-    .filter((verdict) => counts[verdict] > 0)
-    .map((verdict) => ({ verdict, count: counts[verdict] }))
-
-  const ariaParts = segments.map((s) => `${s.verdict} ${s.count}`).join(', ')
-  const ariaLabel =
-    calibratedCount === 0
-      ? `${totalEngines} engine${totalEngines === 1 ? '' : 's'}, none with published calibration`
-      : `Composite calibrated verdict: ${ariaParts}; ${calibratedCount} of ${totalEngines} engines calibrated`
+export function CompositeVerdictBar({ selectionAccounting }: CompositeVerdictBarProps) {
+  const items = computationalAccountingItems(selectionAccounting)
+  if (items.length === 0) return null
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <StackedCountBar segments={segments} height={14} ariaLabel={ariaLabel} />
+    <aside
+      aria-label={`Computational evidence accounting: ${items.join('; ')}`}
+      style={{
+        marginBottom: 16,
+        borderTop: '0.5px solid var(--line)',
+        borderBottom: '0.5px solid var(--line)',
+        background: 'var(--bg-soft)',
+        padding: '10px 12px',
+      }}
+    >
       <div
         style={{
           display: 'flex',
-          gap: 14,
-          marginTop: 5,
-          fontFamily: 'var(--mono)',
-          fontSize: 10.5,
-          color: 'var(--ink-4)',
-          alignItems: 'baseline',
+          flexWrap: 'wrap',
+          gap: '5px 12px',
+          alignItems: 'center',
+          fontSize: 11,
+          color: 'var(--ink-2)',
         }}
       >
-        {segments.map((s) => (
-          <span key={s.verdict}>
-            {s.verdict} <span style={{ color: 'var(--ink-2)' }}>{s.count}</span>
+        <span className="eamos-kicker" style={{ color: 'var(--teal-deep)' }}>
+          Evidence accounting
+        </span>
+        {items.map((item) => (
+          <span key={item} style={{ fontFamily: 'var(--mono)' }}>
+            {item}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto' }}>
-          {calibratedCount} of {totalEngines} engine{totalEngines === 1 ? '' : 's'} calibrated
-        </span>
       </div>
-    </div>
+    </aside>
   )
 }

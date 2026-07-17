@@ -73,6 +73,9 @@ def test_write_esm1b_mane_context_artifacts_emits_materializer_jsonl_and_manifes
         mane_version="MANE Select v1.5",
         genes=("POS",),
         reference_sha256="b" * 64,
+        primary_chromosomes_only=True,
+        skipped_patch_gene_count=0,
+        fixture_only=True,
     )
 
     contexts = load_esm1b_codon_contexts_from_jsonl(context_path)
@@ -80,6 +83,11 @@ def test_write_esm1b_mane_context_artifacts_emits_materializer_jsonl_and_manifes
         ("NP_POS.1", 1),
         ("NP_POS.1", 2),
     ]
+    assert {context.protein_sequence_id for context in contexts} == {"NP_POS.1"}
+    assert {context.protein_sequence_id_namespace for context in contexts} == {"refseq"}
+    assert {context.refseq_protein_id for context in contexts} == {"NP_POS.1"}
+    assert {context.ensembl_protein_id for context in contexts} == {"ENSPPOS"}
+    assert {context.uniprot_isoform_id for context in contexts} == {None}
     assert fasta_path.read_text(encoding="utf-8").splitlines()[:2] == [
         ">NP_POS.1 gene=POS mane_tx=NM_POS.1 sequence_id_field=protein_id "
         "protein_id=NP_POS.1 ensembl_protein_id=ENSPPOS",
@@ -88,9 +96,13 @@ def test_write_esm1b_mane_context_artifacts_emits_materializer_jsonl_and_manifes
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["protein_count"] == 1
+    assert manifest["manifest_schema_version"] == "2"
     assert manifest["context_count"] == 2
     assert manifest["reference_sha256"] == "b" * 64
     assert manifest["precomputed_huggingface_score_zip_used"] is False
+    assert manifest["patch_contig_policy"] == "exclude_with_explicit_ledger"
+    assert manifest["skipped_patch_gene_count"] == 0
+    assert manifest["fixture_only"] is True
     assert manifest["storage_upload"] == "not_used"
     assert result.to_sanitized_dict()["local_path_values_emitted"] is False
 

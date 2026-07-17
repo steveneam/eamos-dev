@@ -220,10 +220,11 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
         card for card in report_payload["call_cards"]["cards"] if card["card_id"] == "computational"
     )
     computational_badges = [badge["text"] for badge in computational_card["support_badges"]]
-    assert computational_card["primary_label"] == "Damaging"
-    assert computational_badges[:2] == ["REVEL: 0.78", "CADD PHRED: 23.4"]
-    assert "REVEL: 0.82" not in computational_badges
-    assert "MetaLR: 0.78" not in computational_badges
+    assert computational_card["primary_label"] == "REVEL unavailable"
+    assert computational_badges == ["Score unavailable", "No PP3/BP4", "0 points"]
+    assert computational_card["ui_color_theme"] == "neutral_slate_state"
+    assert "REVEL: 0.78" not in computational_badges
+    assert "CADD PHRED: 23.4" not in computational_badges
 
     disease = profile["disease_mechanism"]
     assert disease["primary_condition"] == "Leber congenital amaurosis 2"

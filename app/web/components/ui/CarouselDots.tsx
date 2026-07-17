@@ -91,16 +91,28 @@ export function CarouselDots({
             aria-label={`Go to card ${i + 1}`}
             onClick={() => go(i)}
             style={{
-              width: isActive ? 18 : 6,
-              height: 6,
+              width: 24,
+              height: 24,
               borderRadius: 999,
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              background: isActive ? tones.active : tones.inactive,
-              transition: 'width 0.2s ease, background 0.2s ease',
+              display: 'grid',
+              placeItems: 'center',
+              background: 'transparent',
             }}
-          />
+          >
+            <span
+              aria-hidden
+              style={{
+                width: isActive ? 18 : 6,
+                height: 6,
+                borderRadius: 999,
+                background: isActive ? tones.active : tones.inactive,
+                transition: 'width 0.2s ease, background 0.2s ease',
+              }}
+            />
+          </button>
         )
       })}
     </div>

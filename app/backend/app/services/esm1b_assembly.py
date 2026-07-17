@@ -34,6 +34,8 @@ class Esm1bScoreRow:
 
 @dataclass(frozen=True)
 class Esm1bManeCodonContext:
+    # ``uniprot_isoform`` is retained as a legacy join alias for the v1 fixture
+    # assembler. New context artifacts use the neutral and namespaced fields.
     uniprot_isoform: str
     protein_position: int
     chrom: str
@@ -42,6 +44,11 @@ class Esm1bManeCodonContext:
     strand: str
     mane_tx: str
     gene: str | None = None
+    protein_sequence_id: str | None = None
+    protein_sequence_id_namespace: str | None = None
+    refseq_protein_id: str | None = None
+    ensembl_protein_id: str | None = None
+    uniprot_isoform_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -497,7 +504,12 @@ def materialize_regenerated_esm1b_runtime_asset(
     scoring_code_license: str = "MIT",
     bgzip_tabix_writer: Callable[[str, Path], Path] | None = None,
 ) -> Esm1bRuntimeAssetMaterialization:
-    """Write the commercial-safe ESM1b runtime artifact from regenerated scores."""
+    """Legacy materializer retained only to fail closed after the v2 contract freeze."""
+
+    raise Esm1bAssemblyError(
+        "legacy ESM1b materialization is disabled pending a validated v2 clean-build "
+        "manifest and separate operator materialization approval"
+    )
 
     result = assemble_esm1b_mane_fixture_snv_table(
         score_rows=score_rows,
@@ -667,8 +679,11 @@ def _codon_context_from_mapping(raw: dict[str, Any]) -> Esm1bManeCodonContext:
     positions = raw["codon_positions"]
     if not isinstance(positions, list | tuple) or len(positions) != 3:
         raise ValueError("codon_positions must contain exactly three positions")
+    sequence_id = str(raw.get("protein_sequence_id") or raw.get("uniprot_isoform") or "")
+    if not sequence_id:
+        raise ValueError("protein_sequence_id is required")
     return Esm1bManeCodonContext(
-        uniprot_isoform=str(raw["uniprot_isoform"]),
+        uniprot_isoform=sequence_id,
         protein_position=int(raw["protein_position"]),
         chrom=str(raw["chrom"]),
         ref_codon=str(raw["ref_codon"]),
@@ -676,6 +691,21 @@ def _codon_context_from_mapping(raw: dict[str, Any]) -> Esm1bManeCodonContext:
         strand=str(raw["strand"]),
         mane_tx=str(raw["mane_tx"]),
         gene=None if raw.get("gene") is None else str(raw.get("gene")),
+        protein_sequence_id=sequence_id,
+        protein_sequence_id_namespace=(
+            None
+            if raw.get("protein_sequence_id_namespace") is None
+            else str(raw.get("protein_sequence_id_namespace"))
+        ),
+        refseq_protein_id=(
+            None if raw.get("refseq_protein_id") is None else str(raw.get("refseq_protein_id"))
+        ),
+        ensembl_protein_id=(
+            None if raw.get("ensembl_protein_id") is None else str(raw.get("ensembl_protein_id"))
+        ),
+        uniprot_isoform_id=(
+            None if raw.get("uniprot_isoform_id") is None else str(raw.get("uniprot_isoform_id"))
+        ),
     )
 
 

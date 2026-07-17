@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=("protein_id", "ensembl_protein_id", "mane_tx"),
         default="protein_id",
         help=(
-            "Identifier written as FASTA seq_id and context uniprot_isoform. "
+            "Identifier written as FASTA seq_id and neutral protein_sequence_id. "
             "The regenerated score CSV must use the same seq_id values."
         ),
     )
@@ -69,6 +69,19 @@ def main(argv: list[str] | None = None) -> int:
         "--reference-sha256",
         help="Precomputed hg38.2bit SHA256 to record instead of hashing the reference file.",
     )
+    parser.add_argument(
+        "--skipped-patch-gene-count",
+        type=int,
+        help=(
+            "Required with --primary-chromosomes-only; records the reviewed MANE "
+            "patch-contig exclusion ledger count."
+        ),
+    )
+    parser.add_argument(
+        "--fixture-only",
+        action="store_true",
+        help="Mark synthetic/test context artifacts as ineligible for runtime activation.",
+    )
     parser.add_argument("--compact", action="store_true")
     args = parser.parse_args(argv)
 
@@ -106,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
             invalid_cds_policy=args.invalid_cds_policy,
             primary_chromosomes_only=args.primary_chromosomes_only,
             reference_sha256=args.reference_sha256,
+            skipped_patch_gene_count=args.skipped_patch_gene_count,
+            fixture_only=args.fixture_only,
         )
     finally:
         reference_store.close()
@@ -127,9 +142,9 @@ def main(argv: list[str] | None = None) -> int:
         },
         "artifacts": result.to_sanitized_dict(),
         "next_step": (
-            "Run the MIT ESM1b scoring pipeline against the emitted FASTA, with "
-            "CSV seq_id values matching sequence_id_field, then run "
-            "eamos_esm1b_regenerated_scores_materialize with this JSONL."
+            "For synthetic fixtures only, produce a matching scorer-proof JSON and "
+            "run eamos_esm1b_clean_regeneration_fixture. Full scoring and runtime "
+            "materialization remain separate approval gates."
         ),
     }
     print(json.dumps(report, indent=None if args.compact else 2, sort_keys=True))

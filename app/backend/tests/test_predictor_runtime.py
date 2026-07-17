@@ -635,7 +635,7 @@ def test_esm1b_materialization_reports_ready_without_requiring_expected_registry
     assert inspection.launch_gate == ESM1B_LICENSE_GATE
 
 
-def test_esm1b_materialization_reads_clean_regenerated_manifest_launch_gate(
+def test_esm1b_materialization_does_not_trust_legacy_nullable_launch_gate(
     tmp_path: Path,
 ) -> None:
     payload = b"tiny-esm1b"
@@ -655,7 +655,89 @@ def test_esm1b_materialization_reads_clean_regenerated_manifest_launch_gate(
 
     assert inspection.ready is True
     assert inspection.status is PredictorRuntimeStatus.READY
+    assert inspection.launch_gate == ESM1B_LICENSE_GATE
+
+
+def test_esm1b_materialization_accepts_only_complete_release_ready_v2_proof(
+    tmp_path: Path,
+) -> None:
+    payload = b"tiny-esm1b"
+    source_route = {"status": "release_ready", "release_gates": []}
+    asset = _write_materialized_asset(
+        tmp_path,
+        payload,
+        file_name="esm1b_hg38.tsv.gz",
+        manifest_extra={
+            "source_id": "esm1b_clean_regenerated_scores",
+            "manifest_schema_version": "2",
+            "fixture_only": False,
+            "runtime_activation_allowed": True,
+            "launch_gates": [],
+            "source_route_sha256": _json_sha256(source_route),
+            "source_route": source_route,
+            "inputs": {
+                "score_csv_sha256": "2" * 64,
+                "context_jsonl_sha256": "3" * 64,
+                "protein_fasta_sha256": "4" * 64,
+                "mane_gff_sha256": "5" * 64,
+                "reference_sha256": "6" * 64,
+            },
+            "score_provenance": {
+                "model_weight_sha256": "7" * 64,
+                "environment_lock_sha256": "8" * 64,
+                "container_digest": "sha256:" + "9" * 64,
+                "numerical_parity_status": "passed",
+                "precomputed_score_archive_used": False,
+            },
+            "output_contract": {"acmg_band_embedded": False},
+            "final_asset": {
+                "file_name": "esm1b_hg38.tsv.gz",
+                "size_bytes": len(payload),
+                "sha256": sha256(payload).hexdigest(),
+            },
+            "tabix_index": {
+                "file_name": "esm1b_hg38.tsv.gz.tbi",
+                "size_bytes": len(b"index"),
+                "sha256": sha256(b"index").hexdigest(),
+            },
+            "guardrails": {"precomputed_score_archive_used": False},
+        },
+    )
+    settings = Settings(jwt_secret="test-secret", esm1b_hg38_runtime_asset_path=asset)
+
+    unverified = inspect_esm1b_runtime_asset(settings)
+    inspection = inspect_esm1b_runtime_asset(settings, verify_checksum=True)
+
+    assert unverified.launch_gate == ESM1B_REGENERATION_REQUIRED_GATE
+    assert inspection.ready is True
     assert inspection.launch_gate is None
+
+    asset.write_bytes(b"tampered-esm1b")
+    tampered = inspect_esm1b_runtime_asset(settings, verify_checksum=True)
+    assert tampered.ready is True
+    assert tampered.launch_gate == ESM1B_REGENERATION_REQUIRED_GATE
+
+
+def test_esm1b_materialization_keeps_fixture_v2_manifest_gated(tmp_path: Path) -> None:
+    payload = b"tiny-esm1b"
+    asset = _write_materialized_asset(
+        tmp_path,
+        payload,
+        file_name="esm1b_hg38.tsv.gz",
+        manifest_extra={
+            "source_id": "esm1b_clean_regenerated_scores",
+            "manifest_schema_version": "2",
+            "fixture_only": True,
+            "runtime_activation_allowed": False,
+            "launch_gates": ["materialization_upload_approval_required"],
+        },
+    )
+    settings = Settings(jwt_secret="test-secret", esm1b_hg38_runtime_asset_path=asset)
+
+    inspection = inspect_esm1b_runtime_asset(settings)
+
+    assert inspection.ready is True
+    assert inspection.launch_gate == ESM1B_REGENERATION_REQUIRED_GATE
 
 
 def test_esm1b_materialization_rejects_public_metadata(
@@ -783,6 +865,11 @@ def _write_materialized_asset(
         encoding="utf-8",
     )
     return asset
+
+
+def _json_sha256(payload: dict[str, object]) -> str:
+    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return sha256(encoded).hexdigest()
 
 
 def _write_plain_file(path: Path, payload: bytes) -> Path:

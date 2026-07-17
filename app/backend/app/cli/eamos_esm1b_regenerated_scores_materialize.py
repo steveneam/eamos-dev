@@ -43,6 +43,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--compact", action="store_true")
     args = parser.parse_args(argv)
 
+    parser.error(
+        "legacy ESM1b materialization is disabled; build and validate the schema-v2 "
+        "clean-regeneration proof first, then obtain separate materialization approval"
+    )
+
     settings = Settings(jwt_secret="esm1b-regenerated-materialize-local")
     target_path = (
         args.target_path.resolve()

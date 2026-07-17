@@ -173,10 +173,18 @@ def write_esm1b_mane_context_artifacts(
     invalid_cds_policy: str = "fail",
     primary_chromosomes_only: bool = False,
     reference_sha256: str | None = None,
+    skipped_patch_gene_count: int | None = None,
+    fixture_only: bool = False,
 ) -> Esm1bManeContextBuildResult:
     """Write ESM1b MANE context JSONL plus matching protein FASTA."""
 
     _require_text(mane_version, "mane_version")
+    if primary_chromosomes_only and skipped_patch_gene_count is None:
+        raise Esm1bManeContextError(
+            "primary-chromosome builds require an explicit skipped patch-gene count"
+        )
+    if skipped_patch_gene_count is not None and skipped_patch_gene_count < 0:
+        raise Esm1bManeContextError("skipped_patch_gene_count cannot be negative")
     context_path.parent.mkdir(parents=True, exist_ok=True)
     protein_fasta_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -226,7 +234,7 @@ def write_esm1b_mane_context_artifacts(
 
     manifest_payload = {
         "source_id": "esm1b_mane_codon_contexts",
-        "manifest_schema_version": "1",
+        "manifest_schema_version": "2",
         "mane_version": mane_version.strip(),
         "sequence_id_field": sequence_id_field,
         "context_file_name": context_path.name,
@@ -248,6 +256,20 @@ def write_esm1b_mane_context_artifacts(
         "nonstandard_codon_count": nonstandard_codon_count,
         "invalid_cds_policy": invalid_cds_policy,
         "primary_chromosomes_only": primary_chromosomes_only,
+        "patch_contig_policy": (
+            "exclude_with_explicit_ledger"
+            if primary_chromosomes_only
+            else "include_available_contigs"
+        ),
+        "skipped_patch_gene_count": skipped_patch_gene_count or 0,
+        "fixture_only": fixture_only,
+        "identifier_contract": {
+            "protein_sequence_id": "neutral join identifier",
+            "protein_sequence_id_namespace": _sequence_id_namespace(sequence_id_field),
+            "refseq_protein_id": "separate optional identifier",
+            "ensembl_protein_id": "separate optional identifier",
+            "uniprot_isoform_id": "separate optional identifier",
+        },
         "score_generation_method": "mit_model_regeneration_input",
         "precomputed_huggingface_score_zip_used": False,
         "storage_upload": "not_used",
@@ -402,6 +424,11 @@ def _build_protein_context(
                 strand=transcript.strand,
                 mane_tx=transcript.transcript_id,
                 gene=transcript.gene,
+                protein_sequence_id=sequence_id,
+                protein_sequence_id_namespace=_sequence_id_namespace(sequence_id_field),
+                refseq_protein_id=protein_id,
+                ensembl_protein_id=ensembl_protein_id,
+                uniprot_isoform_id=None,
             )
         )
     if not protein_sequence:
@@ -456,7 +483,11 @@ def _coding_bases(
 
 def _context_payload(context: Esm1bManeCodonContext) -> dict[str, object]:
     return {
-        "uniprot_isoform": context.uniprot_isoform,
+        "protein_sequence_id": context.protein_sequence_id or context.uniprot_isoform,
+        "protein_sequence_id_namespace": context.protein_sequence_id_namespace,
+        "refseq_protein_id": context.refseq_protein_id,
+        "ensembl_protein_id": context.ensembl_protein_id,
+        "uniprot_isoform_id": context.uniprot_isoform_id,
         "protein_position": context.protein_position,
         "chrom": context.chrom,
         "ref_codon": context.ref_codon,
@@ -488,6 +519,14 @@ def _validate_sequence_id_field(value: str) -> str:
             "sequence_id_field must be one of: " + ", ".join(sorted(_SEQUENCE_ID_FIELDS))
         )
     return text
+
+
+def _sequence_id_namespace(field: str) -> str:
+    return {
+        "protein_id": "refseq",
+        "ensembl_protein_id": "ensembl",
+        "mane_tx": "mane_transcript",
+    }[field]
 
 
 def _validate_nonstandard_policy(value: str) -> str:

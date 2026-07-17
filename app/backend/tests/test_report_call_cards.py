@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
+import pytest
+
 from app.schemas.run import (
     AcmgCriteriaScaffold,
     AcmgCriterion,
+    ComputationalAlternate,
+    ComputationalEvidenceDecision,
     FunctionalEvidenceSummary,
     InSilicoPredictions,
     PopulationFrequencyDetail,
     PredictorCard,
     ReportPayload,
+    VariantReportProfile,
 )
 from app.services.report_call_cards import build_variant_report_call_cards
 
@@ -28,6 +35,36 @@ def _call_card(
 
 def _population_card(payload: ReportPayload, evidence_map: dict | None = None) -> dict:
     return _call_card(payload, "population_frequency", evidence_map)
+
+
+def _decision(**updates) -> ComputationalEvidenceDecision:
+    values = {
+        "ruleset_id": "richards_2015_tavtigian_2020_eamos_v1",
+        "ruleset_version": "eamos-current-v1",
+        "standard_label": "Richards-2015 + Tavtigian-2020 points",
+        "standard_status": "published",
+        "application_id": "computational:test",
+        "variant_scope": "missense",
+        "mechanism_applicability": "applicable:test-v1",
+        "evidence_family": "PP3_BP4",
+        "selected_predictor_id": "revel",
+        "selection_policy": "eamos_preselected_predictor_policy_v1",
+        "selection_rationale": "REVEL was selected before score evaluation.",
+        "declared_fallback_policy": "none",
+        "applicability": "applicable",
+        "raw_score": Decimal("0.780"),
+        "calibration_normalized_score": Decimal("0.780"),
+        "evidence_code": "PP3",
+        "calibration_points": Decimal("2"),
+        "evidence_points": Decimal("2"),
+        "evidence_label": "REVEL PP3 Moderate",
+        "calibration_id": "revel_pejaver_2022_capped",
+        "calibration_version": "eamos-revel-capped-v1+PMID:36413997",
+        "dependency_group": "computational_regional_pathogenic_cap_4",
+        "counted_status": "counted",
+    }
+    values.update(updates)
+    return ComputationalEvidenceDecision(**values)
 
 
 def test_population_card_does_not_infer_acmg_badge_from_raw_frequency_only() -> None:
@@ -215,6 +252,154 @@ def test_computational_card_does_not_upgrade_fallback_annotations_to_live() -> N
 
     assert card["source_status"] == "fallback"
     assert card["warnings"] == ["computational_annotations_fixture_snapshot"]
+
+
+@pytest.mark.parametrize(
+    ("decision", "label", "theme", "badges"),
+    [
+        (
+            _decision(
+                raw_score=Decimal("0.950"),
+                calibration_normalized_score=Decimal("0.950"),
+                calibration_points=Decimal("4"),
+                evidence_points=Decimal("4"),
+                evidence_label="REVEL PP3 Strong",
+            ),
+            "REVEL · PP3 Strong",
+            "danger_red_state",
+            ["Score 0.95", "PP3", "+4 points"],
+        ),
+        (
+            _decision(),
+            "REVEL · PP3 Moderate",
+            "caution_orange_state",
+            ["Score 0.78", "PP3", "+2 points"],
+        ),
+        (
+            _decision(
+                raw_score=Decimal("0.500"),
+                calibration_normalized_score=Decimal("0.500"),
+                evidence_code=None,
+                calibration_points=Decimal("0"),
+                evidence_points=Decimal("0"),
+                evidence_label="REVEL Indeterminate",
+                counted_status="context_only",
+            ),
+            "REVEL · Indeterminate",
+            "neutral_slate_state",
+            ["Score 0.5", "No PP3/BP4", "0 points"],
+        ),
+        (
+            _decision(
+                raw_score=Decimal("0.100"),
+                calibration_normalized_score=Decimal("0.100"),
+                evidence_code="BP4",
+                calibration_points=Decimal("-1"),
+                evidence_points=Decimal("-1"),
+                evidence_label="REVEL BP4 Supporting",
+            ),
+            "REVEL · BP4 Supporting",
+            "support_green_state",
+            ["Score 0.1", "BP4", "-1 point"],
+        ),
+        (
+            _decision(
+                raw_score=Decimal("0.010"),
+                calibration_normalized_score=Decimal("0.010"),
+                evidence_code="BP4",
+                calibration_points=Decimal("-2"),
+                evidence_points=Decimal("-2"),
+                evidence_label="REVEL BP4 Moderate",
+            ),
+            "REVEL · BP4 Moderate",
+            "benign_green_state",
+            ["Score 0.01", "BP4", "-2 points"],
+        ),
+        (
+            _decision(
+                raw_score=None,
+                calibration_normalized_score=None,
+                evidence_code=None,
+                calibration_points=None,
+                evidence_points=Decimal("0"),
+                evidence_label="REVEL unavailable",
+                calibration_id=None,
+                calibration_version=None,
+                applicability="unavailable",
+                counted_status="rejected",
+            ),
+            "REVEL unavailable",
+            "neutral_slate_state",
+            ["Score unavailable", "No PP3/BP4", "0 points"],
+        ),
+        (
+            _decision(
+                evidence_points=Decimal("0"),
+                evidence_label="REVEL not applicable",
+                applicability="not_applicable",
+                counted_status="context_only",
+            ),
+            "REVEL not applicable",
+            "neutral_slate_state",
+            ["Score 0.78", "PP3", "0 points"],
+        ),
+    ],
+)
+def test_computational_card_uses_typed_selected_evidence_decision(
+    decision: ComputationalEvidenceDecision,
+    label: str,
+    theme: str,
+    badges: list[str],
+) -> None:
+    payload = ReportPayload(
+        patient_id="lookup_test",
+        report_profile=VariantReportProfile(computational_decision=decision),
+    )
+
+    card = _call_card(
+        payload,
+        "computational",
+        {"computational_annotations": {"warnings": ["fixture_warning"]}},
+        {"computational_annotations": "fixture"},
+    )
+
+    assert card["primary_label"] == label
+    assert card["ui_color_theme"] == theme
+    assert [badge["text"] for badge in card["support_badges"]] == badges
+    assert card["source_status"] == "fixture"
+    assert card["warnings"] == ["fixture_warning"]
+    assert card["provenance"] == [
+        "REVEL selected by Eamos policy · "
+        + (f"{decision.calibration_version} · " if decision.calibration_version else "")
+        + "Richards-2015 + Tavtigian-2020 points (eamos-current-v1)"
+    ]
+
+
+def test_computational_card_theme_ignores_extreme_alternate_scores() -> None:
+    decision = _decision(
+        raw_score=Decimal("0.500"),
+        calibration_normalized_score=Decimal("0.500"),
+        evidence_code=None,
+        evidence_points=Decimal("0"),
+        evidence_label="REVEL Indeterminate",
+        counted_status="context_only",
+        alternates=[
+            ComputationalAlternate(
+                predictor_id="alphamissense",
+                raw_score=Decimal("0.999"),
+                counted_status="context_only",
+            )
+        ],
+    )
+    payload = ReportPayload(
+        patient_id="lookup_test",
+        report_profile=VariantReportProfile(computational_decision=decision),
+    )
+
+    card = _call_card(payload, "computational")
+
+    assert card["primary_label"] == "REVEL · Indeterminate"
+    assert card["ui_color_theme"] == "neutral_slate_state"
 
 
 def test_lab_functional_card_status_includes_clingen_backed_evidence() -> None:

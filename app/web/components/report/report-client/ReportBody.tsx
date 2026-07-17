@@ -401,7 +401,7 @@ export function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = 
           >
             {(section) => (
               <>
-                <CompositeVerdictBar predictors={section.predictors} />
+                <CompositeVerdictBar selectionAccounting={section.selection_accounting} />
                 <CalibratedInSilicoTable predictors={section.predictors} warnings={section.warnings} />
               </>
             )}

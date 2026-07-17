@@ -122,9 +122,10 @@ export function tsvEvidenceBySource(
     for (const c of inSilico.cards) {
       lines.push(row(c.name, c.score, c.threshold, c.verdict_label ?? c.verdict))
     }
-    if (inSilico.consensus_note) {
+    const accounting = payload.report_profile?.computational_deep_dive?.selection_accounting
+    if (accounting) {
       lines.push(blankRow())
-      lines.push(row('Consensus', inSilico.consensus_note))
+      lines.push(row('Evidence accounting', accounting))
     }
     lines.push(blankRow())
   }

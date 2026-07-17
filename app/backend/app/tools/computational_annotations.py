@@ -170,7 +170,15 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
             provenance.extend(alphamissense["provenance"])
             warnings.extend(alphamissense["warnings"])
 
-        esm1b = self._lookup_esm1b(chrom, position, ref, alt)
+        esm1b = self._lookup_esm1b(
+            chrom,
+            position,
+            ref,
+            alt,
+            transcript_id=_transcript_accession(identity.transcript_hgvs),
+            gene=identity.gene or None,
+            protein_change=identity.protein_change or None,
+        )
         if esm1b is not None:
             rows.extend(esm1b["rows"])
             provenance.extend(esm1b["provenance"])
@@ -233,10 +241,22 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
         position: int,
         ref: str,
         alt: str,
+        *,
+        transcript_id: str | None,
+        gene: str | None,
+        protein_change: str | None,
     ) -> dict[str, Any] | None:
         try:
             adapter = self._esm1b_adapter_for_lookup()
-            lookup = adapter.lookup(chrom=chrom, position=position, ref=ref, alt=alt)
+            lookup = adapter.lookup(
+                chrom=chrom,
+                position=position,
+                ref=ref,
+                alt=alt,
+                transcript_id=transcript_id,
+                gene=gene,
+                protein_change=protein_change,
+            )
         except Exception as exc:
             return {
                 "rows": [],
@@ -397,6 +417,14 @@ class ComputationalAnnotationsTool(FixtureBackedTool):
         if self._primateai3d_adapter is None:
             self._primateai3d_adapter = PrimateAi3dLocalAdapter.from_settings(self.settings)
         return self._primateai3d_adapter
+
+
+def _transcript_accession(value: str) -> str | None:
+    text = value.strip()
+    if not text:
+        return None
+    accession = text.split(":", 1)[0].strip()
+    return accession or None
 
 
 def normalize_computational_record(

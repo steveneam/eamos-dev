@@ -317,6 +317,8 @@ Section consolidated: 2026-07-15 11:19 UTC by Codex from the retired
 pause register.
 Section edited: 2026-07-16 12:47 +0000 · Codex (AlphaMissense display hold
 reopened by Steven; asset/cloud gates unchanged).
+Section edited: 2026-07-17 17:13 +0000 · Codex (ESM-1b fixture worker landed;
+model/full-asset/cloud gates remain closed).
 
 Do not start without explicit user direction:
 
@@ -336,6 +338,22 @@ The former AlphaMissense display/integration hold is superseded by Steven's
 rest of the catalog. This does not authorize source materialization, provider or
 cloud mutations, redistribution workarounds, or fabricated scores; those gates
 remain in force.
+
+ESM-1b Phase 2 code is approved only against small synthetic fixtures. Do not:
+
+- download or stage the hosted CC BY-NC precomputed score archive;
+- acquire/hash the 7.8 GB official Meta weight object, run full scoring, or
+  create bgzip/Tabix runtime assets without the separate operator gate;
+- trust a nullable `license_gate`, caller-supplied MIT label, S3 multipart ETag,
+  hash-shaped manifest values, or unverified score CSV as clean-build proof;
+- raise the synthetic worker's hard 100,000-row score/context ceiling; or
+- upload/register assets, mutate Supabase, seed Render, flip providers, or
+  activate ESM-1b from a fixture manifest.
+
+The remaining release proof includes the official weight SHA-256, locked scorer
+image digest, full short/long numerical parity, MANE/context transport and
+clinical validation, patch-contig skip ledger, 2-GiB runtime tests, final asset
+and Tabix hashes, and explicit materialization/upload approval.
 
 ## M-002C Primer Provider Limitations
 

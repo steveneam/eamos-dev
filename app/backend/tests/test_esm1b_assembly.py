@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from hashlib import md5, sha256
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -206,7 +206,7 @@ def test_assemble_esm1b_mane_fixture_snv_table_supports_clean_mit_regeneration()
     assert payload["warnings"] == [ESM1B_REGENERATED_SCORE_WARNING]
 
 
-def test_materialize_regenerated_esm1b_runtime_asset_writes_clean_manifest(
+def test_legacy_materializer_fails_closed_pending_v2_proof_and_operator_approval(
     tmp_path: Path,
 ) -> None:
     score_csv = tmp_path / "scores.csv"
@@ -230,29 +230,18 @@ def test_materialize_regenerated_esm1b_runtime_asset_writes_clean_manifest(
     )
     target = tmp_path / "esm1b_hg38.tsv.gz"
 
-    result = materialize_regenerated_esm1b_runtime_asset(
-        score_rows=load_esm1b_score_rows_from_csv(score_csv),
-        codon_contexts=load_esm1b_codon_contexts_from_jsonl(contexts_jsonl),
-        target_path=target,
-        score_source_checksum=sha256(score_csv.read_bytes()).hexdigest(),
-        mane_version="MANE Select v1.4",
-        grch38_reference_checksum="b" * 64,
-        bgzip_tabix_writer=_fake_bgzip_tabix_writer,
-    )
+    with pytest.raises(Esm1bAssemblyError, match="legacy ESM1b materialization is disabled"):
+        materialize_regenerated_esm1b_runtime_asset(
+            score_rows=load_esm1b_score_rows_from_csv(score_csv),
+            codon_contexts=load_esm1b_codon_contexts_from_jsonl(contexts_jsonl),
+            target_path=target,
+            score_source_checksum=sha256(score_csv.read_bytes()).hexdigest(),
+            mane_version="MANE Select v1.4",
+            grch38_reference_checksum="b" * 64,
+            bgzip_tabix_writer=_fake_bgzip_tabix_writer,
+        )
 
-    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
-    assert result.launch_gate is None
-    assert manifest["license_gate"] is None
-    assert manifest["launch_gate"] is None
-    assert manifest["commercial_use_allowed"] is True
-    assert manifest["precomputed_huggingface_score_zip_used"] is False
-    assert manifest["score_generation_method"] == ESM1B_REGENERATED_SCORE_METHOD
-    assert manifest["model_source_license"] == "MIT"
-    assert manifest["scoring_code_license"] == "MIT"
-    assert manifest["row_count"] == 1
-    assert manifest["input_score_row_count"] == 1
-    assert manifest["md5"] == md5(target.read_bytes()).hexdigest()
-    assert result.to_sanitized_dict()["local_path_values_emitted"] is False
+    assert target.exists() is False
 
 
 def test_assemble_esm1b_mane_fixture_snv_table_rejects_ref_codon_mismatch() -> None:

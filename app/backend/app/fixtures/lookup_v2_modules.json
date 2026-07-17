@@ -55,7 +55,7 @@
           { "code": "PM6", "verdict": "not_assessed", "note": null },
           { "code": "PP1", "verdict": "not_assessed", "note": null },
           { "code": "PP2", "verdict": "not_met", "note": null },
-          { "code": "PP3", "verdict": "met", "note": "Multiple in-silico predictors agree on damaging." },
+          { "code": "PP3", "verdict": "met", "note": "Preselected REVEL evidence supports pathogenic impact." },
           { "code": "PP4", "verdict": "met", "note": "Phenotype highly specific for RPE65-related disease." },
           { "code": "PP5", "verdict": "not_assessed", "note": null },
           { "code": "BA1", "verdict": "not_met", "note": null },

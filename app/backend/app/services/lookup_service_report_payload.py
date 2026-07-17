@@ -279,8 +279,6 @@ def build_lookup_report_payload(
         source_warnings=gnomad_evidence.warnings if gnomad_evidence is not None else None,
         source_identity=gnomad_identity,
     )
-    payload.call_cards = build_variant_report_call_cards(payload, evidence_map, evidence_statuses)
-
     _hydrate_sequence_context(
         gene=gene,
         cdna=cdna,
@@ -380,6 +378,7 @@ def finalize_lookup_report_payload(
         evidence_map=evidence_map,
         evidence_statuses=evidence_statuses,
     )
+    payload.call_cards = build_variant_report_call_cards(payload, evidence_map, evidence_statuses)
     record_phase("report_profile", phase_started)
 
     phase_started = timing_start()

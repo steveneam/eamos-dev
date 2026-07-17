@@ -21,9 +21,9 @@ function afToState(af: number): string {
   return 'caution_orange_state'
 }
 
-// Verdict label → ACMG-ramp state for the Computational + Clinical cards, so each
-// is coloured by its OWN call (VUS → yellow, Pathogenic → red, Likely path →
-// orange, Benign → green) instead of whatever theme the backend happens to send.
+// Verdict label → ACMG-ramp state for the Clinical card, so it is coloured by its
+// own classification. Computational evidence is already calibrated and themed by
+// the backend's selected-evidence decision; the frontend must not reinterpret it.
 // One ramp shared with the hero badge + §1-§3, so a clinician reads colour + word
 // + dot consistently down the whole report. No-data / N/A returns null and the
 // card falls back to the neutral backend theme. (Order matters: the more specific
@@ -63,6 +63,8 @@ export const STATE_THEME: Record<string, { bg: string; border: string; color: st
   risk_red_state: { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', color: 'var(--cls-lpath-text)' },
   caution_orange_state: { bg: 'var(--cls-lpath-bg)', border: 'var(--cls-lpath-bdr)', color: 'var(--cls-lpath-text)' },
   caution_yellow_state: { bg: 'var(--cls-vus-bg)', border: 'var(--cls-vus-bdr)', color: 'var(--cls-vus-text)' },
+  support_green_state: { bg: 'var(--cls-lben-bg)', border: 'var(--cls-lben-bdr)', color: 'var(--cls-lben-text)' },
+  benign_green_state: { bg: 'var(--cls-ben-bg)', border: 'var(--cls-ben-bdr)', color: 'var(--cls-ben-text)' },
   safe_green_state: { bg: 'var(--cls-ben-bg)', border: 'var(--cls-ben-bdr)', color: 'var(--cls-ben-text)' },
   info_blue_state: { bg: 'var(--info-bg)', border: 'var(--info-bdr)', color: 'var(--info-text)' },
   neutral_slate_state: { bg: 'var(--cls-na-bg)', border: 'var(--cls-na-bdr)', color: 'var(--cls-na-text)' },
@@ -78,7 +80,7 @@ export function themeForCallCard(
   if (card.card_id === 'population_frequency' && populationAf != null) {
     return STATE_THEME[afToState(populationAf)] ?? backendTheme
   }
-  if (card.card_id === 'computational' || card.card_id === 'clinical_consensus') {
+  if (card.card_id === 'clinical_consensus') {
     const derived = verdictToState(card.primary_label)
     if (derived) return STATE_THEME[derived] ?? backendTheme
   }
@@ -99,7 +101,7 @@ export const CARD_ORDER: string[] = [
 // axis means, not just the label.
 const CARD_TOOLTIP: Record<string, string> = {
   computational:
-    "Eamos's combined call from the in-silico predictors (REVEL, CADD, SpliceAI, …). 'Damaging' means the tools agree the change is likely harmful to the protein.",
+    'The preselected computational evidence under the current policy. REVEL determines PP3 or BP4 for missense variants; alternate predictors remain context and SpliceAI is evaluated separately.',
   clinical_consensus:
     'The clinical classification (ACMG / ClinGen / ClinVar): Pathogenic through Benign, or VUS when the evidence is uncertain.',
   population_frequency:
@@ -156,6 +158,28 @@ function cardMeta(card: ReportCallCard): string {
   return card.source_status ? formatWarning(card.source_status) : 'Source status unavailable'
 }
 
+export function callCardAccessibleLabel(
+  card: ReportCallCard,
+  visibleDetail?: string | null,
+): string {
+  const cardWarnings = visibleProductWarnings(card.warnings)
+  const parts = [
+    card.title,
+    card.primary_label || 'No source data',
+    ...(card.support_badges ?? []).map((badge) => badge.text),
+  ]
+  const detail =
+    visibleDetail ??
+    (cardWarnings.length > 0 ? formatWarning(cardWarnings[0]) : cardMeta(card))
+  parts.push(detail)
+  const sourceStatus = card.source_status
+    ? `Source status ${formatWarning(card.source_status)}`
+    : null
+  if (sourceStatus && sourceStatus !== detail) parts.push(sourceStatus)
+  if (cardCanNavigate(card)) parts.push('View detail')
+  return parts.join('. ')
+}
+
 export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
   const cards = [...(payload.call_cards?.cards ?? [])].sort(
     (a, b) => {
@@ -189,7 +213,8 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
           // Population is re-derived from the AF band (backend emits neutral today).
           // Colour every card by its own verdict, on one FE-owned ramp:
           //   • Population  → AF band (afToState)
-          //   • Computational / Clinical → classification label (verdictToState)
+          //   • Computational → backend selected-evidence decision
+          //   • Clinical → classification label (verdictToState)
           //   • Functional  → backend display_metrics state (kept; richest signal)
           // Each falls back to the backend theme when it can't derive one.
           const cardTheme = themeForCallCard(card, populationAf)
@@ -217,6 +242,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
             fnMetrics?.code_rests_on != null
               ? `Code rests on ${fnMetrics.code_rests_on.cited} of ${fnMetrics.code_rests_on.total} studies`
               : null
+          const accessibleLabel = callCardAccessibleLabel(card, fnNote)
           const cardBody = (
             <>
               <div
@@ -304,7 +330,7 @@ export function CallCardsGrid({ payload, populationAf }: CallCardsGridProps) {
               <article
                 key={card.card_id}
                 className="w-[72vw] max-w-[250px] shrink-0 snap-center sm:w-auto sm:max-w-none"
-                aria-label={`${card.title}: ${card.primary_label ?? 'no data'}`}
+                aria-label={accessibleLabel}
                 title={cardHelp ?? undefined}
                 style={{
                   minHeight: 158,
@@ -345,11 +371,19 @@ interface InteractiveCardProps {
   onNavigate: () => void
 }
 
-function InteractiveCard({ card, cardBody, theme, help, onNavigate }: InteractiveCardProps) {
+function InteractiveCard({
+  card,
+  cardBody,
+  theme,
+  help,
+  onNavigate,
+}: InteractiveCardProps) {
   const [hovered, setHovered] = useState(false)
+  const sourceStatusId = `call-card-source-status-${card.card_id}`
   return (
     <button
       type="button"
+      aria-describedby={card.source_status ? sourceStatusId : undefined}
       onClick={onNavigate}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -371,10 +405,14 @@ function InteractiveCard({ card, cardBody, theme, help, onNavigate }: Interactiv
       <span
         className="mt-3 inline-flex"
         style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--teal-deep)' }}
-        aria-hidden
       >
         View detail
       </span>
+      {card.source_status ? (
+        <span id={sourceStatusId} hidden>
+          Source status {formatWarning(card.source_status)}
+        </span>
+      ) : null}
       <style>{`
         .call-card-btn:focus-visible {
           outline: none;

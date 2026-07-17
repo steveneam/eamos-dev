@@ -131,6 +131,98 @@ def test_esm1b_adapter_fails_closed_on_duplicate_records(tmp_path: Path) -> None
     assert lookup.warnings == ("esm1b_duplicate_variant_records",)
 
 
+def test_esm1b_adapter_disambiguates_duplicate_genomic_records_by_context(
+    tmp_path: Path,
+) -> None:
+    adapter = Esm1bLocalAdapter(
+        _ready_inspection(tmp_path, launch_gate=None),
+        reader_factory=lambda path: FakeReader(
+            (
+                _score(
+                    chrom="7",
+                    position=117509068,
+                    ref="C",
+                    alt="T",
+                    score=-12.2,
+                    extra={
+                        "mane_tx": "NM_OTHER.1",
+                        "gene": "OTHER",
+                        "aa_sub": "V1M",
+                    },
+                ),
+                _score(
+                    chrom="7",
+                    position=117509068,
+                    ref="C",
+                    alt="T",
+                    score=-14.0,
+                    extra={
+                        "protein_sequence_id": "NP_TEST.1",
+                        "protein_sequence_id_namespace": "refseq",
+                        "mane_tx": "NM_TEST.1",
+                        "gene": "TEST",
+                        "aa_sub": "V1M",
+                        "refseq_protein_id": "NP_TEST.1",
+                        "ensembl_protein_id": "ENSPTEST",
+                    },
+                ),
+            )
+        ),
+    )
+
+    lookup = adapter.lookup(
+        chrom="7",
+        position=117509068,
+        ref="C",
+        alt="T",
+        transcript_id="NM_TEST.1",
+        gene="TEST",
+        protein_change="p.Val1Met",
+    )
+
+    assert lookup.available is True
+    assert lookup.prediction is not None
+    assert lookup.prediction.esm1b_llr == -14.0
+    assert lookup.prediction.protein_sequence_id == "NP_TEST.1"
+    assert lookup.prediction.protein_sequence_id_namespace == "refseq"
+    assert lookup.prediction.refseq_protein_id == "NP_TEST.1"
+    assert lookup.prediction.ensembl_protein_id == "ENSPTEST"
+
+
+def test_esm1b_adapter_fails_closed_when_requested_context_does_not_match(
+    tmp_path: Path,
+) -> None:
+    adapter = Esm1bLocalAdapter(
+        _ready_inspection(tmp_path),
+        reader_factory=lambda path: FakeReader(
+            (
+                _score(
+                    chrom="7",
+                    position=117509068,
+                    ref="C",
+                    alt="T",
+                    score=-14.0,
+                    extra={"mane_tx": "NM_OTHER.1", "gene": "OTHER", "aa_sub": "V1M"},
+                ),
+            )
+        ),
+    )
+
+    lookup = adapter.lookup(
+        chrom="7",
+        position=117509068,
+        ref="C",
+        alt="T",
+        transcript_id="NM_TEST.1",
+        gene="TEST",
+        protein_change="V1M",
+    )
+
+    assert lookup.available is False
+    assert lookup.unavailable_reason == "variant_context_mismatch"
+    assert lookup.warnings == ("esm1b_variant_context_mismatch",)
+
+
 def test_esm1b_adapter_handles_reader_errors_as_unavailable(tmp_path: Path) -> None:
     adapter = Esm1bLocalAdapter(
         _ready_inspection(tmp_path),
