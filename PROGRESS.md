@@ -1,5 +1,38 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-17 10:40 +0000 - Codex - Phase-3b hardened Compose proof
+
+Recovered the interrupted migration session without repeating the deployment.
+GitHub Actions run `29571532636` was fully green for `ac6d3e8`, and direct
+read-back confirmed the already-created internal raw Compose service at the
+tracked SHA with zero domains and auto-deploy disabled.
+
+- Proved the effective container, not only its stored declaration: exact
+  immutable digest, numeric `1000:1000`, read-only root, capability drop
+  `ALL`, no-new-privileges, non-privileged execution, no published ports,
+  bounded tmpfs, resource/PID limits, read-only corpus binds, and private
+  writable state.
+- Re-ran the runtime-tree contract in resume/preflight mode. All 23 existing
+  files were exact-hash verified; all 23 private source objects passed fresh
+  size HEADs; no bytes were missing or downloaded. The serving environment
+  correctly omitted the four S3 credentials, which were supplied only through
+  the existing encrypted-stdin/mode-0600 tmpfs channel and removed afterward.
+- Passed real AlphaMissense, bounded coordinate-index, viewer, uncached
+  Pfam/HMMER, summary, and full-report probes. The full report returned one
+  exact RPE65 row and 12 evidence sources.
+- Explained a 92.85% transient memory sample as cgroup-charged verification
+  file cache after two 47.94-GB hashes. A controlled restart recovered healthy
+  with all hardening intact; clean viewer + summary + full lookup peaked at
+  54.11% / 1.073 GiB with zero pressure, restart, or OOM events.
+- Re-proved both rollback paths: the hardened internal Application and the
+  Singapore Render service remain healthy. No edge, certificate, DNS, Vercel,
+  Render, Supabase data-plane, traffic, tag, workflow, or Phase-4 change was
+  made.
+
+The remaining internal-close item is Swordfish's independent move and
+positive/negative consumption test of the deploy-only tenant grant against the
+new Compose ID. External proxy and traffic cutover remain separate held steps.
+
 ## 2026-07-16 15:44 +0000 - Codex - Variant Report clinical reading experience
 
 Completed the Steven-approved Variant Report presentation slice and reconciled

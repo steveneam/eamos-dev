@@ -25,67 +25,67 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED AT FOUNDER GATE @ 2026-07-17 09:52 +0000 — Phase 3a is
-  checksum-green and the internal Phase-3b Application is functionally green.
-  Hardened Compose commit `2374dbc` is pushed and fully green locally, but CI
-  `29571230013` started no steps because GitHub reports failed account payments
-  or an insufficient Actions spending limit. No Compose, edge, DNS, Vercel, or
-  Render mutation followed the red gate.
+- **Codex:** STOPPED AT CROSS-AGENT GATE @ 2026-07-17 10:46 +0000 — recovered
+  and completed the internal Phase-3b Compose proof. Swordfish's independent
+  deploy-only tenant-grant move/consumption proof is pending after three
+  bounded waits. No edge, DNS, Vercel, Render, or traffic mutation is in flight.
+- **Runtime:** Codex is inside the persistent `eamos` tmux session under
+  `agent-tmux.service`; the code-server terminal profile now defaults to that
+  seam, so a code-server restart no longer owns this process cgroup.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 09:52 +0000 · Codex
+UNLOCKED · 2026-07-17 10:46 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the handoff lock at 2026-07-17 09:52 +0000.
+- None. Codex released the Phase-3b proof-wrap locks at
+  2026-07-17 10:46 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 09:52 +0000 · Codex Phase-3b Compose gate
+# Resume prompt · 2026-07-17 10:46 +0000 · Codex Phase-3b grant/edge gate
 Read CURRENT.md, README.md, the latest Swordfish ASK/FROM entries, and the Phase-3 runbook.
-Phase 3a is exact-manifest green; the internal Application and real lookup matrix are green.
-Commit 2374dbc freezes the hardened no-port Compose contract and is pushed.
-Local full verify and the syd2 Compose parser are green.
-CI 29571230013 ran no steps: GitHub account payment/Actions spending gate.
-After Steven clears Billing & plans, rerun CI and require every job green.
-Only then create the no-domain Compose replacement and repeat the full proof matrix.
-Keep Render live and the current Application as rollback; Phase 4 stays held.
-Do not edit or stage FROM-SWORDFISH.md or move credentials, tags, DNS, or traffic.
+Phase 3a and the no-domain hardened Compose service are exact-proof green.
+Actual CI 29571532636 is fully green; Compose 5rBnRf20ht4wGRQ856ZLO is healthy.
+Hash/source preflight, real predictors/APIs, clean-restart memory, and both rollbacks passed.
+First poll Swordfish mail for the requested tenant-grant move and positive/negative proof.
+Do not duplicate that move through the org-admin credential or stage FROM-SWORDFISH.md.
+After proof, stop at the public-hostname/CT-log decision before any external proxy or traffic.
+Keep Render and the old Application live; tags, workflows, Vercel, DNS, and Phase 4 stay held.
 ```
 
 ## Pointer
 
 - Durable service contract: `deploy/syd2/compose.yaml`; ratchet:
   `app/backend/tests/test_syd2_compose_contract.py`; commit `2374dbc`.
-- Blocked workflow: GitHub Actions run `29571230013` on `2374dbc`.
-- Phase-3 procedure and retained proof paths:
-  `docs/deployment/render-to-syd2-phase3.md`.
-- Latest Swordfish coordination: the 09:55 inbound and 09:51 outbound entries
-  in the watcher-owned FROM and Eamos-owned ASK mailboxes.
+- Actual green workflow: `29571532636` on `ac6d3e8`; internal Compose ID:
+  `5rBnRf20ht4wGRQ856ZLO`; deployment: `6FfxABW5Aplk_G7HWb1Z7`.
+- Full retained proof and credential boundary:
+  `docs/deployment/render-to-syd2-phase3.md` → Phase 3b internal Compose proof.
+- Latest outbound evidence/reminder: the 10:40 entry in
+  `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`; inbound reply remains pending.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Phase 3a landed 23 files / 47,943,536,945 bytes with canonical SHA-256
-  `c907fa2aab78eb31a5ae30dcbc3e914ed89d90584d5aea845f360cdc25c20cbb`;
-  exact sizes/hashes, ownership/modes, canary, residue, and reserve all passed.
-- The internal Application is healthy at 2 GiB with no domain or published port.
-  Real AlphaMissense, coordinate, viewer, Pfam/HMMER, summary, and full lookup
-  probes passed; the bounded compact-index ceiling is 131,000 transcripts.
-- A Dokploy Application redeploy erased manual read-only-root, cap-drop, tmpfs,
-  and read-only-bind hardening. The overlay was restored, and the tracked raw
-  Compose contract now makes those properties declarative.
-- Swordfish independently confirmed the durability gap and Compose-first order.
-  Push-to-box automation remains held; future fixed-tag/deploy-only-key posture
-  is a separate post-Compose decision, with no credential movement authorized.
+- Effective runtime is exact-digest, `1000:1000`, read-only-root, cap-drop ALL,
+  no-new-privileges, no-port, bounded to 2 GiB / 2 CPUs / 256 PIDs, with both
+  47.94-GB corpus views read-only and private state writable.
+- Resume preflight exact-hashed all 23 files and HEAD-verified all 23 private
+  sources with zero downloads. Four S3 keys used the encrypted-stdin/mode-0600
+  tmpfs channel and were removed; the serving environment does not retain them.
+- AlphaMissense, the bounded coordinate index, viewer, uncached Pfam/HMMER,
+  summary, and full lookup passed. After controlled restart, clean warm peak was
+  54.11% / 1.073 GiB with zero pressure, restart, or OOM events.
+- The old hardened Application and Singapore Render service are both healthy.
+  Phase 3c has not started and no external hostname or production traffic moved.
 
 ## Next Action
 
-- Steven clears the GitHub Actions account payment/spending-limit gate. Then
-  rerun the latest main workflow and require all jobs green. If green, create
-  the no-domain raw Compose replacement, transfer the existing 55-name
-  environment securely without logging values, and repeat the hardening,
-  corpus, real-functional, memory, restart, and rollback checks. Do not expose
-  an edge or alter Render/Vercel until that internal Compose proof is green.
+- Poll Swordfish mail and verify its promised positive Compose visibility plus
+  negative cross-tenant/Docker-authority proof for the moved deploy-only grant.
+  Do not duplicate the permission mutation. Once it is green, present the
+  irreversible public-hostname/Certificate-Transparency seam to Steven before
+  creating the external Phase-3b proxy or moving any production traffic.

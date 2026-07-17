@@ -1,8 +1,9 @@
 # Render to syd2 Phase-3 Seed and Cutover
 
-Status: Phase 3 authorized; Phase 3a awaits immutable-image, host, and fresh-egress preflight
+Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof green;
+external proxy, traffic cutover, and Phase 3c remain held
 
-Last verified: 2026-07-17 08:25 +0000 - Codex
+Last verified: 2026-07-17 10:40 +0000 - Codex
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -155,6 +156,57 @@ The seed is green only when all of these agree:
   group-readable operator modes.
 
 No app/provider cutover begins on partial proof.
+
+## Phase 3b internal Compose proof
+
+Verified 2026-07-17 10:40 +0000 by Codex after recovery from an interrupted
+session. The no-domain replacement is Dokploy raw Compose
+`5rBnRf20ht4wGRQ856ZLO` / `project1-backend-dd110r`, deployment
+`6FfxABW5Aplk_G7HWb1Z7`. It stores the exact tracked Compose SHA-256
+`723d378cc67c4852d1fd285dba0c5b445043703766639b592807c44f8a169ee5`,
+uses the 55-key explicit environment allowlist, has `autoDeploy=false`, and has
+zero domains. GitHub Actions run `29571532636` is fully green for
+`ac6d3e8`, including both backend shards, dependency security, coordination,
+the container runtime contract, image publication, and immutable pull-back.
+
+Direct effective-container inspection, not only control-plane read-back,
+proved:
+
+- immutable image digest `sha256:910dc159b3b2de8fec8f389ec7c328a6046733403793ba5f98b6cf83155a3fe1`;
+- numeric `1000:1000`, read-only root, `cap_drop: ALL`,
+  `no-new-privileges`, non-privileged execution, and no published ports;
+- 2-GiB memory limit, 512-MiB reservation, 2 CPUs, 256 PIDs, and a
+  512-MiB mode-`1777` `/tmp` tmpfs;
+- both corpus binds read-only, private state read-write, and only the external
+  `dokploy-network` attached; and
+- exactly 23 corpus files / 47,943,536,945 bytes, with no symlinks or temporary
+  residue and no ownership or mode violations.
+
+The serving environment deliberately excludes the four S3 materialization
+credentials, so an unassisted preflight failed closed as
+`s3_credentials_missing`. Through the existing encrypted-stdin channel, only
+those four names were placed in a mode-`0600` file on the container tmpfs. The
+resume preflight then exact-hashed all 23 existing files, HEAD-verified all 23
+private source objects, retained all 22 exclusions, reported zero missing or
+downloaded bytes, and kept 36,086,616,064 free bytes. The credential file was
+removed and remained absent after restart; no value entered an argument or
+output.
+
+The real functional matrix passed AlphaMissense for `1-68444869-T-C`, the
+130,509-transcript compact index under its bounded 131,000 ceiling, the RPE65
+viewer with local hg38 provenance, uncached Pfam/HMMER (`PF03055.22`), the
+four-tile initial summary, and the full report with one exact RPE65 row and 12
+evidence sources. A controlled restart recovered healthy with the immutable
+digest and all hardening/mounts intact. From that clean restart, viewer +
+summary + full lookup peaked at 54.11% / 1.073 GiB, with one container, zero
+cgroup pressure, zero restart, and zero OOM events.
+
+The hardened Application and Singapore Render service remain healthy rollback
+services. No proxy, certificate, DNS, Vercel, Render, Supabase data-plane,
+traffic, tag, workflow, or Phase-4 mutation followed this proof. Before any
+external path, Swordfish must independently move and consume-test the existing
+deploy-only tenant grant against the Compose ID, including negative
+cross-tenant and Docker-authority checks.
 
 ## Phase 3b and Phase 3c boundary
 
