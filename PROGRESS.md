@@ -1,5 +1,49 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-17 12:20 +0000 - Codex - Phase-3c beginning soak green; viewer 503 bounded
+
+The first spaced Phase-3c sample passed without crossing any held mutation
+gate. DNS/TLS/redirect, direct syd2 health, Vercel-proxied provider health,
+Render rollback health, auth/CORS/security headers, the exact stored Compose
+contract, and current container health/resources all remained green.
+
+- Through `eamos-dev.vercel.app`, deterministic parse, two full lookups, two
+  initial summaries, all four lazy sections twice, and two RPE65 viewers
+  returned 200. Cold/warm lookup was 44.0/11.2 seconds and viewer was about
+  1.22 seconds. A final one-pass run under the new `--require-ok` mode also
+  exited zero.
+- Direct and proxied provider-health payloads matched each other and differed
+  from the independently healthy Render payload. Mounted/local hg38, compact
+  coordinates, ClinGen, gene distribution, AlphaMissense, Pfam/HMMER, local
+  CRISPR, and PVS1/NMD retained their expected state; pre-existing predictor
+  launch gates stayed explicit rather than silently changing at migration.
+- Independent Swordfish proof killed the edge/container hypotheses: restart 0,
+  zero cgroup pressure/OOM events, no Traefik 503, one router/service, no stale
+  Application registration, and the exact hardened digest. Eamos's app-log
+  aggregate showed one process start, 104+ health 200s, viewer 18x 200 / 2x 422
+  / 2x 503 / 0x 429, no other 5xx, no traceback, and no OOM marker. After the
+  deep sample memory was 1.106 GiB / 2 GiB with 0.16% CPU. Swordfish's later
+  apparent third 503 at 11:57:06 was reconciled against the exact line: it was
+  `/healthz` 200, with `503` occurring only in the timestamp's nanoseconds.
+  Eighteen real viewer requests from 11:59:38 through 12:10:44 contained 16
+  200s, two expected 422s, and no 503.
+- The two original 503s are app-level and best explained by transient external
+  VariantValidator coordinate resolution for `RPE65 c.271C>T`: they took about
+  15/28 seconds, bracketed a logged upstream 200, and later direct/proxied
+  repeats passed. Both clustered in the first 133 seconds after startup, but a
+  successful viewer call between them means a one-time cold lazy load is not a
+  demonstrated cause. The exact old exception type was not retained, so that
+  limit remains explicit. The performance audit now supports `--require-ok`,
+  exits nonzero on any required HTTP failure, preserves its structured error,
+  and has local success/503 regression coverage wired into `npm run verify`.
+
+The soak remains active until the 48-hour floor and middle/end evidence. A
+separate hardening follow-up records that Traefik currently collapses app-level
+IP rate-limit buckets while forwarded-header trust is disabled. This did not
+cause the 503s (rate-limit rejection is 429; live 429 tally is zero), and the
+frozen Compose/env contract was not changed. Render, the old Application,
+auto-deploy, tags, Supabase, credentials, cleanup, and Phase 4 remain untouched.
+
 ## 2026-07-17 11:34 +0000 - Codex - Phase-3c public cutover live; soak active
 
 Steven directly authorized attaching `preview-api.swordfish.cfd` and flipping

@@ -6,6 +6,7 @@
 //   node scripts/eamos-report-performance-audit.mjs --base=https://eamos-dev-sg.onrender.com
 //   node scripts/eamos-report-performance-audit.mjs --variant="ABCA4:c.5435T>A" --json
 //   node scripts/eamos-report-performance-audit.mjs --runs=3 --skip-viewer --max-report-payload-bytes=750000
+//   node scripts/eamos-report-performance-audit.mjs --variant="RPE65:c.271C>T" --require-ok
 
 const DEFAULT_BASE = 'https://eamos-dev-sg.onrender.com'
 const DEFAULT_VARIANTS = [
@@ -31,6 +32,7 @@ const runCount = positiveInteger(args.runs ?? args.repeat, 1)
 const emitJson = flagEnabled(args.json)
 const skipSections = flagEnabled(args['skip-sections'])
 const skipViewer = flagEnabled(args['skip-viewer'])
+const requireOk = flagEnabled(args['require-ok'])
 const thresholds = {
   lookupResponseBytes: positiveIntegerOrNull(
     args['max-lookup-response-bytes'] ?? args['max-response-bytes'],
@@ -45,9 +47,11 @@ const report = {
   baseUrl,
   timeoutMs,
   runCount,
+  requireOk,
   thresholds: compactThresholds(thresholds),
   generatedAt: new Date().toISOString(),
   variants: [],
+  requiredEndpointFailures: [],
   violations: [],
 }
 
@@ -69,6 +73,9 @@ for (const variantText of variants) {
   entry.sections = firstRun.sections
   entry.viewer = firstRun.viewer
   entry.stats = summarizeVariantRuns(entry.runs)
+  if (requireOk) {
+    report.requiredEndpointFailures.push(...requiredEndpointFailures(entry))
+  }
   report.violations.push(...thresholdViolations(entry, thresholds))
   report.variants.push(entry)
 }
@@ -78,7 +85,7 @@ if (emitJson) {
 } else {
   printHuman(report)
 }
-if (report.violations.length > 0) {
+if (report.violations.length > 0 || report.requiredEndpointFailures.length > 0) {
   process.exitCode = 1
 }
 
@@ -425,10 +432,35 @@ function thresholdViolations(entry, limits) {
   return violations
 }
 
+function requiredEndpointFailures(entry) {
+  const failures = []
+  const inspect = (run, target, result) => {
+    if (result?.ok) return
+    failures.push({
+      variant: entry.variant,
+      run: run.run,
+      target,
+      status: result?.status ?? null,
+      error: result?.error ?? 'request failed',
+    })
+  }
+
+  for (const run of entry.runs) {
+    inspect(run, 'lookup', run.lookup)
+    inspect(run, 'summary', run.summary)
+    for (const [section, result] of Object.entries(run.sections)) {
+      inspect(run, `section:${section}`, result)
+    }
+    if (!skipViewer) inspect(run, 'viewer', run.viewer)
+  }
+  return failures
+}
+
 function printHuman(data) {
   console.log(`eamos-report-performance-audit | ${data.baseUrl}`)
   console.log(`generated_at=${data.generatedAt}`)
   console.log(`runs=${data.runCount} timeout_ms=${data.timeoutMs}`)
+  if (data.requireOk) console.log('require_ok=true')
   if (Object.keys(data.thresholds).length > 0) {
     console.log(`thresholds=${JSON.stringify(data.thresholds)}`)
   }
@@ -471,6 +503,14 @@ function printHuman(data) {
       const section = violation.section ? ` section=${violation.section}` : ''
       console.log(
         `  ${violation.variant} run=${violation.run}${section} ${violation.target}=${violation.observed} > ${violation.limit}`,
+      )
+    }
+  }
+  if (data.requiredEndpointFailures.length > 0) {
+    console.log('required endpoint failures:')
+    for (const failure of data.requiredEndpointFailures) {
+      console.log(
+        `  ${failure.variant} run=${failure.run} ${failure.target} status=${failure.status ?? 'ERR'} error=${failure.error}`,
       )
     }
   }

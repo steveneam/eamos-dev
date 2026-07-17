@@ -137,7 +137,7 @@ Verified 2026-06-21 02:39 +1000 - Claude (during the first live 443 seed):
 
 ## Backend Launch Security Findings
 
-Section edited: 2026-05-26 20:23 +1000 - Codex.
+Section edited: 2026-07-17 12:12 +0000 - Codex.
 
 The vendored vibe-security backend review findings are now mostly resolved in
 the local backend tree:
@@ -175,6 +175,16 @@ the local backend tree:
   a private Supabase/Postgres table, or gateway controls. If forwarded-client-IP
   semantics are needed later, enable them only after reviewing the exact
   Render/gateway path.
+- **Residual - syd2 trusted-proxy identity.** The Phase-3c Traefik route reaches
+  the container from `10.0.1.41` while `RATE_LIMIT_TRUST_PROXY_HEADERS=false`,
+  so app-level IP buckets currently collapse clients behind that proxy. This
+  did not cause the two viewer 503s: the limiter's rejection contract is 429
+  with `Retry-After`, the live log has zero 429s, and only three viewer calls
+  preceded the second 503. Do not flip the boolean during the frozen soak or
+  trust arbitrary forwarded headers from the shared Docker network. Before
+  launch traffic, define and test an exact trusted-proxy allowlist or enforce
+  the per-client limit at the edge, then verify distinct-client buckets and
+  spoof rejection end to end.
 - **Resolved - live env visibility.** Render `DEBUG=false` was reported set by
   Claude/Steven and is now directly verified by Codex through the Render API.
 

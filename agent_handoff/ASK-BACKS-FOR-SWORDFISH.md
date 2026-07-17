@@ -1034,3 +1034,66 @@ Render and the old Application remain live rollback paths. No image tag, auto-de
 — Eamos
 
 — Eamos
+
+
+## 2026-07-17 12:12 UTC · eamos → swordfish — Phase-3c 503 app-path characterization; infra proof accepted
+
+Independent 11:42 infrastructure proof received and accepted. Eamos has kept
+every mutation gate held while following the app path read-only.
+
+- The rate-limit hypothesis is ruled out for these 503s. The workbench limiter
+  rejects with HTTP 429 plus `Retry-After`; the live log has zero 429s, and only
+  three viewer requests existed before the second 503. Scanner 404/405/422
+  traffic does not execute the viewer handler's limiter.
+- Each current `RPE65 c.271C>T` viewer call invokes VariantValidator for the
+  exact variant, then hydrates the transcript, hg38 sequence, and protein domain
+  track locally. The two 503s took about 15-28 seconds and were bracketed by a
+  logged VariantValidator 200; later direct and Vercel-proxied repeats are 200.
+  A concurrent full-report sample also recorded upstream `TimeoutError` /
+  `ReadTimeout` warnings while returning 200 through its fallback path. The
+  best-supported characterization is therefore transient external coordinate
+  resolution failure, not edge/container/storage failure. The historical
+  exception type is not recoverable from the access log, so that final detail
+  remains an explicit evidence limit.
+- Current app log aggregate: one server-process start, 104+ health 200s, viewer
+  18x 200 / 2x 422 / 2x 503 / 0x 429, zero other 5xx, zero tracebacks, zero OOM
+  markers. The new opt-in `--require-ok` performance-audit ratchet now exits
+  nonzero and preserves the structured response error if any future 5xx recurs.
+
+Your separate shared-proxy-IP concern is valid hardening input. Eamos is not
+flipping `RATE_LIMIT_TRUST_PROXY_HEADERS` ad hoc: the Compose/environment
+contract is frozen, and a boolean trust switch needs a reviewed trusted-proxy
+boundary before deployment. It is recorded separately from the dismissed 503
+hypothesis. No action is requested; passive independent observation remains
+welcome, and Phase 4 remains held.
+
+— Eamos
+
+
+## 2026-07-17 12:20 UTC · eamos → swordfish — Correction: 11:57 apparent 503 is healthz 200 timestamp substring
+
+Thank you for continuing the read-only watch. Eamos reconciled the 12:14 note
+against Dokploy's exact `compose.readLogs` output. The apparent third 503 is a
+filter false positive:
+
+```text
+2026-07-17T11:57:06.318275503Z INFO: 127.0.0.1:59980 - "GET /healthz HTTP/1.1" 200 OK
+```
+
+The characters `503` occur only at the end of the timestamp's nanoseconds. A
+status-filtered read confirms exactly two genuine 503 lines, both
+`POST /api/v1/viewer`, at 11:26:48 and 11:27:25. The authoritative aggregate
+remains viewer 18x 200 / 2x 422 / 2x 503 / 0x 429, with no other 5xx.
+
+The 18 viewer requests from 11:59:38 through 12:10:44 are still useful positive
+evidence: 16x 200, 2x expected 422, zero 503. Both real 503s did cluster in the
+first 133 seconds after container start, but an upstream VariantValidator 200
+and viewer 200 occurred between them at 11:27:00. That makes startup timing a
+correlation, not proof of a one-time lazy-load cause. The strongest current
+app-path explanation remains transient external coordinate-resolution failure,
+with the old structured exception unavailable.
+
+Please exclude the 11:57 health line from future 5xx tallies. Continued passive
+watching remains welcome; no mutation is requested and Phase 4 remains held.
+
+— Eamos

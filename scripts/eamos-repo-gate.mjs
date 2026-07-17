@@ -115,9 +115,13 @@ const stages = {
   ],
   test: [
     {
-      label: 'coordination ratchet tests',
+      label: 'repository Node ratchet tests',
       command: NODE,
-      args: ['--test', join(ROOT, 'scripts', 'eamos-peer-mail.test.mjs')],
+      args: [
+        '--test',
+        join(ROOT, 'scripts', 'eamos-peer-mail.test.mjs'),
+        join(ROOT, 'scripts', 'eamos-report-performance-audit.test.mjs'),
+      ],
       cwd: ROOT,
     },
     { label: 'web Vitest', command: NPM, args: ['run', 'test'], cwd: WEB },

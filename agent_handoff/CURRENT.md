@@ -25,36 +25,39 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 11:44 +0000 — Steven directly
-  authorized and Eamos completed the public-domain attach plus Vercel target
-  flip. DNS/TLS, proxy-origin proof, auth boundary, effective-container
-  hardening, and the full local repository gate are green. One mixed viewer
-  200/503 observation keeps the soak open. Render stays live as rollback;
-  Phase 4 remains held for a separate direct Steven instruction.
+- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 12:21 +0000 — the beginning
+  sample is green. The two genuine viewer 503s are bounded to the application
+  path; edge/container/rate-limit causes are ruled out, later direct/proxied
+  traffic is clean, and Swordfish's apparent third 503 was a timestamp-filter
+  false positive. The 48-hour floor plus middle/end evidence remain open.
+  Render stays live as rollback; Phase 4 remains held for a separate direct
+  Steven instruction.
 - **Runtime:** Codex is inside the persistent `eamos` tmux session under
   `agent-tmux.service`; the code-server terminal profile now defaults to that
   seam, so a code-server restart no longer owns this process cgroup.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 11:44 +0000 · Codex
+UNLOCKED · 2026-07-17 12:21 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the bounded stable-alias pointer lock at
-  2026-07-17 11:44 +0000.
+- None. Codex released the Phase-3c beginning-soak checkpoint locks at
+  2026-07-17 12:21 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 11:44 +0000 · Codex Phase-3c active soak
-Read CURRENT.md, README.md, the latest Swordfish mail, and the Phase-3 runbook's Phase-3c section.
-Do not repeat the domain attach or Vercel flip: preview-api and eamos-dev production are already live on syd2.
-Compose 5rBnRf20ht4wGRQ856ZLO and stable Vercel production alias eamos-dev.vercel.app are the active seam.
-Frontend/backend workstation ports remain 3532/8532; Dokploy 8000 is only the isolated container listener.
-Next, gather spaced soak evidence and characterize the immediate viewer probes that mixed 200 and 503.
+# Resume prompt · 2026-07-17 12:21 +0000 · Codex Phase-3c active soak
+Read CURRENT.md, README.md, latest Swordfish mail, and the Phase-3 runbook's active-soak section.
+Do not repeat the domain attach or Vercel flip; preview-api and eamos-dev production already use syd2.
+Compose 5rBnRf20ht4wGRQ856ZLO and stable alias eamos-dev.vercel.app are the active seam.
+The 12:12 beginning sample is green; exactly two app viewer 503s remain in the historical tally.
+The apparent 11:57 third 503 was /healthz 200 with 503 only in timestamp nanoseconds.
+Use the performance audit's --require-ok mode for the roughly 24-hour middle and 48-hour end samples.
 The 48-hour floor ends approximately 2026-07-19 11:31 UTC, but every evidence gate must also pass.
 Keep Singapore Render and the old Application live; do not widen grants or enable auto-deploy.
+Do not flip forwarded-header trust ad hoc; the trusted-proxy boundary is a separate reviewed follow-up.
 Phase 4, Supabase, tags, credentials, cleanup, and Render cancellation remain held for direct gates.
 Codex runs inside persistent tmux via agent-tmux.service; continue from that seam.
 ```
@@ -63,38 +66,44 @@ Codex runs inside persistent tmux via agent-tmux.service; continue from that sea
 
 - Full mutation ledger, proof, and soak exit contract:
   `docs/deployment/render-to-syd2-phase3.md` → Phase 3c.
+- Executable full-report failure ratchet:
+  `scripts/eamos-report-performance-audit.mjs --require-ok`; regression test:
+  `scripts/eamos-report-performance-audit.test.mjs`.
 - Hardened Compose: `5rBnRf20ht4wGRQ856ZLO`; public-label redeploy:
   `SSvNBmx91esTGz1tohYoU`; immutable contract: `deploy/syd2/compose.yaml`.
 - Stable Vercel production seam: `eamos-dev.vercel.app`; initial cutover
   deployment: `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ`. Every `main` push creates a
   successor deployment, so follow the alias rather than treating that ID as
   current. Prior rollback target: `https://eamos-dev-sg.onrender.com`.
-- Immediate provider-health proof: direct syd2 and Vercel share SHA-256
-  `b087c5a6…`; Render differs and remains HTTP 200.
-- Cutover receipt sent to Swordfish at 11:34 UTC in
+- Beginning-sample proof and 503 characterization are in the runbook and
+  `PROGRESS.md`; the 12:20 false-positive correction is in
   `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
+- Trusted-proxy residual and remediation gate:
+  `docs/operations/risks-and-guardrails.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- `preview-api.swordfish.cfd` now serves the hardened Compose through valid LE
-  TLS, and Vercel production now proxies to it. The complete provider-health
-  payload proves the active origin is syd2 rather than Render.
-- Public 443, local frontend/backend 3532/8532, and isolated container 8000 are
-  explicitly separated. No host port was published.
-- Auth/CORS/security-header checks passed. Effective-container inspection after
-  redeploy retained the exact digest, all hardening, restart 0, and 747.7 MiB / 2
-  GiB immediate memory use.
-- `npm run verify` passed in 144.9 seconds: structural/port/contract guards,
-  lint/format/typecheck, 9 coordination tests, 163 web tests, full backend
-  pytest, and the 17-route production build.
-- Immediate repeated viewer probes mixed 200 and 503 without a crash or
-  restart. A later probe returned 200; this remains an explicit soak item.
+- Beginning DNS/TLS/redirect, direct/proxy/rollback health, provider state,
+  auth/CORS/security headers, exact Compose, and container-resource samples are
+  green. No cloud/runtime mutation followed the already-completed cutover.
+- The historical log has exactly two app-level viewer 503s, 18 viewer 200s, two
+  expected 422s, and zero 429s. A later 18-request window had 16x 200, 2x 422,
+  and no 503; the old structured error is unavailable, so transient external
+  coordinate resolution remains the bounded explanation rather than proof.
+- `--require-ok` now makes any required audit endpoint failure executable and
+  preserves status/error detail. Two local regression tests cover all-2xx and
+  viewer-503 cases.
+- `npm run verify` passed in 147.1 seconds: executable structural/contract
+  guards, lint/format/typecheck, 11 Node ratchet tests, 163 web tests, full
+  backend pytest, and the 17-route production build.
+- Forwarded-header trust remains disabled, collapsing app IP buckets behind
+  Traefik. It did not cause the 503s and was not changed during the frozen soak.
 
 ## Next Action
 
-- Run the Phase-3c spaced soak matrix from the runbook, beginning with the
-  viewer 503 characterization and representative Vercel-proxied viewer,
-  summary, full-report, provider, resource, TLS, auth, and rollback samples.
-  Do not close Phase 3c on elapsed time alone and do not enter Phase 4 without
-  Steven's separate direct authorization.
+- At roughly the 24-hour point, run the Phase-3c middle sample from the runbook:
+  `--require-ok` report/viewer coverage plus DNS/TLS, direct/proxy/rollback
+  health, provider, resource/restart/OOM, auth/CORS, and exact-contract checks.
+  Repeat at/after the 48-hour floor; do not close Phase 3c on elapsed time alone
+  or enter Phase 4 without Steven's separate direct authorization.

@@ -5,7 +5,7 @@ two-party tenant-grant verification green; Phase 3c public endpoint and Vercel
 traffic cutover live; evidence-based soak active; Render rollback live; Phase 4
 held
 
-Last verified: 2026-07-17 11:34 +0000 - Codex
+Last verified: 2026-07-17 12:20 +0000 - Codex
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -286,12 +286,69 @@ Phase-4 mutation occurred.
 
 ### Active soak observation and exit contract
 
-Repeated direct synthetic `POST /api/v1/viewer` probes during the immediate
-window returned both 200 and 503. The container stayed healthy with restart
-count zero and no matching crash traceback, so this is not evidence of an edge
-or container restart; it is nevertheless an unresolved application-path
-observation. Do not call the soak green until it is reproduced and
-characterized or a reviewed explanation/fix is verified.
+Two direct synthetic `POST /api/v1/viewer` probes for `RPE65 c.271C>T` returned
+503 during the immediate window. Both were Uvicorn responses, not Traefik
+responses. Independent container/edge inspection found restart 0, cgroup
+`low/high/max/oom/oom_kill` all zero, no Traefik 503, one router to one service,
+and no stale Application route.
+
+The application path is now bounded. This exact variant misses the
+compact coordinate variant lookup and invokes VariantValidator before using
+the compact transcript, mounted hg38 sequence, and local protein-domain cache.
+The two failures took approximately 15 and 28 seconds and bracketed a logged
+VariantValidator 200. Subsequent direct and Vercel-proxied calls are 200; a
+concurrent full-report sample recorded upstream `TimeoutError` / `ReadTimeout`
+warnings while its separate fallback path still returned 200. The strongest
+supported explanation is a transient external coordinate-resolution failure,
+not migration infrastructure. Both failures clustered in the first 133 seconds
+after startup, but the successful call between them means the evidence does not
+prove a one-time cold lazy-load cause. The old access log does not retain the
+structured response error, so the exact historical exception type remains an
+explicit evidence limit. The tracked performance audit now has an opt-in
+`--require-ok` ratchet that exits nonzero and preserves any future structured
+error.
+
+Swordfish's later apparent third 503 at `11:57:06` was a log-filter false
+positive. The exact line is `/healthz` 200 at
+`11:57:06.318275503Z`; `503` occurs only in the timestamp's nanoseconds. The
+authoritative status tally therefore remains two viewer 503s. The 18 real
+viewer requests from 11:59:38 through 12:10:44 produced 16 200s, two expected
+422 validation rejects, and no 503.
+
+#### Beginning sample - 2026-07-17 12:12 +0000
+
+- Cloudflare and Google DNS both returned `103.249.236.41` at TTL 600. TLS was
+  authorized for the exact SAN through 2026-10-15, and HTTP redirected to
+  HTTPS.
+- Direct `/healthz` and retained Render `/healthz` returned application/database
+  `ok`. Vercel intentionally rewrites `/api/:path*`, not root `/healthz`; its
+  proxied provider-health route returned 200 and byte-for-byte matched direct
+  syd2 while Render returned a different healthy payload.
+- The Vercel functional matrix returned 200 for deterministic parse, two full
+  lookups, two initial summaries, all four lazy sections in both passes, and
+  two viewers. Cold/warm full lookup latency was 44.0/11.2 seconds; viewer was
+  1.22 seconds. A subsequent one-pass run with `--require-ok` also exited zero.
+- Provider health remained overall `ok`: mounted hg38, compact coordinates,
+  ClinGen, gene distribution, AlphaMissense, Pfam/HMMER, local deterministic
+  CRISPR, and pure-code PVS1/NMD retained their expected ready/available state.
+  Predictors with pre-existing launch gates remained explicitly unavailable;
+  no provider was silently enabled by the migration.
+- The app log contained one server-process start, 104+ health 200s, viewer
+  18x 200 / 2x 422 / 2x 503 / 0x 429, no other 5xx, no traceback, and no OOM
+  marker. After the deep sample the same healthy container used 1.106 GiB / 2
+  GiB (55.31%) and 0.16% CPU.
+- Direct and Vercel hostile-Origin probes received no ACAO; both retained HSTS,
+  `nosniff`, and `SAMEORIGIN`; unauthenticated evidence submissions remained
+  401. Stored Compose SHA, the 55-name environment allowlist,
+  `autoDeploy=false`, the single approved domain, and rate limiting remained
+  exact. Render stayed HTTP 200 and untouched.
+
+One separate hardening item was discovered but was not mutated during the
+frozen soak: with forwarded-header trust disabled, Traefik collapses app-level
+IP buckets to its `10.0.1.41` source address. This did not cause the 503s—the
+limiter returns 429, the live tally has zero 429s, and scanner 404/405/422
+requests do not enter the viewer handler—but correct per-client limiting needs
+a reviewed trusted-proxy boundary rather than an ad-hoc boolean flip.
 
 Phase 3c cannot close earlier than the controlling plan's 48-hour observation
 floor (approximately 2026-07-19 11:31 UTC), and elapsed time alone is
