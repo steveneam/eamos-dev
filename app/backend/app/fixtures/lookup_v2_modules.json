@@ -108,7 +108,13 @@
           "source": "OMIM #204100",
           "db_tag": "#204100",
           "db_tag_bold": "OMIM",
-          "source_list": "OMIM \u00b7 Monarch \u00b7 DECIPHER \u00b7 GenCC \u00b7 ClinGen"
+          "source_list": "OMIM \u00b7 Monarch \u00b7 DECIPHER \u00b7 GenCC \u00b7 ClinGen",
+          "origin_kind": "cross_reference",
+          "public_serialization_allowed": false,
+          "export_allowed": false,
+          "cache_allowed": false,
+          "policy_version": "source-fact-policy-v2",
+          "decision_reason": "unverified legacy fixture source labels and case counts"
         },
         {
           "name": "Retinitis Pigmentosa 20 (RP20)",
@@ -118,7 +124,13 @@
           "source": "OMIM #613794",
           "db_tag": "#613794",
           "db_tag_bold": "OMIM",
-          "source_list": "OMIM \u00b7 Monarch \u00b7 GenCC"
+          "source_list": "OMIM \u00b7 Monarch \u00b7 GenCC",
+          "origin_kind": "cross_reference",
+          "public_serialization_allowed": false,
+          "export_allowed": false,
+          "cache_allowed": false,
+          "policy_version": "source-fact-policy-v2",
+          "decision_reason": "unverified legacy fixture source labels and case counts"
         },
         {
           "name": "RPE65-Related Dominant Retinopathy",
@@ -128,7 +140,13 @@
           "source": "No OMIM entry",
           "db_tag": "No OMIM entry",
           "db_tag_bold": null,
-          "source_list": "OMIM \u00b7 GenCC \u00b7 ClinGen \u00b7 MONDO"
+          "source_list": "OMIM \u00b7 GenCC \u00b7 ClinGen \u00b7 MONDO",
+          "origin_kind": "cross_reference",
+          "public_serialization_allowed": false,
+          "export_allowed": false,
+          "cache_allowed": false,
+          "policy_version": "source-fact-policy-v2",
+          "decision_reason": "unverified legacy fixture source labels and case counts"
         },
         {
           "name": "Severe Early-Childhood-Onset Retinal Dystrophy",
@@ -138,7 +156,13 @@
           "source": "Orphanet ORPHA:71862",
           "db_tag": "Orphanet ORPHA:71862",
           "db_tag_bold": null,
-          "source_list": "Orphanet \u00b7 GenCC"
+          "source_list": "Orphanet \u00b7 GenCC",
+          "origin_kind": "cross_reference",
+          "public_serialization_allowed": false,
+          "export_allowed": false,
+          "cache_allowed": false,
+          "policy_version": "source-fact-policy-v2",
+          "decision_reason": "unverified legacy fixture source labels and case counts"
         },
         {
           "name": "RPE65-Related Recessive Retinopathy (umbrella)",
@@ -148,7 +172,13 @@
           "source": "MONDO:0019200",
           "db_tag": "MONDO:0019200",
           "db_tag_bold": null,
-          "source_list": "PubMed \u00b7 GenCC \u00b7 MONDO \u00b7 DECIPHER \u00b7 OMIM \u00b7 ClinGen"
+          "source_list": "PubMed \u00b7 GenCC \u00b7 MONDO \u00b7 DECIPHER \u00b7 OMIM \u00b7 ClinGen",
+          "origin_kind": "cross_reference",
+          "public_serialization_allowed": false,
+          "export_allowed": false,
+          "cache_allowed": false,
+          "policy_version": "source-fact-policy-v2",
+          "decision_reason": "unverified legacy fixture source labels and case counts"
         }
       ],
       "publications_callout": {

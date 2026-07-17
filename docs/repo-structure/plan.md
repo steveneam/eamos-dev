@@ -46,13 +46,14 @@ The largest current responsibility hotspots from the 2026-06-30 audit are:
 | `app/web/components/report/population-frequency/PopulationFrequencyMap.tsx` | 568 | Geographic and off-map cohort rendering, selection, and legend. |
 | `app/backend/app/data_sources/registry.py` | 20 | Stable public facade and default-registry composition. |
 | `app/backend/app/data_sources/registry_models.py` | 357 | Registry types, validation, and license policy invariants. |
-| `app/backend/app/data_sources/registry_records.py` | 1,350 | Declarative source metadata, isolated from registry behavior. |
+| `app/backend/app/data_sources/registry_records.py` | 1,352 | Declarative source metadata, isolated from registry behavior; MaveDB records are composed from a focused module. |
+| `app/backend/app/data_sources/registry_records_mavedb.py` | 84 | MaveDB bulk/API source contracts and launch gates. |
 | `app/backend/app/services/gene_viewer.py` | 3497 | Fixture provider, live source client, transcript projection, full-locus geometry, protein tracks, and allele display in one module. |
 | `app/backend/app/services/pubmed_local.py` | 2978 | Store, schema, XML/JSONL parsing, materialization, coverage, search, and manifest logic in one module. Folded 2026-07-02 into a facade plus constants, models, license policy, and parser/source helpers. |
 | `app/backend/app/services/lookup_service.py` | 2890 | Cache identity, source hydration, report shell/sections cache, evidence summaries, and orchestration in one module. 2026-07-02 folds extracted cache codecs, ClinVar distribution runtime helpers, shared utility helpers, and lookup source-cache orchestration behind the existing facade. 2026-07-03 folds extracted publication/trial section builders, publication callout helpers, and full report-payload assembly/finalization. |
 | `app/backend/app/services/workbench_design.py` | 2206 | Primer providers, SNP masking, isPcr, alignment, trace parsing, disclosure, and service orchestration in one module. Folded 2026-07-02 into a facade plus common, protocols, fixture, primer, alignment, and service modules. |
 | `app/backend/app/services/clinvar_local.py` | 2091 | Runtime adapter plus generated gene-distribution materializer/index code. |
-| `app/backend/app/services/variant_report_orchestrator.py` | 886 | Profile assembly remains here; normalization/provenance helpers and section ranking now have focused modules. |
+| `app/backend/app/services/variant_report_orchestrator.py` | 898 | Profile assembly remains here; normalization/provenance helpers and section ranking now have focused modules. |
 | `app/web/components/report/ReportGeneViewer.tsx` | 845 | Stable public report viewer plus gene-locus rendering; controller, snapshot adaptation, shared presentation, and protein responsibilities are now focused modules. |
 | `app/web/components/report/gene-viewer/ReportProteinView.tsx` | 694 | Protein architecture controls and SVG rendering only. |
 | `app/web/components/report/gene-viewer/proteinViewModel.ts` | 553 | Protein feature normalization, packing, legend, palette, and provenance presentation model. |

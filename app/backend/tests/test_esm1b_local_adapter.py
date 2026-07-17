@@ -52,8 +52,8 @@ def test_esm1b_adapter_maps_exact_hit_with_calibration_and_license_metadata(
     assert prediction.uniprot_isoform == "P13569-1"
     assert prediction.mane_tx == "NM_000492.4"
     assert prediction.aa_sub == "V1M"
-    assert prediction.calibrated_label == "PP3_Strong"
-    assert prediction.calibration_bucket == "Pathogenic"
+    assert prediction.calibrated_label == "PP3 3 points"
+    assert prediction.calibration_bucket is None
     assert prediction.public_serialization_allowed is True
     assert prediction.provenance.source_id == ESM1B_SOURCE_ID
     assert prediction.provenance.reader == "tabix_tsv_predictor_reader"

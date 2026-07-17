@@ -276,8 +276,10 @@ def test_lookup_sections_returns_requested_payloads_with_freshness_fields(client
     predictor_names = {row["name"] for row in computational["payload"]["predictors"]}
     assert {"REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR", "SpliceAI"} <= predictor_names
     predictors_by_name = {row["name"]: row for row in computational["payload"]["predictors"]}
-    assert predictors_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
-    assert predictors_by_name["CADD PHRED"]["calibration_bucket"] == "VUS"
+    assert predictors_by_name["REVEL"]["calibration_bucket"] is None
+    assert predictors_by_name["REVEL"]["evidence_code"] == "PP3"
+    assert predictors_by_name["REVEL"]["evidence_points"] == "2"
+    assert predictors_by_name["CADD PHRED"]["calibration_bucket"] is None
     assert predictors_by_name["SpliceAI"]["calibration_method"] == (
         "Walker 2023 / ClinGen SVI splicing"
     )

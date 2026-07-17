@@ -30,6 +30,7 @@ def test_lookup_payload_does_not_emit_utf8_as_latin1_mojibake(client) -> None:
         "1 ClinVar fixture record for RPE65"
     )
     assert report["curated_variants_distribution"]["source_id"] == "ncbi_clinvar_vcf"
+    assert report["associated_conditions"] == []
     assert "No disagreement to flag — the in-silico signal" in (
         report["in_silico_predictions"]["consensus_note"]
     )
@@ -45,8 +46,22 @@ def test_report_demo_sample_json_does_not_ship_utf8_as_latin1_mojibake() -> None
     assert report["locus_context"]["coords"] == (
         "chr1 : 68,444,849 — 68,444,889  ·  RPE65 exon 4  ·  (+) strand"
     )
-    assert report["associated_conditions"][0]["source_list"] == (
-        "OMIM · Monarch · DECIPHER · GenCC · ClinGen"
+    assert all("source_list" in condition for condition in report["associated_conditions"])
+
+
+def test_backend_fixture_marks_legacy_condition_facts_non_public() -> None:
+    fixture_path = (
+        Path(__file__).resolve().parents[1] / "app" / "fixtures" / "lookup_v2_modules.json"
+    )
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    conditions = payload["RPE65"]["c.260A>G"]["associated_conditions"]
+
+    assert conditions
+    assert all(condition["origin_kind"] == "cross_reference" for condition in conditions)
+    assert all(condition["public_serialization_allowed"] is False for condition in conditions)
+    assert all(condition["export_allowed"] is False for condition in conditions)
+    assert all(
+        "unverified legacy fixture" in condition["decision_reason"] for condition in conditions
     )
 
 

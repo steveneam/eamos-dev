@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
+from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
 
 from app.core.config import Settings
 from app.services.functional_evidence import FunctionalEvidenceExtractor
-from app.services.mavedb_local import materialize_mavedb_local_store
+from app.services.mavedb_local import (
+    MAVEDB_FIXTURE_RELEASE_PREFIX,
+    MAVEDB_FIXTURE_SOURCE_URL,
+    materialize_mavedb_local_store,
+    verify_mavedb_archive_file,
+)
 
 
 def _variant(
@@ -237,15 +244,33 @@ def test_mavedb_local_cc0_hit_counts_as_uncurated_functional_evidence(
 ) -> None:
     source = tmp_path / "mavedb.jsonl"
     source.write_text(
-        json.dumps(
-            {
-                "score_set_id": "urn:mavedb:0001",
-                "gene": "RPE65",
-                "variant": "NM_000329.3:c.1301C>T",
-                "score": 0.12,
-                "license": "CC0-1.0",
-                "url": "https://www.mavedb.org/score-sets/urn:mavedb:0001",
-            }
+        "\n".join(
+            json.dumps(
+                {
+                    "score_set": {
+                        "urn": score_set_urn,
+                        "license": "CC0-1.0",
+                        "dataUsagePolicy": None,
+                    },
+                    "target": {
+                        "id": target_id,
+                        "accession": "NM_000329.3",
+                        "sequence_checksum": "sha256:synthetic-rpe65",
+                        "gene": "RPE65",
+                    },
+                    "variant_score": {
+                        "urn": f"{score_set_urn}#1",
+                        "mave_hgvs": "c.1301C>T",
+                        "raw_score": score,
+                        "score_column": "score",
+                        "score_unit": "assay_specific_raw",
+                    },
+                }
+            )
+            for score_set_urn, target_id, score in (
+                ("urn:mavedb:0001-a-1", "target:rpe65-assay-1", "0.1200"),
+                ("urn:mavedb:0002-a-1", "target:rpe65-assay-2", "1.2300"),
+            )
         )
         + "\n",
         encoding="utf-8",
@@ -259,28 +284,59 @@ def test_mavedb_local_cc0_hit_counts_as_uncurated_functional_evidence(
     materialized = materialize_mavedb_local_store(
         settings,
         jsonl_files=[source],
-        source_version="mavedb-test-v1",
+        archive_proof=verify_mavedb_archive_file(
+            source,
+            expected_digest_algorithm="sha256",
+            expected_digest_value=sha256(source.read_bytes()).hexdigest(),
+            release_doi=f"{MAVEDB_FIXTURE_RELEASE_PREFIX}pytest",
+            source_url=MAVEDB_FIXTURE_SOURCE_URL,
+            allow_synthetic_fixture=True,
+        ),
+        source_version="mavedb-test-v2",
     )
     assert materialized.ready is True
-    extractor = FunctionalEvidenceExtractor(settings=settings)
+    public_extractor = FunctionalEvidenceExtractor(settings=settings)
+
+    public_summary = public_extractor.build_for_lookup(
+        _variant(transcript_hgvs="NM_000329.3:c.1301C>T", protein_change="p.Ala434Val"),
+        {},
+    )
+
+    assert public_summary.source_breakdown.mavedb == 0
+    assert "functional_mavedb_nonpublic:fixture_ready" in public_summary.warnings
+
+    extractor = FunctionalEvidenceExtractor(
+        settings=settings,
+        include_nonpublic_mavedb_fixtures=True,
+    )
 
     summary = extractor.build_for_lookup(
         _variant(transcript_hgvs="NM_000329.3:c.1301C>T", protein_change="p.Ala434Val"),
         {},
     )
 
-    assert summary.total_count == 1
-    assert summary.source_breakdown.mavedb == 1
+    assert summary.total_count == 2
+    assert summary.source_breakdown.mavedb == 2
     assert summary.evidence_codes == []
     assert summary.source_asserted_codes == []
     assert summary.display_metrics.state == "uncurated"
     assert summary.display_metrics.verdict_source == "uncurated"
     assert summary.studies[0].source_tags == ["mavedb"]
-    assert summary.studies[0].citation == "MaveDB urn:mavedb:0001"
-    assert summary.studies[0].source_accession == "urn:mavedb:0001"
-    assert summary.studies[0].url == "https://www.mavedb.org/score-sets/urn:mavedb:0001"
-    assert summary.studies[0].functional_score == 0.12
-    assert summary.studies[0].functional_score_label == "Functional score"
+    assert summary.studies[0].citation == "MaveDB urn:mavedb:0001-a-1"
+    assert summary.studies[0].source_accession == "urn:mavedb:0001-a-1"
+    assert summary.studies[0].url == ("https://www.mavedb.org/score-sets/urn:mavedb:0001-a-1")
+    assert summary.studies[0].functional_score == Decimal("0.12")
+    assert summary.studies[0].functional_score_label == "Raw score"
+    assert summary.studies[0].raw_score == "0.12"
+    assert summary.studies[0].score_unit == "assay_specific_raw"
+    assert summary.studies[0].match_level == "exact_target_accession_mave_hgvs"
+    assert summary.studies[0].archive_checksum_verified is True
+    assert summary.studies[0].local_logical_checksum_verified is True
+    assert summary.studies[0].public_serialization_allowed is False
+    assert summary.studies[0].export_allowed is False
+    assert summary.studies[0].calibration_status == "reserved_unavailable"
+    assert summary.studies[0].evidence_codes == []
+    assert [study.raw_score for study in summary.studies] == ["0.12", "1.23"]
     assert "CC0 score 0.12" in (summary.studies[0].snippet or "")
 
 

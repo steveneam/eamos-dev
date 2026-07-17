@@ -18,10 +18,21 @@ DEFAULT_FILTER_PAYLOAD_MAX_NODES = 10_000
 
 
 class PolicyAction(str, Enum):
-    REQUEST = "request"
+    ACQUIRE = "acquire"
     CACHE = "cache"
     NORMALIZE = "normalize"
-    SERIALIZE = "serialize"
+    PUBLIC_SERIALIZE = "public_serialize"
+    PRODUCT_EXPORT = "product_export"
+    LOG = "log"
+    ANALYZE = "analyze"
+    BACKUP = "backup"
+    STAGE = "stage"
+    RESTORE = "restore"
+    RAW_DEBUG = "raw_debug"
+
+    # Backward-compatible names resolve to the governed action, not a second policy lane.
+    REQUEST = "acquire"
+    SERIALIZE = "public_serialize"
 
 
 class ProductTier(str, Enum):
@@ -34,7 +45,7 @@ class ProductTier(str, Enum):
 class FieldPolicyDecision:
     source_id: str
     field_path: str
-    action: PolicyAction
+    action: PolicyAction | str
     product_tier: ProductTier
     allowed: bool
     reason: str
@@ -47,10 +58,16 @@ class SourceFieldPolicy:
         self,
         registry: DataSourceRegistry = DEFAULT_DATA_SOURCE_REGISTRY,
         *,
+        action_field_allowlists: (
+            Mapping[str, Mapping[str | PolicyAction, tuple[str, ...]]] | None
+        ) = None,
         max_filter_depth: int = DEFAULT_FILTER_PAYLOAD_MAX_DEPTH,
         max_filter_nodes: int = DEFAULT_FILTER_PAYLOAD_MAX_NODES,
     ) -> None:
         self._registry = registry
+        self._action_field_allowlists = _normalize_action_field_allowlists(
+            action_field_allowlists or {}
+        )
         self._max_filter_depth = max(0, int(max_filter_depth))
         self._max_filter_nodes = max(1, int(max_filter_nodes))
 
@@ -64,7 +81,7 @@ class SourceFieldPolicy:
         return self.decide(
             source_id,
             field_path,
-            action=PolicyAction.REQUEST,
+            action=PolicyAction.ACQUIRE,
             product_tier=product_tier,
         )
 
@@ -106,7 +123,21 @@ class SourceFieldPolicy:
         return self.decide(
             source_id,
             field_path,
-            action=PolicyAction.SERIALIZE,
+            action=PolicyAction.PUBLIC_SERIALIZE,
+            product_tier=product_tier,
+        )
+
+    def can_export(
+        self,
+        source_id: str,
+        field_path: str,
+        *,
+        product_tier: str | ProductTier = ProductTier.PUBLIC,
+    ) -> FieldPolicyDecision:
+        return self.decide(
+            source_id,
+            field_path,
+            action=PolicyAction.PRODUCT_EXPORT,
             product_tier=product_tier,
         )
 
@@ -118,9 +149,27 @@ class SourceFieldPolicy:
         action: str | PolicyAction,
         product_tier: str | ProductTier = ProductTier.PUBLIC,
     ) -> FieldPolicyDecision:
-        action_value = PolicyAction(action)
+        action_value = _normalize_policy_action(action)
         product_tier_value = _normalize_product_tier(product_tier)
         normalized_field = _normalize_field_path(field_path)
+
+        if action_value is None:
+            return _deny(
+                source_id,
+                field_path,
+                str(action),
+                product_tier_value or ProductTier.PUBLIC,
+                "unknown_action",
+            )
+
+        if product_tier_value is None:
+            return _deny(
+                source_id,
+                field_path,
+                action_value,
+                ProductTier.PUBLIC,
+                "unknown_product_tier",
+            )
 
         if not normalized_field:
             return _deny(
@@ -134,18 +183,45 @@ class SourceFieldPolicy:
         try:
             record = self._registry.get(source_id)
         except KeyError:
+            reason = (
+                "protected_source_not_registered"
+                if _is_protected_source_id(source_id)
+                else "unknown_source"
+            )
             return _deny(
                 source_id,
                 field_path,
                 action_value,
                 product_tier_value,
-                "unknown_source",
+                reason,
+            )
+
+        if not isinstance(record.license_status, LicenseStatus):
+            return _deny(
+                source_id,
+                field_path,
+                action_value,
+                product_tier_value,
+                "unknown_license",
+            )
+
+        if (
+            action_value is PolicyAction.ACQUIRE
+            and _is_protected_source_id(source_id)
+            and not record.download_approved
+        ):
+            return _deny(
+                source_id,
+                field_path,
+                action_value,
+                product_tier_value,
+                "acquisition_not_approved",
             )
 
         if _matches_any_field(record.restricted_fields, normalized_field):
             if (
                 product_tier_value is ProductTier.INTERNAL_FIXTURE
-                and action_value is PolicyAction.SERIALIZE
+                and action_value is PolicyAction.PUBLIC_SERIALIZE
             ):
                 return _allow(
                     source_id,
@@ -181,13 +257,25 @@ class SourceFieldPolicy:
                 "product_tier_not_allowed",
             )
 
-        if not _matches_any_field(record.allowed_fields, normalized_field):
+        action_fields = self._allowed_fields_for_action(record, action_value)
+        if not _matches_any_field(action_fields, normalized_field):
+            reason = (
+                "action_not_allowlisted"
+                if action_value
+                not in {
+                    PolicyAction.ACQUIRE,
+                    PolicyAction.CACHE,
+                    PolicyAction.NORMALIZE,
+                    PolicyAction.PUBLIC_SERIALIZE,
+                }
+                else "field_not_allowlisted"
+            )
             return _deny(
                 source_id,
                 field_path,
                 action_value,
                 product_tier_value,
-                "field_not_allowlisted",
+                reason,
             )
 
         return _allow(
@@ -198,14 +286,35 @@ class SourceFieldPolicy:
             "allowed_by_source_allowlist",
         )
 
+    def _allowed_fields_for_action(
+        self,
+        record: DataSourceRecord,
+        action: PolicyAction,
+    ) -> tuple[str, ...]:
+        source_overrides = self._action_field_allowlists.get(record.source_id, {})
+        if action in source_overrides:
+            return source_overrides[action]
+        if action in {
+            PolicyAction.ACQUIRE,
+            PolicyAction.CACHE,
+            PolicyAction.NORMALIZE,
+            PolicyAction.PUBLIC_SERIALIZE,
+        }:
+            return record.allowed_fields
+        return ()
+
     def filter_payload(
         self,
         source_id: str,
         payload: Mapping[str, Any],
         *,
+        action: str | PolicyAction = PolicyAction.PUBLIC_SERIALIZE,
         product_tier: str | ProductTier = ProductTier.PUBLIC,
     ) -> dict[str, Any]:
         product_tier_value = _normalize_product_tier(product_tier)
+        action_value = _normalize_policy_action(action)
+        if product_tier_value is None or action_value is None:
+            return {}
         has_fixture_warning = _has_internal_fixture_warning(payload)
         budget = _FilterPayloadBudget(max_nodes=self._max_filter_nodes)
         filtered = self._filter_value(
@@ -213,6 +322,7 @@ class SourceFieldPolicy:
             payload,
             field_path="",
             product_tier=product_tier_value,
+            action=action_value,
             has_fixture_warning=has_fixture_warning,
             depth=0,
             budget=budget,
@@ -226,6 +336,7 @@ class SourceFieldPolicy:
         *,
         field_path: str,
         product_tier: ProductTier,
+        action: PolicyAction,
         has_fixture_warning: bool,
         depth: int,
         budget: _FilterPayloadBudget,
@@ -251,6 +362,7 @@ class SourceFieldPolicy:
                     child,
                     field_path=child_path,
                     product_tier=product_tier,
+                    action=action,
                     has_fixture_warning=has_fixture_warning,
                     depth=depth + 1,
                     budget=budget,
@@ -269,6 +381,7 @@ class SourceFieldPolicy:
                         item,
                         field_path=field_path,
                         product_tier=product_tier,
+                        action=action,
                         has_fixture_warning=has_fixture_warning,
                         depth=depth + 1,
                         budget=budget,
@@ -281,6 +394,7 @@ class SourceFieldPolicy:
         if (
             product_tier is ProductTier.INTERNAL_FIXTURE
             and has_fixture_warning
+            and action is PolicyAction.PUBLIC_SERIALIZE
             and self._restricted_field_serializable_for_fixture(source_id, field_path)
         ):
             return value
@@ -291,9 +405,10 @@ class SourceFieldPolicy:
         ):
             return None
 
-        decision = self.can_serialize(
+        decision = self.decide(
             source_id,
             field_path,
+            action=action,
             product_tier=product_tier,
         )
         return value if decision.allowed else None
@@ -331,7 +446,7 @@ class _FilterPayloadBudget:
 def _allow(
     source_id: str,
     field_path: str,
-    action: PolicyAction,
+    action: PolicyAction | str,
     product_tier: ProductTier,
     reason: str,
 ) -> FieldPolicyDecision:
@@ -348,7 +463,7 @@ def _allow(
 def _deny(
     source_id: str,
     field_path: str,
-    action: PolicyAction,
+    action: PolicyAction | str,
     product_tier: ProductTier,
     reason: str,
 ) -> FieldPolicyDecision:
@@ -394,7 +509,7 @@ def _product_tier_allowed(record: DataSourceRecord, product_tier: ProductTier) -
     return False
 
 
-def _normalize_product_tier(product_tier: str | ProductTier) -> ProductTier:
+def _normalize_product_tier(product_tier: str | ProductTier) -> ProductTier | None:
     if isinstance(product_tier, ProductTier):
         return product_tier
     normalized = _normalize_field_segment(str(product_tier))
@@ -404,7 +519,47 @@ def _normalize_product_tier(product_tier: str | ProductTier) -> ProductTier:
         return ProductTier.INTERNAL_FIXTURE
     if normalized in {"licensed", "licensed_pro", "pro", "licensed_pro_future"}:
         return ProductTier.LICENSED
-    return ProductTier.PUBLIC
+    return None
+
+
+def _normalize_policy_action(action: str | PolicyAction) -> PolicyAction | None:
+    if isinstance(action, PolicyAction):
+        return action
+    normalized = _normalize_field_segment(str(action))
+    aliases = {
+        "request": PolicyAction.ACQUIRE,
+        "serialize": PolicyAction.PUBLIC_SERIALIZE,
+        "public_serialization": PolicyAction.PUBLIC_SERIALIZE,
+        "export": PolicyAction.PRODUCT_EXPORT,
+        "analytics": PolicyAction.ANALYZE,
+        "raw_response_debug": PolicyAction.RAW_DEBUG,
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+    try:
+        return PolicyAction(normalized)
+    except ValueError:
+        return None
+
+
+def _normalize_action_field_allowlists(
+    raw: Mapping[str, Mapping[str | PolicyAction, tuple[str, ...]]],
+) -> dict[str, dict[PolicyAction, tuple[str, ...]]]:
+    normalized: dict[str, dict[PolicyAction, tuple[str, ...]]] = {}
+    for source_id, action_rows in raw.items():
+        source_rows: dict[PolicyAction, tuple[str, ...]] = {}
+        for action, fields in action_rows.items():
+            action_value = _normalize_policy_action(action)
+            if action_value is None:
+                raise ValueError(f"unknown source policy action in allowlist: {action}")
+            source_rows[action_value] = tuple(str(field) for field in fields)
+        normalized[str(source_id)] = source_rows
+    return normalized
+
+
+def _is_protected_source_id(source_id: str) -> bool:
+    normalized = _normalize_field_segment(source_id)
+    return normalized.startswith(("omim", "lovd", "mavedb"))
 
 
 def _normalize_registry_tier(product_tier: str) -> str:

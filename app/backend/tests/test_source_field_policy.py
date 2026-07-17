@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from app.data_sources import (
     DEFAULT_DATA_SOURCE_REGISTRY,
     ProductTier,
@@ -174,3 +176,115 @@ def test_filter_payload_fails_closed_when_node_bound_exceeded() -> None:
     }
 
     assert policy.filter_payload("myvariant_gnomad_only", payload) == {}
+
+
+def test_unknown_action_and_product_export_deny_without_raising() -> None:
+    policy = SourceFieldPolicy()
+
+    unknown = policy.decide(
+        "myvariant_gnomad_only",
+        "gnomad_genome.af",
+        action="exception",
+    )
+    export = policy.can_export("myvariant_gnomad_only", "gnomad_genome.af")
+
+    assert unknown.allowed is False
+    assert unknown.reason == "unknown_action"
+    assert export.allowed is False
+    assert export.reason == "action_not_allowlisted"
+
+
+def test_sensitive_sinks_require_explicit_action_and_field_allowlists() -> None:
+    default_policy = SourceFieldPolicy()
+    protected_actions = (
+        "product_export",
+        "log",
+        "analyze",
+        "backup",
+        "stage",
+        "restore",
+        "raw_debug",
+    )
+
+    for action in protected_actions:
+        decision = default_policy.decide(
+            "myvariant_gnomad_only",
+            "gnomad_genome.af",
+            action=action,
+        )
+        assert decision.allowed is False
+        assert decision.reason == "action_not_allowlisted"
+
+    export_policy = SourceFieldPolicy(
+        action_field_allowlists={
+            "myvariant_gnomad_only": {
+                "product_export": ("gnomad_genome.af",),
+            }
+        }
+    )
+    assert export_policy.can_export("myvariant_gnomad_only", "gnomad_genome.af").allowed
+    assert not export_policy.can_export("myvariant_gnomad_only", "gnomad_genome.ac").allowed
+    assert export_policy.filter_payload(
+        "myvariant_gnomad_only",
+        {
+            "gnomad_genome": {"af": 0.001, "ac": 2},
+            "gnomad_exome": {"af": 0.002},
+        },
+        action="product_export",
+    ) == {"gnomad_genome": {"af": 0.001}}
+
+
+def test_unregistered_omim_lovd_and_mavedb_sources_deny_every_action() -> None:
+    policy = SourceFieldPolicy()
+    actions = (
+        "acquire",
+        "normalize",
+        "cache",
+        "public_serialize",
+        "product_export",
+        "log",
+        "analyze",
+        "backup",
+        "stage",
+        "restore",
+        "raw_debug",
+    )
+
+    for source_id in ("omim_api", "lovd_api", "mavedb_bulk"):
+        for action in actions:
+            decision = policy.decide(source_id, "record.raw", action=action)
+            assert decision.allowed is False
+            assert decision.reason == "protected_source_not_registered"
+
+
+def test_registered_mavedb_contract_does_not_authorize_archive_acquisition() -> None:
+    policy = SourceFieldPolicy()
+
+    acquire = policy.can_request("mavedb_cc0_bulk", "variant_scores.raw_score")
+    serialize = policy.can_serialize("mavedb_cc0_bulk", "variant_scores.raw_score")
+
+    assert acquire.allowed is False
+    assert acquire.reason == "acquisition_not_approved"
+    # Serialization remains a separate decision for a locally verified match.
+    assert serialize.allowed is True
+
+
+def test_unknown_license_and_product_tier_deny_by_default() -> None:
+    class RegistryWithUnknownLicense:
+        def get(self, source_id: str):
+            assert source_id == "source_with_unknown_license"
+            return SimpleNamespace(license_status="unreviewed-new-license")
+
+    policy = SourceFieldPolicy(registry=RegistryWithUnknownLicense())  # type: ignore[arg-type]
+
+    license_decision = policy.can_serialize("source_with_unknown_license", "record.value")
+    tier_decision = SourceFieldPolicy().can_serialize(
+        "myvariant_gnomad_only",
+        "gnomad_genome.af",
+        product_tier="mystery_tier",
+    )
+
+    assert license_decision.allowed is False
+    assert license_decision.reason == "unknown_license"
+    assert tier_decision.allowed is False
+    assert tier_decision.reason == "unknown_product_tier"

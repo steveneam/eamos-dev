@@ -60,7 +60,7 @@ def test_esm1b_genomic_snv_rows_emit_single_base_plus_strand_paths() -> None:
         (100, "G", "C"),
         (100, "G", "T"),
     ]
-    assert {row.acmg_band for row in rows} == {"PP3_Moderate"}
+    assert {row.acmg_band for row in rows} == {"PP3 Moderate"}
     assert rows[0].to_tsv_fields()[4] == "-12.2000"
 
 
@@ -79,7 +79,7 @@ def test_esm1b_genomic_snv_rows_reverse_complement_negative_strand_alleles() -> 
     )
 
     assert [(row.position, row.ref, row.alt) for row in rows] == [(300, "C", "T")]
-    assert rows[0].acmg_band == "PP3_Strong"
+    assert rows[0].acmg_band == "PP3 3 points"
 
 
 def test_esm1b_genomic_snv_rows_reject_ref_codon_mismatch() -> None:
@@ -142,8 +142,8 @@ def test_assemble_esm1b_mane_fixture_snv_table_emits_tsv_and_manifest() -> None:
     )
 
     expected_tsv = (
-        "chr1\t100\tG\tA\t-12.2000\tPP3_Moderate\tP00001-1\tNM_000001.1\tV1M\n"
-        "chr1\t300\tC\tT\t-14.0000\tPP3_Strong\tP00002-1\tNM_000002.1\tV1M\n"
+        "chr1\t100\tG\tA\t-12.2000\tPP3 Moderate\tP00001-1\tNM_000001.1\tV1M\n"
+        "chr1\t300\tC\tT\t-14.0000\tPP3 3 points\tP00002-1\tNM_000002.1\tV1M\n"
     )
     assert result.tsv == expected_tsv
     assert [row.position for row in result.rows] == [100, 300]

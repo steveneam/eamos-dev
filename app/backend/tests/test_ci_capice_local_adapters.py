@@ -59,7 +59,7 @@ def test_ci_spliceai_local_adapter_maps_vcf_info_with_launch_metadata(
     assert lookup.score.max_delta == 0.72
     assert lookup.score.max_component == "acceptor_loss"
     assert lookup.calibrated_label == "Strong splice impact"
-    assert lookup.calibration_bucket == "Pathogenic"
+    assert lookup.calibration_bucket is None
     assert lookup.public_serialization_allowed is True
     assert lookup.launch_gate == CI_SPLICEAI_LAUNCH_GATE
     assert lookup.warnings == ("ci_spliceai_launch_gate_metadata", CI_SPLICEAI_LAUNCH_GATE)
@@ -169,8 +169,8 @@ def test_revel_local_adapter_maps_tabix_score_with_launch_metadata(tmp_path: Pat
     assert lookup.score is not None
     assert lookup.score.name == "REVEL"
     assert lookup.score.score == 0.78
-    assert lookup.calibrated_label == "Moderate damaging"
-    assert lookup.calibration_bucket == "Likely pathogenic"
+    assert lookup.calibrated_label == "PP3 Moderate"
+    assert lookup.calibration_bucket is None
     assert lookup.public_serialization_allowed is True
     assert lookup.launch_gate == REVEL_LAUNCH_GATE
     assert lookup.warnings == ("revel_launch_gate_metadata", REVEL_LAUNCH_GATE)
@@ -212,7 +212,7 @@ def test_primateai3d_local_adapter_maps_tabix_score_with_launch_metadata(
     assert lookup.score is not None
     assert lookup.score.name == "PrimateAI-3D"
     assert lookup.score.score == 0.61
-    assert lookup.calibrated_label is None
+    assert lookup.calibrated_label == "Indeterminate"
     assert lookup.calibration_bucket is None
     assert lookup.public_serialization_allowed is True
     assert lookup.launch_gate == PRIMATEAI3D_LAUNCH_GATE

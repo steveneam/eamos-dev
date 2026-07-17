@@ -338,10 +338,10 @@ export function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = 
           <MaveFunctionalBlock
             gene={row0?.gene}
             query={query}
-            study={
-              payload.functional_evidence?.studies.find((study) =>
-                study.source_tags.includes('mavedb'),
-              ) ?? null
+            studies={
+              payload.functional_evidence?.studies.filter(
+                (study) => study.source_tags.includes('mavedb'),
+              ) ?? []
             }
           />
           <AcmgCriteriaFold data={payload.acmg_criteria_scaffold} />

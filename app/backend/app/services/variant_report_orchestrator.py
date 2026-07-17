@@ -30,11 +30,20 @@ from app.schemas.run import (
 from app.services.population_frequency_section import build_population_frequency_section
 from app.services.clinical_consensus import sanitize_acmg_rationale
 from app.services.computational_calibration import calibration_field_values
+from app.services.computational_evidence import (
+    build_computational_evidence_decision,
+    selection_accounting,
+)
 from app.services.report_data_currency import current_report_timestamp, latest_evidence_timestamp
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
-from app.services.report_provenance import provenance_for_source, provenance_from_evidence
+from app.services.report_provenance import (
+    provenance_for_source,
+    provenance_from_evidence,
+    source_provenance_from_mapping,
+)
 from app.services.search_input_resolver import SearchInputResolution
 from app.services.variant_report_helpers import (
+    _associated_condition_publicly_usable,
     _chromosome,
     _chromosome_from_variant_validator,
     _classification_text,
@@ -118,6 +127,16 @@ class VariantReportDataOrchestrator:
             evidence_statuses=evidence_statuses,
             provenance=provenance,
         )
+        computational_decision = build_computational_evidence_decision(
+            payload=payload,
+            evidence_map=evidence_map,
+            disease_mechanism=disease_mechanism,
+            deep_dive=computational_deep_dive,
+        )
+        if computational_deep_dive is not None:
+            computational_deep_dive = computational_deep_dive.model_copy(
+                update={"selection_accounting": selection_accounting(computational_decision)}
+            )
         acmg_worksheet = _build_acmg_worksheet(payload, evidence_map)
         expert_panel = _build_expert_panel(evidence, evidence_map)
         therapies_trials = _build_therapies_trials(
@@ -133,6 +152,7 @@ class VariantReportDataOrchestrator:
             gene_context_snapshot=gene_context_snapshot,
             population_frequency=population_frequency,
             molecular_context=molecular_context,
+            computational_decision=computational_decision,
             computational_deep_dive=computational_deep_dive,
             acmg_worksheet=acmg_worksheet,
             expert_panel=expert_panel,
@@ -289,7 +309,14 @@ def _build_disease_mechanism(
             warnings=warnings,
         )
 
-    condition = payload.associated_conditions[0] if payload.associated_conditions else None
+    condition = next(
+        (
+            item
+            for item in payload.associated_conditions
+            if _associated_condition_publicly_usable(item)
+        ),
+        None,
+    )
     warnings: list[str] = []
     if condition is None:
         warnings.append("disease_sources_not_hydrated")
@@ -578,14 +605,7 @@ def _computational_row_from_dict(item: dict[str, Any]) -> ComputationalPredictor
         source=source,
         source_id=_optional_text(item.get("source_id")),
         version=_optional_text(item.get("version")),
-        calibrated_label=_optional_text(item.get("calibrated_label"))
-        or calibration["calibrated_label"],
-        calibration_bucket=_optional_text(item.get("calibration_bucket"))
-        or calibration["calibration_bucket"],
-        calibration_method=_optional_text(item.get("calibration_method"))
-        or calibration["calibration_method"],
-        calibration_version=_optional_text(item.get("calibration_version"))
-        or calibration["calibration_version"],
+        **calibration,
         source_url=_optional_text(item.get("source_url")),
         public_serialization_allowed=_optional_bool(item.get("public_serialization_allowed")),
         launch_gate=_optional_text(item.get("launch_gate")),
@@ -647,10 +667,7 @@ def _computational_annotations_provenance(
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            try:
-                provenance.append(SourceProvenance.model_validate(item))
-            except Exception:
-                continue
+            provenance.append(source_provenance_from_mapping(item))
     if provenance:
         return provenance
     gene = _optional_text(summary.get("gene"))
@@ -867,10 +884,7 @@ def _gene_disease_provenance(
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            try:
-                provenance.append(SourceProvenance.model_validate(item))
-            except Exception:
-                continue
+            provenance.append(source_provenance_from_mapping(item))
     if provenance:
         return provenance
     gene = _optional_text(summary.get("approved_symbol") or summary.get("gene"))

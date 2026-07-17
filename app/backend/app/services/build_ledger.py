@@ -391,24 +391,28 @@ def build_backend_build_ledger(
             item_id="mavedb",
             label="MaveDB functional evidence",
             group="functional_evidence",
-            source_ids=("mavedb_cc0",),
-            engine="URN/HGVS/genomic ETL with Postgres or tabix lookup",
+            source_ids=("mavedb_cc0_bulk", "mavedb_public_api_metadata"),
+            engine="schema-v2 exact-identity CC0 archive reader",
             durable_source="supabase_postgres_or_private_storage_tabix",
             runtime_source="supabase_postgres_or_render_disk_tabix",
             render_disk_role="runtime_cache_optional",
             storage_decision=(
-                "CC0 records fit Supabase Postgres first; add Render tabix only for measured "
-                "lookup pressure."
+                "Require an immutable archive digest plus a local logical checksum. Raw scores "
+                "remain neutral and calibration objects use a separate future source contract."
             ),
             status=mavedb_status,
             runtime_wired=True,
             public_serialization_allowed=mavedb_status == "ready",
-            blockers=() if mavedb_status == "ready" else ("cc0_import_materialization",),
+            blockers=(
+                ()
+                if mavedb_status == "ready"
+                else ("archive_proof_and_logical_checksum_materialization",)
+            ),
             wired_surfaces=("lookup", "report"),
             next_action=(
                 None
                 if mavedb_status == "ready"
-                else "Materialize CC0 import and validate public field policy."
+                else "Verify one approved immutable CC0 archive, then materialize schema v2."
             ),
         ),
         BuildLedgerItem(
@@ -860,7 +864,7 @@ def _literature_embedding_status(settings: Settings) -> str:
 
 def _mavedb_status(settings: Settings) -> str:
     try:
-        inspection = inspect_mavedb_local_store(settings, verify_checksum=False)
+        inspection = inspect_mavedb_local_store(settings, verify_checksum=True)
     except Exception:
         return "runtime_asset_probe_failed"
     return inspection.status

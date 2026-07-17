@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, model_validator
 
 from app.schemas.gene_viewer import ViewerSegment, ViewerSequences, ViewerWindow
 from app.schemas.protein_annotation import ProteinDomainTrack
@@ -113,6 +114,196 @@ EamosComputedStrength = Literal["very_strong", "strong", "moderate", "supporting
 EamosComputedBenignCut = Literal["tavtigian_2020", "acgs_panel"]
 AcmgCaseContextLimitationStatus = Literal["not_scored"]
 AcmgCaseContextLimitationReason = Literal["missing_case_context"]
+SourceOriginKind = Literal["direct", "cross_reference", "derived"]
+SourcePolicyOutcome = Literal["allowed", "denied"]
+SourcePolicyAction = Literal[
+    "acquire",
+    "cache",
+    "normalize",
+    "public_serialize",
+    "product_export",
+    "log",
+    "analyze",
+    "backup",
+    "stage",
+    "restore",
+    "raw_debug",
+]
+ComputationalStandardStatus = Literal["published", "draft", "shadow", "withdrawn"]
+ComputationalEvidenceFamily = Literal["PP3_BP4", "SPLICE", "other"]
+ComputationalApplicability = Literal[
+    "applicable",
+    "not_applicable",
+    "unavailable",
+    "not_assessed",
+]
+ComputationalCountedStatus = Literal[
+    "counted",
+    "context_only",
+    "separate_mechanism",
+    "rejected",
+]
+
+
+class SourcePolicyDecision(BaseModel):
+    action: SourcePolicyAction
+    field: str
+    outcome: SourcePolicyOutcome
+    reason: str
+    decided_at: datetime
+
+
+class SourceFactPolicyEnvelope(BaseModel):
+    source_id: str | None = None
+    source_record_id: str | None = None
+    source_version: str | None = None
+    source_url: str | None = None
+    retrieved_at: datetime | None = None
+    origin_kind: SourceOriginKind = "direct"
+    match_level: str | None = None
+    record_license: str | None = None
+    terms_version_or_hash: str | None = None
+    license_gate: str | None = None
+    launch_gate: str | None = None
+    public_serialization_allowed: bool | None = None
+    export_allowed: bool | None = None
+    cache_allowed: bool | None = None
+    attribution: str | None = None
+    policy_version: str | None = None
+    decision_reason: str | None = None
+    decision_at: datetime | None = None
+    policy_decisions: list[SourcePolicyDecision] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _recompute_permission_projections(self) -> SourceFactPolicyEnvelope:
+        if not self.policy_decisions:
+            return self
+        self.public_serialization_allowed = _policy_projection(
+            self.policy_decisions, "public_serialize"
+        )
+        self.export_allowed = _policy_projection(self.policy_decisions, "product_export")
+        self.cache_allowed = _policy_projection(self.policy_decisions, "cache")
+        self.decision_at = max(decision.decided_at for decision in self.policy_decisions)
+        denied = next(
+            (decision for decision in self.policy_decisions if decision.outcome == "denied"),
+            None,
+        )
+        if denied is not None:
+            self.decision_reason = f"{denied.action}:{denied.field}:{denied.reason}"
+        elif self.decision_reason is None:
+            self.decision_reason = "all_recorded_policy_decisions_allowed"
+        return self
+
+
+def _policy_projection(
+    decisions: list[SourcePolicyDecision],
+    action: SourcePolicyAction,
+) -> bool:
+    relevant = [decision for decision in decisions if decision.action == action]
+    return bool(relevant) and all(decision.outcome == "allowed" for decision in relevant)
+
+
+def _serialization_policy_action(info: Any) -> str:
+    context = getattr(info, "context", None)
+    if isinstance(context, dict):
+        action = context.get("source_policy_action")
+        if isinstance(action, str) and action:
+            return action
+    return "public_serialize"
+
+
+def _source_fact_output_allowed(fact: SourceFactPolicyEnvelope, action: str) -> bool:
+    if action == "public_serialize":
+        if fact.public_serialization_allowed is False:
+            return False
+        if _protected_source_fact(fact):
+            return fact.public_serialization_allowed is True
+        return True
+    if action == "product_export":
+        return fact.export_allowed is True
+    if action == "cache":
+        return fact.cache_allowed is True
+    relevant = [decision for decision in fact.policy_decisions if decision.action == action]
+    return bool(relevant) and all(decision.outcome == "allowed" for decision in relevant)
+
+
+def _protected_source_fact(fact: SourceFactPolicyEnvelope) -> bool:
+    source_text = " ".join(
+        str(value or "")
+        for value in (
+            fact.source_id,
+            getattr(fact, "source", None),
+            getattr(fact, "source_list", None),
+        )
+    ).casefold()
+    return any(source in source_text for source in ("omim", "lovd", "mavedb"))
+
+
+class ComputationalAlternate(BaseModel):
+    predictor_id: str
+    raw_score: Decimal | None = None
+    calibration_normalized_score: Decimal | None = None
+    score_unit: str | None = None
+    calibration_id: str | None = None
+    calibration_version: str | None = None
+    evidence_code: Literal["PP3", "BP4"] | None = None
+    calibration_points: Decimal | None = None
+    counted_status: ComputationalCountedStatus = "context_only"
+    non_counted_reason: str | None = None
+    tool_version: str | None = None
+    model_version: str | None = None
+    data_version: str | None = None
+    source_version: str | None = None
+    source_url: str | None = None
+
+
+class ComputationalEvidenceDecision(BaseModel):
+    ruleset_id: str
+    ruleset_version: str
+    standard_label: str
+    standard_status: ComputationalStandardStatus
+    application_id: str
+    gene_id: str | None = None
+    disease_id: str | None = None
+    transcript_id: str | None = None
+    protein_id: str | None = None
+    normalized_variant_id: str | None = None
+    variant_scope: str
+    mechanism_applicability: str
+    evidence_family: ComputationalEvidenceFamily
+    selected_predictor_id: str | None = None
+    selection_policy: str
+    selection_rationale: str
+    declared_fallback_policy: str
+    applicability: ComputationalApplicability
+    raw_score: Decimal | None = None
+    calibration_normalized_score: Decimal | None = None
+    score_unit: str | None = None
+    score_native_precision: Decimal | None = None
+    score_quantization_rule: str | None = None
+    evidence_code: Literal["PP3", "BP4"] | None = None
+    calibration_points: Decimal | None = None
+    evidence_points: Decimal
+    evidence_label: str
+    calibration_id: str | None = None
+    calibration_version: str | None = None
+    calibration_profile_checksum: str | None = None
+    interval_lower: Decimal | None = None
+    interval_lower_inclusive: bool | None = None
+    interval_upper: Decimal | None = None
+    interval_upper_inclusive: bool | None = None
+    dependency_group: str
+    counted_status: ComputationalCountedStatus
+    non_counted_reason: str | None = None
+    tool_version: str | None = None
+    model_version: str | None = None
+    data_version: str | None = None
+    source_version: str | None = None
+    source_url: str | None = None
+    source_retrieved_at: datetime | None = None
+    source_checksum: str | None = None
+    alternates: list[ComputationalAlternate] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class PublicationSnippet(BaseModel):
@@ -215,7 +406,7 @@ class FunctionalEvidenceDisplayMetrics(BaseModel):
     ui_color_theme: str = "neutral_slate_state"
 
 
-class FunctionalStudy(BaseModel):
+class FunctionalStudy(SourceFactPolicyEnvelope):
     id: str
     pmid: str | None = None
     url: str | None = None
@@ -224,9 +415,37 @@ class FunctionalStudy(BaseModel):
     source_tags: list[FunctionalEvidenceSourceTag] = Field(default_factory=list)
     evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
     asserted_codes: list[str] = Field(default_factory=list)
-    functional_score: float | None = None
+    functional_score: Decimal | None = None
     functional_score_label: str | None = None
+    raw_score: str | None = None
+    score_unit: str | None = None
+    score_column: str | None = None
+    score_direction: str | None = None
+    score_set_urn: str | None = None
+    variant_urn: str | None = None
+    target_accession: str | None = None
+    target_identity: str | None = None
+    archive_release_doi: str | None = None
+    archive_sha256: str | None = None
+    archive_checksum_algorithm: str | None = None
+    archive_checksum_value: str | None = None
+    archive_checksum_verified: bool | None = None
+    local_logical_checksum_verified: bool | None = None
+    data_usage_policy_decision: str | None = None
+    match_requested_identity: str | None = None
+    match_matched_identity: str | None = None
+    calibration_status: str | None = None
+    deprecated: bool = False
+    superseded_by: str | None = None
+    provenance: list[SourceProvenance] = Field(default_factory=list)
     snippet: str | None = None
+
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
 
 
 class FunctionalEvidenceSummary(BaseModel):
@@ -241,6 +460,15 @@ class FunctionalEvidenceSummary(BaseModel):
     )
     studies: list[FunctionalStudy] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+    @field_serializer("studies", when_used="json")
+    def _serialize_public_studies(
+        self,
+        studies: list[FunctionalStudy],
+        info: Any,
+    ) -> list[FunctionalStudy]:
+        action = _serialization_policy_action(info)
+        return [study for study in studies if _source_fact_output_allowed(study, action)]
 
 
 class EamosComputedVersionPin(BaseModel):
@@ -260,9 +488,9 @@ class EamosComputedCriterion(BaseModel):
     direction: EamosComputedDirection
     triggered: bool
     applied_strength: EamosComputedStrength | None = None
-    points: int
-    evidence_value: str | int | float | None = None
-    threshold: str | int | float | None = None
+    points: Decimal
+    evidence_value: str | int | float | Decimal | None = None
+    threshold: str | int | float | Decimal | None = None
     source_db: str | None = None
     source_version: str | None = None
     svi_reference: str | None = None
@@ -279,13 +507,13 @@ class AcmgCaseContextLimitation(BaseModel):
 
 class EamosComputedClassification(BaseModel):
     acmg_version_pin: EamosComputedVersionPin
-    net_points: int
-    sum_pathogenic: int
-    sum_benign: int
+    net_points: Decimal
+    sum_pathogenic: Decimal
+    sum_benign: Decimal
     tier: EamosComputedTier
     conflict: EamosComputedConflict
     ba1_override: bool
-    posterior: float = Field(ge=0.0, le=1.0)
+    posterior: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
     benign_cut: EamosComputedBenignCut
     per_criterion: list[EamosComputedCriterion] = Field(default_factory=list)
     limitations: list[AcmgCaseContextLimitation] = Field(default_factory=list)
@@ -476,7 +704,7 @@ class CuratedVariantsDistribution(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-class AssociatedCondition(BaseModel):
+class AssociatedCondition(SourceFactPolicyEnvelope):
     name: str
     case_count: int
     evidence_level: Literal["definitive", "strong", "moderate", "limited"]
@@ -585,13 +813,12 @@ class EvidenceIdentityMatch(BaseModel):
     auto_attach_allowed: bool
 
 
-class SourceProvenance(BaseModel):
+class SourceProvenance(SourceFactPolicyEnvelope):
     source: str
     status: SourceStatus
     query: dict[str, str] = Field(default_factory=dict)
-    source_url: str | None = None
-    retrieved_at: datetime | None = None
     version: str | None = None
+    storage_kind: str | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -705,6 +932,13 @@ class DiseaseMechanismSection(BaseModel):
     provenance: list[SourceProvenance] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
+
 
 class MolecularContextSection(BaseModel):
     chromosome: str | None = None
@@ -721,6 +955,13 @@ class MolecularContextSection(BaseModel):
     provenance: list[SourceProvenance] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
+
 
 class ComputationalPredictorRow(BaseModel):
     name: str
@@ -734,6 +975,18 @@ class ComputationalPredictorRow(BaseModel):
     calibration_bucket: RampVerdict | None = None
     calibration_method: str | None = None
     calibration_version: str | None = None
+    calibration_id: str | None = None
+    calibration_profile_checksum: str | None = None
+    calibration_normalized_score: Decimal | None = None
+    score_unit: str | None = None
+    score_native_precision: Decimal | None = None
+    score_quantization_rule: str | None = None
+    evidence_code: Literal["PP3", "BP4", "SPLICE"] | None = None
+    evidence_points: Decimal | None = None
+    interval_lower: Decimal | None = None
+    interval_lower_inclusive: bool | None = None
+    interval_upper: Decimal | None = None
+    interval_upper_inclusive: bool | None = None
     source_url: str | None = None
     public_serialization_allowed: bool | None = None
     launch_gate: str | None = None
@@ -742,11 +995,19 @@ class ComputationalPredictorRow(BaseModel):
 
 class ComputationalDeepDiveSection(BaseModel):
     predictors: list[ComputationalPredictorRow] = Field(default_factory=list)
+    selection_accounting: str | None = None
     spliceai_max_delta: float | None = None
     spliceai_consequence: str | None = None
     conservation: list[ComputationalPredictorRow] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
 
 
 class AcmgWorksheetCriterion(BaseModel):
@@ -805,6 +1066,13 @@ class TherapiesTrialsSection(BaseModel):
     query_executions: list[ClinicalTrialQueryExecution] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
+
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
 
 
 class PopulationFrequencyVisualScale(BaseModel):
@@ -910,6 +1178,13 @@ class PopulationFrequencyReportSection(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
 
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
+
 
 GeneContextVariantMembership = Literal["exon", "intron", "outside_transcript", "unknown"]
 GeneContextOverviewMode = Literal["compressed_introns", "linear"]
@@ -999,6 +1274,13 @@ class GeneContextSnapshot(BaseModel):
     provenance: list[SourceProvenance] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
+
 
 class ReportSectionSignal(BaseModel):
     section_id: str
@@ -1022,12 +1304,20 @@ class VariantReportProfile(BaseModel):
     gene_context_snapshot: GeneContextSnapshot | None = None
     population_frequency: PopulationFrequencyReportSection | None = None
     molecular_context: MolecularContextSection | None = None
+    computational_decision: ComputationalEvidenceDecision | None = None
     computational_deep_dive: ComputationalDeepDiveSection | None = None
     acmg_worksheet: AcmgWorksheetLedger | None = None
     expert_panel: ExpertPanelSection | None = None
     therapies_trials: TherapiesTrialsSection | None = None
     section_signals: list[ReportSectionSignal] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
+
+    @field_serializer("provenance", when_used="json")
+    def _serialize_policy_provenance(
+        self, provenance: list[SourceProvenance], info: Any
+    ) -> list[SourceProvenance]:
+        action = _serialization_policy_action(info)
+        return [item for item in provenance if _source_fact_output_allowed(item, action)]
 
 
 REPORT_SOURCE_FILENAMES_MAX = 32
@@ -1085,6 +1375,17 @@ class ReportPayload(BaseModel):
     call_cards: VariantReportCallCards | None = None
     report_profile: VariantReportProfile | None = None
     eamos_computed_classification: EamosComputedClassification | None = None
+
+    @field_serializer("associated_conditions", when_used="json")
+    def _serialize_public_conditions(
+        self,
+        conditions: list[AssociatedCondition],
+        info: Any,
+    ) -> list[AssociatedCondition]:
+        action = _serialization_policy_action(info)
+        return [
+            condition for condition in conditions if _source_fact_output_allowed(condition, action)
+        ]
 
 
 class RunResponse(BaseModel):

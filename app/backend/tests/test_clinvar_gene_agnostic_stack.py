@@ -262,9 +262,9 @@ def test_project_100_report_queries_emit_empty_computed_acmg_without_fixture_ble
             failures.append(f"{sample_id}: header cdna mismatch")
         if computed["tier"] != "VUS":
             failures.append(f"{sample_id}: unexpected tier {computed['tier']}")
-        if computed["net_points"] != 0:
+        if computed["net_points"] != "0":
             failures.append(f"{sample_id}: unexpected net points {computed['net_points']}")
-        if computed["sum_pathogenic"] != 0 or computed["sum_benign"] != 0:
+        if computed["sum_pathogenic"] != "0" or computed["sum_benign"] != "0":
             failures.append(
                 f"{sample_id}: unexpected point sums "
                 f"{computed['sum_pathogenic']}/{computed['sum_benign']}"

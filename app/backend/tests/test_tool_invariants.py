@@ -614,11 +614,13 @@ def test_computational_annotations_fixture_returns_source_labeled_rows() -> None
     names = {row["name"] for row in result.summary["predictors"]}
     assert {"SpliceAI", "REVEL", "CADD PHRED", "PrimateAI-3D", "MetaLR"} <= names
     rows_by_name = {row["name"]: row for row in result.summary["predictors"]}
-    assert rows_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
-    assert rows_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
-    assert rows_by_name["REVEL"]["calibration_method"] == "Pejaver 2022 / ClinGen SVI PP3/BP4"
-    assert rows_by_name["CADD PHRED"]["calibration_bucket"] == "VUS"
-    assert rows_by_name["SpliceAI"]["calibration_bucket"] == "VUS"
+    assert rows_by_name["REVEL"]["calibrated_label"] == "PP3 Moderate"
+    assert rows_by_name["REVEL"]["calibration_bucket"] is None
+    assert rows_by_name["REVEL"]["calibration_method"] == (
+        "Eamos capped REVEL profile / Pejaver 2022"
+    )
+    assert rows_by_name["CADD PHRED"]["calibration_bucket"] is None
+    assert rows_by_name["SpliceAI"]["calibration_bucket"] is None
     assert rows_by_name["SpliceAI"]["calibration_method"] == ("Walker 2023 / ClinGen SVI splicing")
     assert rows_by_name["PrimateAI-3D"]["calibration_bucket"] is None
     assert rows_by_name["MetaLR"]["calibration_bucket"] is None
@@ -657,11 +659,11 @@ def test_computational_annotations_serializes_local_alpha_and_esm1b_rows() -> No
     assert result.status == "fixture"
     rows_by_name = {row["name"]: row for row in result.summary["predictors"]}
     assert rows_by_name["AlphaMissense"]["score"] == 0.792
-    assert rows_by_name["AlphaMissense"]["calibrated_label"] == "PP3_Strong"
+    assert rows_by_name["AlphaMissense"]["calibrated_label"] == "PP3 Supporting"
     assert rows_by_name["AlphaMissense"]["source_id"] == "google_deepmind_alphamissense_hg38"
     assert rows_by_name["AlphaMissense"]["public_serialization_allowed"] is True
     assert rows_by_name["ESM1b"]["score"] == -14.0
-    assert rows_by_name["ESM1b"]["calibrated_label"] == "PP3_Strong"
+    assert rows_by_name["ESM1b"]["calibrated_label"] == "PP3 3 points"
     assert rows_by_name["ESM1b"]["source_id"] == "esm1b_hg38_assembled_scores"
     assert rows_by_name["ESM1b"]["public_serialization_allowed"] is True
     assert rows_by_name["ESM1b"]["launch_gate"] == ESM1B_LICENSE_GATE
@@ -706,7 +708,7 @@ def test_computational_annotations_serializes_gene_agnostic_gated_predictor_rows
     assert rows_by_name["REVEL"]["source_id"] == REVEL_SOURCE_ID
     assert rows_by_name["REVEL"]["public_serialization_allowed"] is True
     assert rows_by_name["REVEL"]["launch_gate"] == REVEL_LAUNCH_GATE
-    assert rows_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
+    assert rows_by_name["REVEL"]["calibrated_label"] == "PP3 Moderate"
     assert rows_by_name["PrimateAI-3D"]["score"] == 0.61
     assert rows_by_name["PrimateAI-3D"]["source_id"] == PRIMATEAI3D_SOURCE_ID
     assert rows_by_name["PrimateAI-3D"]["public_serialization_allowed"] is True
@@ -862,10 +864,10 @@ class FakeAlphaMissenseAdapter:
                 uniprot_id="Q16518",
                 transcript_id="NM_000329.3",
                 protein_variant="D87G",
-                calibrated_label="PP3_Strong",
-                calibration_bucket="Pathogenic",
+                calibrated_label="PP3 Supporting",
+                calibration_bucket=None,
                 calibration_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
-                calibration_version="PMID:40084623",
+                calibration_version="doi:10.1016/j.gim.2025.101402",
                 provenance=AlphaMissenseProvenance(
                     source_id="google_deepmind_alphamissense_hg38",
                     source_version="AlphaMissense Zenodo test",
@@ -893,10 +895,10 @@ class FakeEsm1bAdapter:
                 uniprot_isoform="Q16518-1",
                 mane_tx="NM_000329.3",
                 aa_sub="D87G",
-                calibrated_label="PP3_Strong",
-                calibration_bucket="Pathogenic",
+                calibrated_label="PP3 3 points",
+                calibration_bucket=None,
                 calibration_method="Bergquist 2025 / ClinGen SVI PP3/BP4",
-                calibration_version="PMID:40084623",
+                calibration_version="doi:10.1016/j.gim.2025.101402",
                 public_serialization_allowed=True,
                 provenance=Esm1bProvenance(
                     source_id="esm1b_hg38_assembled_scores",
@@ -931,7 +933,7 @@ class FakeCiSpliceAiAdapter:
                 dp_al=-4,
             ),
             calibrated_label="Strong splice impact",
-            calibration_bucket="Pathogenic",
+            calibration_bucket=None,
             calibration_method="Walker 2023 / ClinGen SVI splicing",
             calibration_version="PMID:37352859",
             warnings=("ci_spliceai_launch_gate_metadata", CI_SPLICEAI_LAUNCH_GATE),
@@ -1000,10 +1002,10 @@ class FakeRevelAdapter:
                 source_label="dbNSFP",
                 source_version="REVEL test cache",
             ),
-            calibrated_label="Moderate damaging",
-            calibration_bucket="Likely pathogenic",
-            calibration_method="Pejaver 2022 / ClinGen SVI PP3/BP4",
-            calibration_version="PMID:36413997",
+            calibrated_label="PP3 Moderate",
+            calibration_bucket=None,
+            calibration_method="Eamos capped REVEL profile / Pejaver 2022",
+            calibration_version="eamos-revel-capped-v1+PMID:36413997",
             warnings=("revel_launch_gate_metadata", REVEL_LAUNCH_GATE),
             public_serialization_allowed=True,
             launch_gate=REVEL_LAUNCH_GATE,
@@ -1038,10 +1040,10 @@ class FakePrimateAi3dAdapter:
                 source_label="PrimateAI-3D",
                 source_version="PrimateAI-3D test cache",
             ),
-            calibrated_label=None,
+            calibrated_label="Indeterminate",
             calibration_bucket=None,
-            calibration_method=None,
-            calibration_version=None,
+            calibration_method="Pejaver 2022 / ClinGen SVI PP3/BP4",
+            calibration_version="PMID:36413997",
             warnings=("primateai3d_launch_gate_metadata", PRIMATEAI3D_LAUNCH_GATE),
             public_serialization_allowed=True,
             launch_gate=PRIMATEAI3D_LAUNCH_GATE,

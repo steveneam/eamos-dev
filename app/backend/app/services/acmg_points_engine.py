@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from decimal import Decimal, InvalidOperation, localcontext
 from typing import Literal
 
 from app.schemas.run import (
@@ -19,9 +20,9 @@ from app.services.pvs1_nmd import Pvs1NmdInput, assess_pvs1_nmd
 
 ACMG_FRAMEWORK = "Richards-2015 + Tavtigian-2020 points"
 PVS1_REVISION = "Abou-Tayoun-2018"
-PP3_CALIBRATION = "Pejaver-2022"
-POSTERIOR_PRIOR = 0.10
-ODDS_PATH_BASE = 2.08
+PP3_CALIBRATION = "eamos-revel-capped-v1+PMID:36413997"
+POSTERIOR_PRIOR = Decimal("0.10")
+ODDS_PATH_BASE = Decimal("2.08")
 PM2_POPMAX_THRESHOLD = 0.0001
 BS1_POPMAX_THRESHOLD = 0.01
 BA1_POPMAX_THRESHOLD = 0.05
@@ -66,46 +67,56 @@ _MUTUALLY_EXCLUSIVE_CODES: tuple[frozenset[str], ...] = (
     frozenset({"PS3", "BS3"}),
 )
 _DEPRECATED_TRIGGER_CODES = frozenset({"PP5", "BP6"})
-_STRENGTH_POINTS: dict[EamosComputedStrength, int] = {
-    "very_strong": 8,
-    "strong": 4,
-    "moderate": 2,
-    "supporting": 1,
+_STRENGTH_POINTS: dict[EamosComputedStrength, Decimal] = {
+    "very_strong": Decimal("8"),
+    "strong": Decimal("4"),
+    "moderate": Decimal("2"),
+    "supporting": Decimal("1"),
 }
 _DIRECTION_SIGN: dict[EamosComputedDirection, Literal[1, -1]] = {
     "pathogenic": 1,
     "benign": -1,
 }
+_PP3_PM1_COMBINED_CAP = Decimal("4")
+_PP3_PM1_CAP_WARNING = "pp3_points_capped_by_pm1_dependency_group"
 
 
 @dataclass(frozen=True)
 class AcmgCriterionApplication:
     code: str
     applied_strength: EamosComputedStrength | None = None
-    evidence_value: str | int | float | None = None
-    threshold: str | int | float | None = None
+    evidence_points: Decimal | str | int | float | None = None
+    evidence_value: str | int | float | Decimal | None = None
+    threshold: str | int | float | Decimal | None = None
     source_db: str | None = None
     source_version: str | None = None
     svi_reference: str | None = None
 
 
-def posterior_from_net(net_points: int) -> float:
-    odds_path = ODDS_PATH_BASE**net_points
-    return (odds_path * POSTERIOR_PRIOR) / ((odds_path - 1) * POSTERIOR_PRIOR + 1)
+def posterior_from_net(net_points: Decimal | str | int | float) -> Decimal:
+    net = _decimal_value(net_points, field_name="net_points")
+    with localcontext() as context:
+        context.prec = 40
+        odds_path = ODDS_PATH_BASE**net
+        posterior = (odds_path * POSTERIOR_PRIOR) / (
+            (odds_path - Decimal("1")) * POSTERIOR_PRIOR + Decimal("1")
+        )
+    return posterior.normalize()
 
 
 def tier_from_net(
-    net_points: int,
+    net_points: Decimal | str | int | float,
     benign_cut: EamosComputedBenignCut = "tavtigian_2020",
 ) -> EamosComputedTier:
-    if net_points >= 10:
+    net = _decimal_value(net_points, field_name="net_points")
+    if net >= Decimal("10"):
         return "Pathogenic"
-    if net_points >= 6:
+    if net >= Decimal("6"):
         return "Likely Pathogenic"
-    if net_points >= 0:
+    if net >= Decimal("0"):
         return "VUS"
-    benign_threshold = -6 if benign_cut == "acgs_panel" else -7
-    if net_points <= benign_threshold:
+    benign_threshold = Decimal("-6") if benign_cut == "acgs_panel" else Decimal("-7")
+    if net <= benign_threshold:
         return "Benign"
     return "Likely Benign"
 
@@ -113,8 +124,8 @@ def tier_from_net(
 def points_for_strength(
     direction: EamosComputedDirection,
     applied_strength: EamosComputedStrength,
-) -> int:
-    return _DIRECTION_SIGN[direction] * _STRENGTH_POINTS[applied_strength]
+) -> Decimal:
+    return Decimal(_DIRECTION_SIGN[direction]) * _STRENGTH_POINTS[applied_strength]
 
 
 def compute_acmg_points(
@@ -130,10 +141,17 @@ def compute_acmg_points(
     _reject_deprecated_triggers(normalized)
     _reject_duplicate_codes(normalized)
     _reject_mutually_exclusive_codes(normalized)
+    normalized, dependency_warnings = _cap_pp3_pm1_dependency(normalized)
 
     rows_by_code = _triggered_rows_by_code(normalized)
-    sum_pathogenic = sum(row.points for row in rows_by_code.values() if row.points > 0)
-    sum_benign = sum(abs(row.points) for row in rows_by_code.values() if row.points < 0)
+    sum_pathogenic = sum(
+        (row.points for row in rows_by_code.values() if row.points > 0),
+        Decimal("0"),
+    )
+    sum_benign = sum(
+        (abs(row.points) for row in rows_by_code.values() if row.points < 0),
+        Decimal("0"),
+    )
     net_points = sum_pathogenic - sum_benign
     ba1_override = rows_by_code.get("BA1", _not_assessed_row("BA1")).triggered
     conflict = EamosComputedConflict(
@@ -150,6 +168,7 @@ def compute_acmg_points(
     limitation_rows = limitations or []
     compatibility_warnings = [
         *[warning for warning in (warnings or [])],
+        *dependency_warnings,
         *[_warning_for_limitation(limitation) for limitation in limitation_rows],
     ]
 
@@ -183,6 +202,12 @@ def compute_report_acmg_classification(
     limitations = _case_context_limitations(payload, evidence_map, applications)
     return compute_acmg_points(
         applications,
+        warnings=(
+            list(payload.report_profile.computational_decision.warnings)
+            if payload.report_profile is not None
+            and payload.report_profile.computational_decision is not None
+            else None
+        ),
         limitations=limitations,
     )
 
@@ -292,11 +317,19 @@ def _triggered_rows_by_code(
     rows: dict[str, EamosComputedCriterion] = {}
     for application in applications:
         direction = _direction_for_code(application.code)
-        points = 0
+        points = Decimal("0")
         if application.code != "BA1":
-            if application.applied_strength is None:
-                raise ValueError(f"{application.code} requires applied_strength")
-            points = points_for_strength(direction, application.applied_strength)
+            if application.evidence_points is not None:
+                points = _decimal_value(
+                    application.evidence_points,
+                    field_name=f"{application.code}.evidence_points",
+                )
+            else:
+                if application.applied_strength is None:
+                    raise ValueError(
+                        f"{application.code} requires applied_strength or evidence_points"
+                    )
+                points = points_for_strength(direction, application.applied_strength)
 
         rows[application.code] = EamosComputedCriterion(
             code=application.code,
@@ -420,14 +453,39 @@ def _computational_application(
     payload: ReportPayload,
     evidence_map: dict[str, dict],
 ) -> AcmgCriterionApplication | None:
-    rows = _computational_rows(payload, evidence_map)
-    pp3 = _best_computational_row(rows, "PP3")
-    bp4 = _best_computational_row(rows, "BP4")
-    if pp3 is not None and bp4 is not None:
+    del evidence_map
+    profile = payload.report_profile
+    decision = profile.computational_decision if profile is not None else None
+    if decision is None:
         return None
-    if pp3 is not None:
-        return pp3
-    return bp4
+    if (
+        decision.standard_status != "published"
+        or decision.ruleset_id != "richards_2015_tavtigian_2020_eamos_v1"
+        or decision.evidence_family != "PP3_BP4"
+        or decision.selected_predictor_id != "revel"
+        or decision.declared_fallback_policy != "none"
+        or decision.calibration_id != "revel_pejaver_2022_capped"
+        or decision.applicability != "applicable"
+        or decision.counted_status != "counted"
+        or decision.evidence_code not in {"PP3", "BP4"}
+        or decision.evidence_points == 0
+    ):
+        return None
+    direction = _direction_for_code(decision.evidence_code)
+    if (direction == "pathogenic" and decision.evidence_points < 0) or (
+        direction == "benign" and decision.evidence_points > 0
+    ):
+        return None
+    return AcmgCriterionApplication(
+        code=decision.evidence_code,
+        applied_strength=_strength_for_points(decision.evidence_points),
+        evidence_points=decision.evidence_points,
+        evidence_value=decision.calibration_normalized_score,
+        threshold=_interval_threshold(decision),
+        source_db="REVEL",
+        source_version=decision.source_version or decision.model_version,
+        svi_reference=decision.calibration_version,
+    )
 
 
 def _pvs1_application(
@@ -583,80 +641,6 @@ def _population_frequency_value(population) -> float | None:
     return max(present) if present else None
 
 
-def _computational_rows(
-    payload: ReportPayload,
-    evidence_map: dict[str, dict],
-) -> list[dict]:
-    rows: list[dict] = []
-    if payload.report_profile is not None and payload.report_profile.computational_deep_dive:
-        section = payload.report_profile.computational_deep_dive
-        rows.extend(row.model_dump(mode="json") for row in section.predictors)
-
-    computational = evidence_map.get("computational_annotations")
-    if isinstance(computational, dict):
-        rows.extend(_list_of_dicts(computational.get("predictors")))
-    return rows
-
-
-def _best_computational_row(
-    rows: list[dict],
-    code: str,
-) -> AcmgCriterionApplication | None:
-    candidates: list[tuple[int, AcmgCriterionApplication]] = []
-    for row in rows:
-        code_strength = _computational_code_strength(row)
-        if code_strength is None:
-            continue
-        row_code, strength = code_strength
-        if row_code != code:
-            continue
-        direction = _direction_for_code(code)
-        application = AcmgCriterionApplication(
-            code,
-            strength,
-            evidence_value=row.get("score"),
-            threshold=row.get("threshold"),
-            source_db=_optional_text(row.get("name")) or _optional_text(row.get("source")),
-            source_version=_optional_text(row.get("version"))
-            or _optional_text(row.get("calibration_version")),
-            svi_reference=_optional_text(row.get("calibration_version")),
-        )
-        candidates.append((abs(points_for_strength(direction, strength)), application))
-    if not candidates:
-        return None
-    candidates.sort(key=lambda item: item[0], reverse=True)
-    return candidates[0][1]
-
-
-def _computational_code_strength(row: dict) -> tuple[str, EamosComputedStrength] | None:
-    label = _optional_text(row.get("calibrated_label")) or _optional_text(row.get("acmg_band"))
-    if not label:
-        return None
-    explicit_code = _normalize_code_label(label)
-    if explicit_code in {"PP3", "BP4"}:
-        strength = _normalize_applied_strength(label) or _default_strength_for_code(explicit_code)
-        return (explicit_code, strength) if strength is not None else None
-
-    method = (_optional_text(row.get("calibration_method")) or "").lower()
-    if "pp3/bp4" not in method:
-        return None
-    lowered = label.lower()
-    if "damaging" in lowered:
-        code = "PP3"
-    elif "benign" in lowered:
-        code = "BP4"
-    else:
-        return None
-    strength = _normalize_applied_strength(label) or _default_strength_for_code(code)
-    return (code, strength) if strength is not None else None
-
-
-def _normalize_code_label(value: str) -> str | None:
-    match = value.strip().upper().replace("-", "_").split("_", 1)
-    code = match[0]
-    return code if code in _ALL_CODE_SET else None
-
-
 def _pvs1_exon_context(payload: ReportPayload) -> tuple[int | None, int | None]:
     snapshot = payload.report_profile.gene_context_snapshot if payload.report_profile else None
     variant = snapshot.variant if snapshot is not None else None
@@ -687,15 +671,98 @@ def _normalize_application(application: AcmgCriterionApplication) -> AcmgCriteri
     strength = application.applied_strength
     if strength is not None and strength not in _STRENGTH_POINTS:
         raise ValueError(f"unsupported ACMG applied_strength: {strength}")
+    evidence_points = (
+        _decimal_value(application.evidence_points, field_name=f"{code}.evidence_points")
+        if application.evidence_points is not None
+        else None
+    )
+    if code == "BA1":
+        if evidence_points not in {None, Decimal("0")}:
+            raise ValueError("BA1 is a stand-alone override and cannot carry evidence_points")
+        evidence_points = None
+    elif evidence_points is not None:
+        if evidence_points == 0:
+            raise ValueError(f"{code}.evidence_points must be non-zero when triggered")
+        direction = _direction_for_code(code)
+        if (direction == "pathogenic" and evidence_points < 0) or (
+            direction == "benign" and evidence_points > 0
+        ):
+            raise ValueError(f"{code}.evidence_points has the wrong direction")
+        if strength is not None and evidence_points != points_for_strength(direction, strength):
+            raise ValueError(f"{code}.evidence_points conflicts with applied_strength")
     return AcmgCriterionApplication(
         code=code,
         applied_strength=strength,
+        evidence_points=evidence_points,
         evidence_value=application.evidence_value,
         threshold=application.threshold,
         source_db=application.source_db,
         source_version=application.source_version,
         svi_reference=application.svi_reference,
     )
+
+
+def _cap_pp3_pm1_dependency(
+    applications: list[AcmgCriterionApplication],
+) -> tuple[list[AcmgCriterionApplication], list[str]]:
+    by_code = {application.code: application for application in applications}
+    pp3 = by_code.get("PP3")
+    pm1 = by_code.get("PM1")
+    if pp3 is None or pm1 is None:
+        return applications, []
+
+    pp3_points = _application_points(pp3)
+    pm1_points = _application_points(pm1)
+    if pp3_points + pm1_points <= _PP3_PM1_COMBINED_CAP:
+        return applications, []
+
+    allowed = max(Decimal("0"), _PP3_PM1_COMBINED_CAP - pm1_points)
+    adjusted: list[AcmgCriterionApplication] = []
+    for application in applications:
+        if application.code != "PP3":
+            adjusted.append(application)
+        elif allowed > 0:
+            adjusted.append(
+                replace(
+                    application,
+                    applied_strength=_strength_for_points(allowed),
+                    evidence_points=allowed,
+                )
+            )
+    return adjusted, [_PP3_PM1_CAP_WARNING]
+
+
+def _application_points(application: AcmgCriterionApplication) -> Decimal:
+    if application.code == "BA1":
+        return Decimal("0")
+    if application.evidence_points is not None:
+        return _decimal_value(
+            application.evidence_points,
+            field_name=f"{application.code}.evidence_points",
+        )
+    if application.applied_strength is None:
+        raise ValueError(f"{application.code} requires applied_strength or evidence_points")
+    return points_for_strength(_direction_for_code(application.code), application.applied_strength)
+
+
+def _strength_for_points(points: Decimal) -> EamosComputedStrength | None:
+    magnitude = abs(points)
+    return next(
+        (strength for strength, value in _STRENGTH_POINTS.items() if value == magnitude),
+        None,
+    )
+
+
+def _interval_threshold(decision: object) -> str | None:
+    lower = getattr(decision, "interval_lower", None)
+    upper = getattr(decision, "interval_upper", None)
+    if lower is None and upper is None:
+        return None
+    lower_bracket = "[" if getattr(decision, "interval_lower_inclusive", False) else "("
+    upper_bracket = "]" if getattr(decision, "interval_upper_inclusive", False) else ")"
+    lower_text = "-inf" if lower is None else format(lower, "f")
+    upper_text = "+inf" if upper is None else format(upper, "f")
+    return f"{lower_bracket}{lower_text}, {upper_text}{upper_bracket}"
 
 
 def _normalize_code(code: str) -> str:
@@ -804,3 +871,15 @@ def _optional_float(value: object) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _decimal_value(value: object, *, field_name: str) -> Decimal:
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a finite decimal")
+    try:
+        parsed = value if isinstance(value, Decimal) else Decimal(str(value).strip())
+    except (InvalidOperation, ValueError, AttributeError) as exc:
+        raise ValueError(f"{field_name} must be a finite decimal") from exc
+    if not parsed.is_finite():
+        raise ValueError(f"{field_name} must be a finite decimal")
+    return parsed

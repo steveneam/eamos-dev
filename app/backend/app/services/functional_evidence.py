@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any, Protocol, cast
 from urllib.parse import urlencode
 
 import httpx
 
 from app.core.config import Settings
+from app.data_sources import PolicyAction
 from app.schemas.run import (
     FunctionalEvidenceCode,
     FunctionalEvidenceCodeRestsOn,
@@ -16,18 +18,41 @@ from app.schemas.run import (
     FunctionalEvidenceSourceTag,
     FunctionalEvidenceSummary,
     FunctionalStudy,
+    SourceProvenance,
 )
 from app.services import clinvar_vcv
 from app.services.clinvar_vcv import (
     DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     EutilsClinVarVcvClient,
 )
-from app.services.mavedb_local import MaveDbLocalInspection, MaveDbLocalStore, MaveDbRecord
+from app.services.mavedb_local import (
+    MAVEDB_ARCHIVE_DIGEST_ALGORITHM_V4,
+    MAVEDB_ARCHIVE_DIGEST_VALUE_V4,
+    MAVEDB_ARCHIVE_RELEASE_DOI_V4,
+    MAVEDB_CALIBRATION_RESERVED,
+    MAVEDB_LOCAL_SOURCE_ID,
+    MaveDbLocalInspection,
+    MaveDbLocalStore,
+    MaveDbMatchRecord,
+    MaveDbRecord,
+    mavedb_record_to_canonical_dict,
+)
 from app.services.publication_literature import VariantLiteratureTerms
+from app.services.source_fact_policy import build_source_fact_policy_envelope
 
 _FUNCTIONAL_CODES = ("PS3", "BS3")
 _FUNCTIONAL_CODE_ORDER = {"PS3": 0, "BS3": 1}
 _SOURCE_ORDER = {"clingen": 0, "clinvar": 1, "pubmed": 2, "mavedb": 3}
+_MAVEDB_PUBLIC_FIELDS = (
+    "archive_provenance",
+    "score_set_metadata",
+    "target_metadata",
+    "variant_scores.raw_score",
+    "variant_scores.score_column",
+    "variant_scores.score_unit",
+    "variant_scores.identifiers",
+    "deprecation_state",
+)
 _SOURCE_FAILED_STATUSES = {"fallback", "error", "failed"}
 _FUNCTIONAL_SIGNAL_RE = re.compile(
     r"\b("
@@ -70,7 +95,7 @@ class MaveDbFunctionalClient(Protocol):
         variant: Any,
         *,
         limit: int,
-        verify_checksum: bool = False,
+        verify_checksum: bool = True,
     ) -> tuple[list[MaveDbRecord], MaveDbLocalInspection]:
         """Return local CC0 MaveDB records for a normalized variant."""
 
@@ -88,8 +113,9 @@ class _FunctionalHit:
     asserted_codes_by_source: dict[FunctionalEvidenceSourceTag, set[str]] = field(
         default_factory=dict
     )
-    functional_score: float | None = None
+    functional_score: Decimal | float | None = None
     functional_score_label: str | None = None
+    mavedb_match: MaveDbMatchRecord | None = None
     snippets: list[str] = field(default_factory=list)
 
 
@@ -114,8 +140,9 @@ class _FunctionalEvidenceCollector:
         fallback_id: str | None = None,
         evidence_codes: list[FunctionalEvidenceCode] | None = None,
         asserted_codes: list[str] | None = None,
-        functional_score: float | None = None,
+        functional_score: Decimal | float | None = None,
         functional_score_label: str | None = None,
+        mavedb_match: MaveDbMatchRecord | None = None,
         snippet: str | None = None,
     ) -> None:
         pmid = pmid.strip() if pmid else None
@@ -138,6 +165,8 @@ class _FunctionalEvidenceCollector:
             hit.functional_score = functional_score
         if functional_score_label and hit.functional_score_label is None:
             hit.functional_score_label = _normalize_space(functional_score_label)
+        if mavedb_match is not None and hit.mavedb_match is None:
+            hit.mavedb_match = mavedb_match
         hit.source_tags.add(source)
         self.per_source[source].add(hit_id)
         for code in evidence_codes or []:
@@ -151,23 +180,7 @@ class _FunctionalEvidenceCollector:
                 hit.snippets.append(normalized[:420])
 
     def summary(self, warnings: list[str]) -> FunctionalEvidenceSummary:
-        studies = [
-            FunctionalStudy(
-                id=hit.id,
-                pmid=hit.pmid,
-                url=hit.url
-                or (f"https://pubmed.ncbi.nlm.nih.gov/{hit.pmid}/" if hit.pmid else None),
-                citation=hit.citation,
-                source_accession=hit.source_accession,
-                source_tags=sorted(hit.source_tags, key=lambda source: _SOURCE_ORDER[source]),
-                evidence_codes=sorted(hit.evidence_codes),
-                asserted_codes=sorted(hit.asserted_codes, key=_asserted_code_sort_key),
-                functional_score=hit.functional_score,
-                functional_score_label=hit.functional_score_label,
-                snippet=hit.snippets[0] if hit.snippets else None,
-            )
-            for hit in self.by_pmid.values()
-        ]
+        studies = [_functional_study(hit) for hit in self.by_pmid.values()]
         studies.sort(
             key=lambda study: (
                 study.source_tags[0] if study.source_tags else "",
@@ -221,6 +234,115 @@ class _FunctionalEvidenceCollector:
         )
 
 
+def _functional_study(hit: _FunctionalHit) -> FunctionalStudy:
+    common: dict[str, Any] = {
+        "id": hit.id,
+        "pmid": hit.pmid,
+        "url": hit.url or (f"https://pubmed.ncbi.nlm.nih.gov/{hit.pmid}/" if hit.pmid else None),
+        "citation": hit.citation,
+        "source_accession": hit.source_accession,
+        "source_tags": sorted(hit.source_tags, key=lambda source: _SOURCE_ORDER[source]),
+        "evidence_codes": sorted(hit.evidence_codes),
+        "asserted_codes": sorted(hit.asserted_codes, key=_asserted_code_sort_key),
+        "functional_score": hit.functional_score,
+        "functional_score_label": hit.functional_score_label,
+        "snippet": hit.snippets[0] if hit.snippets else None,
+    }
+    match = hit.mavedb_match
+    if match is None:
+        return FunctionalStudy(**common)
+
+    policy_envelope = build_source_fact_policy_envelope(
+        source_id=MAVEDB_LOCAL_SOURCE_ID,
+        field_paths=_MAVEDB_PUBLIC_FIELDS,
+        source_record_id=match.variant_score.variant_urn,
+        source_version=match.archive_release_doi,
+        source_url=match.source_url,
+        origin_kind="direct",
+        match_level=match.match_level,
+        action_field_allowlists={
+            MAVEDB_LOCAL_SOURCE_ID: {
+                PolicyAction.PRODUCT_EXPORT: _MAVEDB_PUBLIC_FIELDS,
+            }
+        },
+    )
+    if not _mavedb_public_archive_verified(match):
+        _mark_mavedb_fixture_policy_denied(policy_envelope)
+    policy_envelope["record_license"] = match.score_set.license_snapshot
+    policy_envelope["attribution"] = "MaveDB / Variant Effect"
+    canonical = mavedb_record_to_canonical_dict(match)
+    provenance = SourceProvenance(
+        source="MaveDB",
+        status="local",
+        query={
+            "match_level": match.match_level,
+            "requested_identity": match.requested_identity,
+            "matched_identity": match.matched_identity,
+        },
+        version=match.archive_release_doi,
+        storage_kind="verified_local_sqlite",
+        warnings=[],
+        **policy_envelope,
+    )
+    return FunctionalStudy(
+        **common,
+        **policy_envelope,
+        raw_score=canonical["variant_score"]["raw_score"],
+        score_unit=match.variant_score.score_unit,
+        score_column=match.variant_score.score_column,
+        score_direction="source_defined_neutral",
+        score_set_urn=match.score_set.score_set_urn,
+        variant_urn=match.variant_score.variant_urn,
+        target_accession=match.target.target_accession,
+        target_identity=match.target.exact_identity,
+        archive_release_doi=match.archive_release_doi,
+        archive_sha256=(
+            match.archive_digest_value if match.archive_digest_algorithm == "sha256" else None
+        ),
+        archive_checksum_algorithm=match.archive_digest_algorithm,
+        archive_checksum_value=match.archive_digest_value,
+        archive_checksum_verified=match.archive_digest_verified,
+        local_logical_checksum_verified=match.local_logical_checksum_verified,
+        data_usage_policy_decision=match.score_set.data_usage_policy_decision,
+        match_requested_identity=match.requested_identity,
+        match_matched_identity=match.matched_identity,
+        calibration_status=MAVEDB_CALIBRATION_RESERVED.status,
+        deprecated=match.score_set.deprecated or match.variant_score.deprecated,
+        superseded_by=(match.variant_score.superseded_by or match.score_set.superseded_by),
+        provenance=[provenance],
+    )
+
+
+def _mavedb_public_archive_verified(match: MaveDbMatchRecord) -> bool:
+    return bool(
+        match.archive_release_doi == MAVEDB_ARCHIVE_RELEASE_DOI_V4
+        and match.archive_digest_algorithm == MAVEDB_ARCHIVE_DIGEST_ALGORITHM_V4
+        and match.archive_digest_value == MAVEDB_ARCHIVE_DIGEST_VALUE_V4
+        and match.archive_digest_verified
+        and match.local_logical_checksum_verified
+    )
+
+
+def _mark_mavedb_fixture_policy_denied(envelope: dict[str, object]) -> None:
+    decisions = envelope.get("policy_decisions")
+    if isinstance(decisions, list):
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                continue
+            if decision.get("action") not in {
+                "cache",
+                "public_serialize",
+                "product_export",
+            }:
+                continue
+            decision["outcome"] = "denied"
+            decision["reason"] = "synthetic_fixture_not_public"
+    envelope["public_serialization_allowed"] = False
+    envelope["export_allowed"] = False
+    envelope["cache_allowed"] = False
+    envelope["decision_reason"] = "synthetic_fixture_not_public"
+
+
 class ClinGenERepoFunctionalClient:
     def __init__(self, settings: Settings, *, timeout_seconds: float = 12.0) -> None:
         self.settings = settings
@@ -265,10 +387,12 @@ class FunctionalEvidenceExtractor:
         clingen_client: ClinGenFunctionalClient | None = None,
         clinvar_client: ClinVarFunctionalClient | None = None,
         mavedb_store: MaveDbFunctionalClient | None = None,
+        include_nonpublic_mavedb_fixtures: bool = False,
         clinvar_vcv_max_xml_bytes: int = DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     ) -> None:
         self.settings = settings
         self.clinvar_vcv_max_xml_bytes = clinvar_vcv_max_xml_bytes
+        self.include_nonpublic_mavedb_fixtures = include_nonpublic_mavedb_fixtures
         self.clingen_client = clingen_client or (
             ClinGenERepoFunctionalClient(settings) if settings is not None else None
         )
@@ -431,13 +555,16 @@ class FunctionalEvidenceExtractor:
             records, inspection = self.mavedb_store.search_records(
                 variant,
                 limit=limit,
-                verify_checksum=False,
+                verify_checksum=True,
             )
         except Exception as exc:
             warnings.append(f"functional_mavedb_failed:{type(exc).__name__}")
             return
         if not inspection.ready:
             warnings.append(f"functional_mavedb_unavailable:{inspection.status}")
+            return
+        if inspection.status != "ready" and not self.include_nonpublic_mavedb_fixtures:
+            warnings.append(f"functional_mavedb_nonpublic:{inspection.status}")
             return
         for record in records:
             collector.add(
@@ -447,7 +574,8 @@ class FunctionalEvidenceExtractor:
                 source_accession=record.score_set_id,
                 fallback_id=f"mavedb:{record.score_set_id}:{record.variant}",
                 functional_score=record.score,
-                functional_score_label="Functional score",
+                functional_score_label=f"Raw {record.variant_score.score_column}",
+                mavedb_match=record,
                 snippet=_mavedb_public_snippet(record),
             )
 

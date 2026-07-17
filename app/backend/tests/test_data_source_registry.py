@@ -52,7 +52,9 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 34
+    assert len(source_ids) == 36
+    assert "mavedb_cc0_bulk" in source_ids
+    assert "mavedb_public_api_metadata" in source_ids
     assert {
         "myvariant_gnomad_only",
         "google_deepmind_alphamissense_hg38",

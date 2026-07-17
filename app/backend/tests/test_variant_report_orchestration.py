@@ -188,11 +188,15 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert predictor_versions["CADD PHRED"] == "CADD v1.7 GRCh38"
     assert predictor_versions["PrimateAI-3D"] == "dbNSFP v5.3.1 / PrimateAI-3D"
     predictors_by_name = {row["name"]: row for row in computational["predictors"]}
-    assert predictors_by_name["REVEL"]["calibrated_label"] == "Moderate damaging"
-    assert predictors_by_name["REVEL"]["calibration_bucket"] == "Likely pathogenic"
-    assert predictors_by_name["REVEL"]["calibration_version"] == "PMID:36413997"
-    assert predictors_by_name["CADD PHRED"]["calibration_bucket"] == "VUS"
-    assert predictors_by_name["SpliceAI"]["calibration_bucket"] == "VUS"
+    assert predictors_by_name["REVEL"]["calibrated_label"] == "PP3 Moderate"
+    assert predictors_by_name["REVEL"]["calibration_bucket"] is None
+    assert (
+        predictors_by_name["REVEL"]["calibration_version"] == "eamos-revel-capped-v1+PMID:36413997"
+    )
+    assert predictors_by_name["REVEL"]["evidence_code"] == "PP3"
+    assert predictors_by_name["REVEL"]["evidence_points"] == "2"
+    assert predictors_by_name["CADD PHRED"]["calibration_bucket"] is None
+    assert predictors_by_name["SpliceAI"]["calibration_bucket"] is None
     assert predictors_by_name["SpliceAI"]["calibration_method"] == (
         "Walker 2023 / ClinGen SVI splicing"
     )
@@ -331,20 +335,20 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     computed_rows = _computed_rows(report_payload)
     assert computed["acmg_version_pin"]["framework"] == ("Richards-2015 + Tavtigian-2020 points")
     assert computed["tier"] == "VUS"
-    assert computed["net_points"] == 3
-    assert computed["sum_pathogenic"] == 3
-    assert computed["sum_benign"] == 0
+    assert computed["net_points"] == "1"
+    assert computed["sum_pathogenic"] == "1"
+    assert computed["sum_benign"] == "0"
     assert computed["conflict"] == {"is_conflicting": False, "reason": None}
     assert computed["ba1_override"] is False
-    assert 0.49 < computed["posterior"] < 0.51
+    assert 0.18 < float(computed["posterior"]) < 0.20
     assert computed_rows["PM2"]["triggered"] is True
     assert computed_rows["PM2"]["applied_strength"] == "supporting"
     assert computed_rows["PM2"]["source_db"] == "gnomAD"
     assert computed_rows["PM2"]["source_version"] == "gnomad_r4"
-    assert computed_rows["PP3"]["triggered"] is True
-    assert computed_rows["PP3"]["applied_strength"] == "moderate"
-    assert computed_rows["PP3"]["source_db"] == "REVEL"
-    assert computed_rows["PP3"]["source_version"] == "dbNSFP v5.3.1 / REVEL v1.3"
+    assert computed_rows["PP3"]["triggered"] is False
+    assert computed_rows["PP3"]["applied_strength"] is None
+    assert computed_rows["PP3"]["source_db"] is None
+    assert computed_rows["PP3"]["source_version"] is None
     assert computed_rows["BA1"]["triggered"] is False
     assert computed_rows["BP4"]["triggered"] is False
 
@@ -385,7 +389,7 @@ def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
     computed = report_payload["eamos_computed_classification"]
     computed_rows = _computed_rows(report_payload)
     assert computed["tier"] == "VUS"
-    assert computed["net_points"] == 1
+    assert computed["net_points"] == "1"
     assert computed_rows["PS3"]["triggered"] is True
     assert computed_rows["PS3"]["applied_strength"] == "supporting"
     assert computed_rows["PS3"]["source_db"] == "ClinGen Evidence Repository"
@@ -703,9 +707,9 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     assert profile["acmg_worksheet"]["criteria"] == []
     computed = report_payload["eamos_computed_classification"]
     assert computed["tier"] == "VUS"
-    assert computed["net_points"] == 0
-    assert computed["sum_pathogenic"] == 0
-    assert computed["sum_benign"] == 0
+    assert computed["net_points"] == "0"
+    assert computed["sum_pathogenic"] == "0"
+    assert computed["sum_benign"] == "0"
     assert all(row["triggered"] is False for row in computed["per_criterion"])
     assert report_payload["publications_literature"]["total_count"] == 0
     assert report_payload["functional_evidence"]["total_count"] == 0

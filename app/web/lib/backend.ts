@@ -774,6 +774,25 @@ export type EvidenceLevel = 'definitive' | 'strong' | 'moderate' | 'limited'
 export type InheritancePattern = 'AR' | 'AD' | 'XL' | 'MT'
 
 export interface AssociatedCondition {
+  source_id?: string | null
+  source_record_id?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  retrieved_at?: string | null
+  origin_kind: SourceOriginKind
+  match_level?: string | null
+  record_license?: string | null
+  terms_version_or_hash?: string | null
+  license_gate?: string | null
+  launch_gate?: string | null
+  public_serialization_allowed?: boolean | null
+  export_allowed?: boolean | null
+  cache_allowed?: boolean | null
+  attribution?: string | null
+  policy_version?: string | null
+  decision_reason?: string | null
+  decision_at?: string | null
+  policy_decisions: SourcePolicyDecision[]
   name: string
   case_count: number
   evidence_level: EvidenceLevel
@@ -890,6 +909,25 @@ export interface FunctionalEvidenceDisplayMetrics {
 }
 
 export interface FunctionalStudy {
+  source_id?: string | null
+  source_record_id?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  retrieved_at?: string | null
+  origin_kind: SourceOriginKind
+  match_level?: string | null
+  record_license?: string | null
+  terms_version_or_hash?: string | null
+  license_gate?: string | null
+  launch_gate?: string | null
+  public_serialization_allowed?: boolean | null
+  export_allowed?: boolean | null
+  cache_allowed?: boolean | null
+  attribution?: string | null
+  policy_version?: string | null
+  decision_reason?: string | null
+  decision_at?: string | null
+  policy_decisions: SourcePolicyDecision[]
   id: string
   pmid?: string | null
   url?: string | null
@@ -898,8 +936,29 @@ export interface FunctionalStudy {
   source_tags: string[]
   evidence_codes: string[]
   asserted_codes: string[]
-  functional_score?: number | null
+  functional_score?: string | null
   functional_score_label?: string | null
+  raw_score?: string | null
+  score_unit?: string | null
+  score_column?: string | null
+  score_direction?: string | null
+  score_set_urn?: string | null
+  variant_urn?: string | null
+  target_accession?: string | null
+  target_identity?: string | null
+  archive_release_doi?: string | null
+  archive_sha256?: string | null
+  archive_checksum_algorithm?: string | null
+  archive_checksum_value?: string | null
+  archive_checksum_verified?: boolean | null
+  local_logical_checksum_verified?: boolean | null
+  data_usage_policy_decision?: string | null
+  match_requested_identity?: string | null
+  match_matched_identity?: string | null
+  calibration_status?: string | null
+  deprecated: boolean
+  superseded_by?: string | null
+  provenance: SourceProvenance[]
   snippet?: string | null
 }
 
@@ -1043,13 +1102,76 @@ export type ExpertPanelFreshnessReason =
   | 'stale_on_failure'
   | 'tile_only'
 
+export type SourceOriginKind = 'direct' | 'cross_reference' | 'derived'
+export type SourcePolicyOutcome = 'allowed' | 'denied'
+export type SourcePolicyAction =
+  | 'acquire'
+  | 'cache'
+  | 'normalize'
+  | 'public_serialize'
+  | 'product_export'
+  | 'log'
+  | 'analyze'
+  | 'backup'
+  | 'stage'
+  | 'restore'
+  | 'raw_debug'
+
+export interface SourcePolicyDecision {
+  action: SourcePolicyAction
+  field: string
+  outcome: SourcePolicyOutcome
+  reason: string
+  decided_at: string
+}
+
+export interface SourceFactPolicyEnvelope {
+  source_id?: string | null
+  source_record_id?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  retrieved_at?: string | null
+  origin_kind: SourceOriginKind
+  match_level?: string | null
+  record_license?: string | null
+  terms_version_or_hash?: string | null
+  license_gate?: string | null
+  launch_gate?: string | null
+  public_serialization_allowed?: boolean | null
+  export_allowed?: boolean | null
+  cache_allowed?: boolean | null
+  attribution?: string | null
+  policy_version?: string | null
+  decision_reason?: string | null
+  decision_at?: string | null
+  policy_decisions: SourcePolicyDecision[]
+}
+
 export interface SourceProvenance {
+  source_id?: string | null
+  source_record_id?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  retrieved_at?: string | null
+  origin_kind: SourceOriginKind
+  match_level?: string | null
+  record_license?: string | null
+  terms_version_or_hash?: string | null
+  license_gate?: string | null
+  launch_gate?: string | null
+  public_serialization_allowed?: boolean | null
+  export_allowed?: boolean | null
+  cache_allowed?: boolean | null
+  attribution?: string | null
+  policy_version?: string | null
+  decision_reason?: string | null
+  decision_at?: string | null
+  policy_decisions: SourcePolicyDecision[]
   source: string
   status: SourceStatus
   query: Record<string, string>
-  source_url?: string | null
-  retrieved_at?: string | null
   version?: string | null
+  storage_kind?: string | null
   warnings: string[]
 }
 
@@ -1183,6 +1305,86 @@ export interface MolecularContextSection {
   warnings: string[]
 }
 
+export type ComputationalStandardStatus = 'published' | 'draft' | 'shadow' | 'withdrawn'
+export type ComputationalEvidenceFamily = 'PP3_BP4' | 'SPLICE' | 'other'
+export type ComputationalApplicability =
+  | 'applicable'
+  | 'not_applicable'
+  | 'unavailable'
+  | 'not_assessed'
+export type ComputationalCountedStatus =
+  | 'counted'
+  | 'context_only'
+  | 'separate_mechanism'
+  | 'rejected'
+
+export interface ComputationalAlternate {
+  predictor_id: string
+  raw_score?: string | null
+  calibration_normalized_score?: string | null
+  score_unit?: string | null
+  calibration_id?: string | null
+  calibration_version?: string | null
+  evidence_code?: 'PP3' | 'BP4' | null
+  calibration_points?: string | null
+  counted_status: ComputationalCountedStatus
+  non_counted_reason?: string | null
+  tool_version?: string | null
+  model_version?: string | null
+  data_version?: string | null
+  source_version?: string | null
+  source_url?: string | null
+}
+
+export interface ComputationalEvidenceDecision {
+  ruleset_id: string
+  ruleset_version: string
+  standard_label: string
+  standard_status: ComputationalStandardStatus
+  application_id: string
+  gene_id?: string | null
+  disease_id?: string | null
+  transcript_id?: string | null
+  protein_id?: string | null
+  normalized_variant_id?: string | null
+  variant_scope: string
+  mechanism_applicability: string
+  evidence_family: ComputationalEvidenceFamily
+  selected_predictor_id?: string | null
+  selection_policy: string
+  selection_rationale: string
+  declared_fallback_policy: string
+  applicability: ComputationalApplicability
+  raw_score?: string | null
+  calibration_normalized_score?: string | null
+  score_unit?: string | null
+  score_native_precision?: string | null
+  score_quantization_rule?: string | null
+  evidence_code?: 'PP3' | 'BP4' | null
+  calibration_points?: string | null
+  evidence_points: string
+  evidence_label: string
+  calibration_id?: string | null
+  calibration_version?: string | null
+  calibration_profile_checksum?: string | null
+  interval_lower?: string | null
+  interval_lower_inclusive?: boolean | null
+  interval_upper?: string | null
+  interval_upper_inclusive?: boolean | null
+  dependency_group: string
+  counted_status: ComputationalCountedStatus
+  non_counted_reason?: string | null
+  tool_version?: string | null
+  model_version?: string | null
+  data_version?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  source_retrieved_at?: string | null
+  source_checksum?: string | null
+  alternates: ComputationalAlternate[]
+  warnings: string[]
+}
+
 export interface ComputationalPredictorRow {
   name: string
   score?: string | number | null
@@ -1195,6 +1397,18 @@ export interface ComputationalPredictorRow {
   calibration_bucket?: RampVerdict | null
   calibration_method?: string | null
   calibration_version?: string | null
+  calibration_id?: string | null
+  calibration_profile_checksum?: string | null
+  calibration_normalized_score?: string | null
+  score_unit?: string | null
+  score_native_precision?: string | null
+  score_quantization_rule?: string | null
+  evidence_code?: 'PP3' | 'BP4' | 'SPLICE' | null
+  evidence_points?: string | null
+  interval_lower?: string | null
+  interval_lower_inclusive?: boolean | null
+  interval_upper?: string | null
+  interval_upper_inclusive?: boolean | null
   source_url?: string | null
   public_serialization_allowed?: boolean | null
   launch_gate?: string | null
@@ -1203,6 +1417,7 @@ export interface ComputationalPredictorRow {
 
 export interface ComputationalDeepDiveSection {
   predictors: ComputationalPredictorRow[]
+  selection_accounting?: string | null
   spliceai_max_delta?: number | null
   spliceai_consequence?: string | null
   conservation: ComputationalPredictorRow[]
@@ -1489,6 +1704,7 @@ export interface VariantReportProfile {
   gene_context_snapshot?: GeneContextSnapshot | null
   population_frequency?: PopulationFrequencyReportSection | null
   molecular_context?: MolecularContextSection | null
+  computational_decision?: ComputationalEvidenceDecision | null
   computational_deep_dive?: ComputationalDeepDiveSection | null
   acmg_worksheet?: AcmgWorksheetLedger | null
   expert_panel?: ExpertPanelSection | null

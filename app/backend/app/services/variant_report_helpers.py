@@ -4,7 +4,10 @@ import re
 from typing import Any
 
 from app.schemas.run import SourceProvenance
-from app.services.report_provenance import provenance_for_source
+from app.services.report_provenance import (
+    provenance_for_source,
+    source_provenance_from_mapping,
+)
 
 
 def _string_list(value: Any) -> list[str]:
@@ -210,10 +213,7 @@ def _molecular_context_provenance(
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            try:
-                provenance.append(SourceProvenance.model_validate(item))
-            except Exception:
-                continue
+            provenance.append(source_provenance_from_mapping(item))
     if provenance:
         return provenance
     gene = _optional_text(summary.get("gene"))
@@ -261,3 +261,12 @@ def _classification_text(value: Any) -> str | None:
 def _clinical_consensus(evidence_map: dict[str, dict[str, Any]]) -> dict[str, Any]:
     value = evidence_map.get("clinical_consensus")
     return value if isinstance(value, dict) else {}
+
+
+def _associated_condition_publicly_usable(condition: Any) -> bool:
+    if condition.public_serialization_allowed is False:
+        return False
+    source_text = f"{condition.source} {condition.source_list}".casefold()
+    if any(source in source_text for source in ("omim", "lovd", "mavedb")):
+        return condition.public_serialization_allowed is True
+    return True

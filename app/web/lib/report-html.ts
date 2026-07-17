@@ -34,6 +34,7 @@ import type {
   TrialMatch,
   VariantReportHeader,
 } from './backend'
+import { productExportFacts } from './source-fact-policy'
 
 /* ── Style tokens (Excel-safe sRGB) ─────────────────────────────────────── */
 
@@ -70,6 +71,18 @@ function esc(value: unknown): string {
 
 function joinPipes(values: (string | null | undefined)[]): string {
   return values.filter((v) => v != null && v !== '').join(' | ')
+}
+
+export function safeExportHref(value: string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+      ? parsed.href
+      : null
+  } catch {
+    return null
+  }
 }
 
 function formatVariantLine(
@@ -128,8 +141,9 @@ function td(value: unknown, opts: CellOpts = {}): string {
   const weight = opts.bold ? 700 : 400
   const whiteSpace = opts.nowrap ? 'nowrap' : 'normal'
   const display = value == null || value === '' ? '—' : value
-  const inner = opts.href
-    ? `<a href="${esc(opts.href)}" style="color:${C.link};text-decoration:underline;">${esc(display)}</a>`
+  const href = safeExportHref(opts.href)
+  const inner = href
+    ? `<a href="${esc(href)}" rel="noopener noreferrer" style="color:${C.link};text-decoration:underline;">${esc(display)}</a>`
     : esc(display)
   return `<td style="font-family:${fam};font-size:10.5pt;font-weight:${weight};color:${C.body_fg};text-align:${align};vertical-align:top;white-space:${whiteSpace};word-wrap:break-word;overflow-wrap:break-word;padding:6px 9px;border:1px solid ${C.border};">${inner}</td>`
 }
@@ -421,6 +435,7 @@ export function htmlDiseaseAndConditions(
 ): string {
   const title = 'Gene context & associated conditions'
   const parts: string[] = []
+  const exportableConditions = productExportFacts(conditions)
 
   // Pivot the curated table first so we know the column count.
   let curatedBlock = ''
@@ -472,11 +487,11 @@ export function htmlDiseaseAndConditions(
     }
   }
 
-  if (conditions && conditions.length > 0) {
+  if (exportableConditions.length > 0) {
     if (curatedBlock) parts.push(spacer(outerCols))
     parts.push(subBand('Associated conditions', 6))
     parts.push(theadRow(['Condition', 'Cases', 'Evidence', 'Inheritance', 'Source ID', 'Sources']))
-    conditions.forEach((c, i) => {
+    exportableConditions.forEach((c, i) => {
       parts.push(
         bodyRow(
           i,
@@ -491,7 +506,7 @@ export function htmlDiseaseAndConditions(
     })
   }
 
-  if (!curatedBlock && (!conditions || conditions.length === 0)) {
+  if (!curatedBlock && exportableConditions.length === 0) {
     parts.push(
       `<tr><td colspan="${outerCols}" style="font-family:${FONT_STACK};font-size:10.5pt;padding:14px 10px;color:${C.variant_fg};text-align:center;border:1px solid ${C.border};">No curated condition data available.</td></tr>`,
     )

@@ -54,8 +54,8 @@ def test_alphamissense_adapter_maps_exact_hit_with_bergquist_calibration(
     assert prediction.uniprot_id == "Q8NH21"
     assert prediction.transcript_id == "ENST00000335137.4"
     assert prediction.protein_variant == "V2M"
-    assert prediction.calibrated_label == "PP3_Strong"
-    assert prediction.calibration_bucket == "Pathogenic"
+    assert prediction.calibrated_label == "PP3 Supporting"
+    assert prediction.calibration_bucket is None
     assert prediction.calibration_method == "Bergquist 2025 / ClinGen SVI PP3/BP4"
     assert prediction.provenance.source_id == ALPHAMISSENSE_SOURCE_ID
     assert prediction.provenance.reader == "tabix_tsv_predictor_reader"
@@ -174,7 +174,7 @@ def test_alphamissense_adapter_builds_bounded_residue_heatmap(
 
     assert heatmap.status == "available"
     assert heatmap.queried_score == 0.8
-    assert heatmap.queried_calibrated_label == "PP3_Strong"
+    assert heatmap.queried_calibrated_label == "PP3 Supporting"
     assert [item.aa for item in heatmap.residues] == [1, 2]
     assert heatmap.residues[0].scored_variant_count == 3
     assert heatmap.residues[0].mean_score == pytest.approx((0.2 + 0.8 + 0.6) / 3)
@@ -185,9 +185,9 @@ def test_alphamissense_adapter_builds_bounded_residue_heatmap(
 @pytest.mark.parametrize(
     ("queried_score", "expected_label"),
     [
-        (0.12, "PP3_Supporting"),
-        (0.71, "PP3_Moderate"),
-        (0.92, "PP3_Strong"),
+        (0.12, "BP4 Supporting"),
+        (0.71, "Indeterminate"),
+        (0.92, "PP3 Moderate"),
     ],
 )
 def test_alphamissense_heatmap_matches_reverse_strand_genomic_alleles(

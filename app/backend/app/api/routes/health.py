@@ -455,7 +455,7 @@ def _indexed_predictor_health(settings, materialization_store) -> dict[str, obje
             "storage_required": pvs1_nmd.storage_required,
             "status_notes": list(pvs1_nmd.warnings),
         },
-        "mavedb": inspect_mavedb_local_store(settings, verify_checksum=False).to_sanitized_dict(),
+        "mavedb": inspect_mavedb_local_store(settings, verify_checksum=True).to_sanitized_dict(),
         "capice": inspect_capice_runtime_assets(settings).to_sanitized_dict(),
         "gpn_msa": inspect_gpn_msa_runtime_assets(settings).to_sanitized_dict(),
         "pangolin": inspect_pangolin_runtime_assets(settings).to_sanitized_dict(),

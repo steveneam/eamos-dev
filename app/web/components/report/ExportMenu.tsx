@@ -108,7 +108,25 @@ export function ExportMenu({ data, variant = 'ribbon' }: ExportMenuProps) {
 
   const handlePrint = () => {
     setOpen(false)
-    if (typeof window !== 'undefined') window.print()
+    if (typeof window === 'undefined') return
+    const { html } = buildFullReportExport(data)
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.opener = null
+    printWindow.document.title = 'EAMOS Variant Evidence Report'
+    const meta = printWindow.document.createElement('meta')
+    meta.name = 'viewport'
+    meta.content = 'width=device-width, initial-scale=1'
+    printWindow.document.head.appendChild(meta)
+    const style = printWindow.document.createElement('style')
+    style.textContent =
+      'body{margin:24px;color:#1f2937;background:#fff;font-family:Calibri,Segoe UI,Arial,sans-serif}table{max-width:100%;margin:0 0 18px;page-break-inside:auto}tr{page-break-inside:avoid}a{color:#0e4f3a}@page{margin:14mm}'
+    printWindow.document.head.appendChild(style)
+    const report = printWindow.document.createElement('main')
+    report.innerHTML = html
+    printWindow.document.body.appendChild(report)
+    printWindow.focus()
+    printWindow.setTimeout(() => printWindow.print(), 50)
   }
 
   const triggerLabel = copied ? 'Copied' : 'Export'

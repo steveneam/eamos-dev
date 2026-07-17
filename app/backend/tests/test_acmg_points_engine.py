@@ -1,7 +1,22 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 
+from app.schemas.run import (
+    ComputationalEvidenceDecision,
+    DiseaseMechanismSection,
+    GeneContextSnapshot,
+    GeneContextTranscriptExon,
+    GeneContextVariantProjection,
+    MolecularContextSection,
+    PopulationFrequencyDetail,
+    ReportPayload,
+    VariantReportHeader,
+    VariantReportProfile,
+    VariantSummaryRow,
+)
 from app.services.acmg_points_engine import (
     ALL_ACMG_CODES,
     ACMG_FRAMEWORK,
@@ -14,20 +29,7 @@ from app.services.acmg_points_engine import (
     posterior_from_net,
     tier_from_net,
 )
-from app.schemas.run import (
-    ComputationalDeepDiveSection,
-    ComputationalPredictorRow,
-    DiseaseMechanismSection,
-    GeneContextSnapshot,
-    GeneContextTranscriptExon,
-    GeneContextVariantProjection,
-    MolecularContextSection,
-    PopulationFrequencyDetail,
-    ReportPayload,
-    VariantReportHeader,
-    VariantReportProfile,
-    VariantSummaryRow,
-)
+from app.services.computational_rulesets import active_ruleset
 
 
 def _rows_by_code(result):
@@ -37,16 +39,16 @@ def _rows_by_code(result):
 @pytest.mark.parametrize(
     ("net_points", "expected_percent"),
     [
-        (0, 10.0),
-        (6, 90.0),
-        (9, 98.8),
-        (10, 99.4),
-        (-1, 5.1),
-        (-7, 0.1),
+        (0, "10.0"),
+        (6, "90.0"),
+        (9, "98.8"),
+        (10, "99.4"),
+        (-1, "5.1"),
+        (-7, "0.1"),
     ],
 )
 def test_posterior_anchors_match_tavtigian_formula(net_points, expected_percent):
-    assert round(posterior_from_net(net_points) * 100, 1) == expected_percent
+    assert round(posterior_from_net(net_points) * 100, 1) == Decimal(expected_percent)
 
 
 @pytest.mark.parametrize(
@@ -133,7 +135,7 @@ def test_ba1_hard_override_is_benign_and_not_a_summand():
     assert result.ba1_override is True
     assert result.net_points == 0
     assert result.sum_benign == 0
-    assert result.posterior == pytest.approx(0.10)
+    assert result.posterior == Decimal("0.1")
     row = _rows_by_code(result)["BA1"]
     assert row.triggered is True
     assert row.applied_strength is None
@@ -200,6 +202,91 @@ def test_duplicate_criteria_reject_to_prevent_double_counting():
                 AcmgCriterionApplication("PM2_Moderate", "moderate"),
             ]
         )
+
+
+def test_explicit_three_point_application_stays_decimal_and_canonical_in_json():
+    result = compute_acmg_points([AcmgCriterionApplication("PP3", evidence_points=Decimal("3"))])
+    row = _rows_by_code(result)["PP3"]
+
+    assert row.applied_strength is None
+    assert row.points == Decimal("3")
+    assert result.net_points == Decimal("3")
+    encoded = result.model_dump(mode="json")
+    assert encoded["net_points"] == "3"
+    assert next(item for item in encoded["per_criterion"] if item["code"] == "PP3")["points"] == "3"
+
+
+def test_fractional_application_stays_decimal_and_canonical_in_json():
+    result = compute_acmg_points([AcmgCriterionApplication("PP3", evidence_points=Decimal("2.5"))])
+    row = _rows_by_code(result)["PP3"]
+
+    assert row.applied_strength is None
+    assert row.points == Decimal("2.5")
+    assert result.net_points == Decimal("2.5")
+    encoded = result.model_dump(mode="json")
+    assert encoded["net_points"] == "2.5"
+    assert (
+        next(item for item in encoded["per_criterion"] if item["code"] == "PP3")["points"] == "2.5"
+    )
+
+
+@pytest.mark.parametrize(
+    ("points", "expected"),
+    [
+        (Decimal("10"), "Pathogenic"),
+        (Decimal("9.9999999"), "Likely Pathogenic"),
+        (Decimal("6"), "Likely Pathogenic"),
+        (Decimal("5.9999999"), "VUS"),
+        (Decimal("0"), "VUS"),
+        (Decimal("-0.0000001"), "Likely Benign"),
+        (Decimal("-6.9999999"), "Likely Benign"),
+        (Decimal("-7"), "Benign"),
+    ],
+)
+def test_ruleset_tier_intervals_cover_fractional_boundaries_once(points, expected):
+    matching = [tier.label for tier in active_ruleset().tier_definitions if tier.contains(points)]
+
+    assert matching == [expected]
+    assert tier_from_net(points) == expected
+
+
+def test_active_ruleset_pins_the_exact_source_document() -> None:
+    ruleset = active_ruleset()
+
+    assert ruleset.document_url.endswith("/PMC8011844/pdf/nihms-1681181.pdf")
+    assert ruleset.document_checksum == (
+        "sha256:2714eb28dda9188e4567377554ec829c8d62b442f3dfbed7dfb9a4fa763b8a01"
+    )
+
+
+def test_pp3_pm1_dependency_cap_is_enforced_again_at_points_boundary():
+    result = compute_acmg_points(
+        [
+            AcmgCriterionApplication("PM1", "supporting"),
+            AcmgCriterionApplication("PP3", "strong"),
+        ]
+    )
+    rows = _rows_by_code(result)
+
+    assert rows["PM1"].points == Decimal("1")
+    assert rows["PP3"].points == Decimal("3")
+    assert rows["PP3"].applied_strength is None
+    assert result.sum_pathogenic == Decimal("4")
+    assert "pp3_points_capped_by_pm1_dependency_group" in result.warnings
+
+
+@pytest.mark.parametrize(
+    "application",
+    [
+        AcmgCriterionApplication("PP3", evidence_points=Decimal("-1")),
+        AcmgCriterionApplication("BP4", evidence_points=Decimal("1")),
+        AcmgCriterionApplication("PP3", evidence_points=Decimal("NaN")),
+        AcmgCriterionApplication("PP3", "supporting", evidence_points=Decimal("2")),
+    ],
+)
+def test_explicit_points_fail_closed_on_direction_finiteness_or_strength_drift(application):
+    with pytest.raises(ValueError):
+        compute_acmg_points([application])
 
 
 def test_contract_emits_complete_rows_version_pin_and_source_fields():
@@ -283,25 +370,39 @@ def test_report_adapter_derives_bs1_but_not_ba1_from_intermediate_frequency():
     assert rows["BA1"].triggered is False
 
 
-def test_report_adapter_uses_calibrated_pp3_strength_from_pejaver_label():
+def test_report_adapter_uses_typed_preselected_computational_decision():
     payload = ReportPayload(
         patient_id="lookup_test",
         report_profile=VariantReportProfile(
-            computational_deep_dive=ComputationalDeepDiveSection(
-                predictors=[
-                    ComputationalPredictorRow(
-                        name="REVEL",
-                        score=0.78,
-                        threshold=0.773,
-                        interpretation="damaging",
-                        source="REVEL",
-                        version="REVEL v1.3",
-                        calibrated_label="Moderate damaging",
-                        calibration_bucket="Likely pathogenic",
-                        calibration_method="Pejaver 2022 / ClinGen SVI PP3/BP4",
-                        calibration_version="PMID:36413997",
-                    )
-                ]
+            computational_decision=ComputationalEvidenceDecision(
+                ruleset_id="richards_2015_tavtigian_2020_eamos_v1",
+                ruleset_version="eamos-current-v1",
+                standard_label="Richards-2015 + Tavtigian-2020 points",
+                standard_status="published",
+                application_id="computational:test",
+                variant_scope="missense",
+                mechanism_applicability="applicable:test-v1",
+                evidence_family="PP3_BP4",
+                selected_predictor_id="revel",
+                selection_policy="eamos_preselected_predictor_policy_v1",
+                selection_rationale="REVEL was selected before score evaluation.",
+                declared_fallback_policy="none",
+                applicability="applicable",
+                raw_score=Decimal("0.780"),
+                calibration_normalized_score=Decimal("0.780"),
+                evidence_code="PP3",
+                calibration_points=Decimal("2"),
+                evidence_points=Decimal("2"),
+                evidence_label="REVEL PP3 Moderate",
+                calibration_id="revel_pejaver_2022_capped",
+                calibration_version="eamos-revel-capped-v1+PMID:36413997",
+                interval_lower=Decimal("0.773"),
+                interval_lower_inclusive=True,
+                interval_upper=Decimal("0.932"),
+                interval_upper_inclusive=False,
+                dependency_group="computational_regional_pathogenic_cap_4",
+                counted_status="counted",
+                source_version="REVEL v1.3",
             )
         ),
     )
@@ -315,7 +416,35 @@ def test_report_adapter_uses_calibrated_pp3_strength_from_pejaver_label():
     assert row.points == 2
     assert row.source_db == "REVEL"
     assert row.source_version == "REVEL v1.3"
-    assert row.svi_reference == "PMID:36413997"
+    assert row.svi_reference == "eamos-revel-capped-v1+PMID:36413997"
+    assert row.threshold == "[0.773, 0.932)"
+
+
+def test_report_adapter_never_scores_legacy_predictor_labels_without_a_typed_decision():
+    payload = ReportPayload(patient_id="lookup_test")
+    evidence_map = {
+        "computational_annotations": {
+            "predictors": [
+                {
+                    "name": "AlphaMissense",
+                    "score": "0.999",
+                    "calibrated_label": "PP3 Strong",
+                    "calibration_method": "PP3/BP4",
+                },
+                {
+                    "name": "REVEL",
+                    "score": "0.95",
+                    "calibrated_label": "PP3 Strong",
+                    "calibration_method": "PP3/BP4",
+                },
+            ]
+        }
+    }
+
+    result = compute_report_acmg_classification(payload, evidence_map, {})
+
+    assert result.net_points == Decimal("0")
+    assert _rows_by_code(result)["PP3"].triggered is False
 
 
 def test_report_adapter_warns_when_recessive_case_context_criteria_are_not_scored():

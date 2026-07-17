@@ -44,7 +44,7 @@ def test_report_payload_serializes_eamos_computed_classification_contract() -> N
 
     block = payload.model_dump(mode="json")["eamos_computed_classification"]
     assert block["acmg_version_pin"]["framework"] == "Richards-2015 + Tavtigian-2020 points"
-    assert block["net_points"] == 9
+    assert block["net_points"] == "9"
     assert block["tier"] == "Likely Pathogenic"
     assert block["benign_cut"] == "tavtigian_2020"
     assert block["per_criterion"][0]["applied_strength"] == "strong"

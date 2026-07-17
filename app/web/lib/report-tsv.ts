@@ -23,6 +23,7 @@ import type {
   TrialMatch,
   VariantReportHeader,
 } from './backend'
+import { productExportFacts } from './source-fact-policy'
 
 /** Replace tabs/newlines (would break the TSV grid) with safe substitutes. */
 function cell(value: unknown): string {
@@ -215,6 +216,7 @@ export function tsvDiseaseAndConditions(
   conditions: AssociatedCondition[] | undefined,
 ): string {
   const lines: string[] = [header('Gene context & associated conditions', payload)]
+  const exportableConditions = productExportFacts(conditions)
 
   if (curated && Object.keys(curated.cells).length > 0) {
     lines.push(row('Curated variants distribution'))
@@ -245,10 +247,10 @@ export function tsvDiseaseAndConditions(
     lines.push(blankRow())
   }
 
-  if (conditions && conditions.length > 0) {
+  if (exportableConditions.length > 0) {
     lines.push(row('Associated conditions'))
     lines.push(row('Condition', 'Cases', 'Evidence', 'Inheritance', 'Source ID', 'Sources'))
-    for (const c of conditions) {
+    for (const c of exportableConditions) {
       lines.push(
         row(
           c.name,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.data_sources.registry_models import DataSourceRecord, LicenseStatus
+from app.data_sources.registry_records_mavedb import MAVEDB_SOURCE_RECORDS
 
 DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
     DataSourceRecord(
@@ -1058,6 +1059,7 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
             "are excluded and must not be added without separate license."
         ),
     ),
+    *MAVEDB_SOURCE_RECORDS,
     DataSourceRecord(
         source_id="uniprotkb_reviewed_swissprot",
         display_name="UniProtKB reviewed Swiss-Prot protein annotations",
