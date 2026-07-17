@@ -25,7 +25,7 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 11:38 +0000 — Steven directly
+- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 11:44 +0000 — Steven directly
   authorized and Eamos completed the public-domain attach plus Vercel target
   flip. DNS/TLS, proxy-origin proof, auth boundary, effective-container
   hardening, and the full local repository gate are green. One mixed viewer
@@ -37,20 +37,20 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 11:38 +0000 · Codex
+UNLOCKED · 2026-07-17 11:44 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the bounded Phase-3c cutover evidence locks at
-  2026-07-17 11:38 +0000.
+- None. Codex released the bounded stable-alias pointer lock at
+  2026-07-17 11:44 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 11:38 +0000 · Codex Phase-3c active soak
+# Resume prompt · 2026-07-17 11:44 +0000 · Codex Phase-3c active soak
 Read CURRENT.md, README.md, the latest Swordfish mail, and the Phase-3 runbook's Phase-3c section.
 Do not repeat the domain attach or Vercel flip: preview-api and eamos-dev production are already live on syd2.
-Compose 5rBnRf20ht4wGRQ856ZLO and Vercel deployment dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ are the active seam.
+Compose 5rBnRf20ht4wGRQ856ZLO and stable Vercel production alias eamos-dev.vercel.app are the active seam.
 Frontend/backend workstation ports remain 3532/8532; Dokploy 8000 is only the isolated container listener.
 Next, gather spaced soak evidence and characterize the immediate viewer probes that mixed 200 and 503.
 The 48-hour floor ends approximately 2026-07-19 11:31 UTC, but every evidence gate must also pass.
@@ -65,9 +65,10 @@ Codex runs inside persistent tmux via agent-tmux.service; continue from that sea
   `docs/deployment/render-to-syd2-phase3.md` → Phase 3c.
 - Hardened Compose: `5rBnRf20ht4wGRQ856ZLO`; public-label redeploy:
   `SSvNBmx91esTGz1tohYoU`; immutable contract: `deploy/syd2/compose.yaml`.
-- Vercel production deployment: `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ`, alias
-  `eamos-dev.vercel.app`; prior rollback target:
-  `https://eamos-dev-sg.onrender.com`.
+- Stable Vercel production seam: `eamos-dev.vercel.app`; initial cutover
+  deployment: `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ`. Every `main` push creates a
+  successor deployment, so follow the alias rather than treating that ID as
+  current. Prior rollback target: `https://eamos-dev-sg.onrender.com`.
 - Immediate provider-health proof: direct syd2 and Vercel share SHA-256
   `b087c5a6…`; Render differs and remains HTTP 200.
 - Cutover receipt sent to Swordfish at 11:34 UTC in
