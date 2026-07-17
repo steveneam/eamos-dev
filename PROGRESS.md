@@ -1,5 +1,43 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-17 17:14 +0000 - Codex - Evidence expansion Phases 1/2 complete
+
+Recovered the interrupted wrap and completed the directly authorized REVEL
+call-card slice plus the synthetic-fixture-only ESM-1b regeneration worker.
+Implementation commit `b7c41c7` contains the verified code and plan updates;
+required CI run `29599296576` completed successfully.
+
+- The report's Computational card now renders the typed backend-selected REVEL
+  label, score, PP3/BP4 code, points, theme, and provenance. Alternate
+  predictors remain context-only, splice evidence is accounted separately, all
+  four call cards retain independent themes, and TSV/HTML report exports follow
+  the same selected decision.
+- The combined/consensus callout is now explicit evidence accounting. Five
+  computational states were reviewed at 390, 768, 1024, and 1440 pixels. The
+  carousel retained its compact dots inside 24-by-24-pixel tap targets; mobile
+  Lighthouse accessibility improved from 94 to 97. Remaining report contrast
+  findings and the desktop rail's Import VCF target are pre-existing and
+  outside this slice.
+- The ESM-1b fixture worker freezes the exact 1,022/512/scale-20 long-protein
+  route, streams bounded inputs, joins and sorts through SQLite, emits
+  deterministic raw-score shards without `acmg_band`, disambiguates repeated
+  genomic keys by transcript/gene/protein context, and enforces a hard
+  100,000-row score/context ceiling.
+- The legacy materializer is disabled. Nullable license metadata and
+  hash-shaped strings cannot clear activation: a release-ready v2 proof must
+  bind the canonical source route plus the mounted final asset and index names,
+  sizes, and SHA-256 values. Tampering closes the gate.
+- A local Next-to-FastAPI RPE65 smoke returned 200 and rendered the typed
+  unavailable state plus evidence accounting. `npm run verify` passed in 243.0
+  seconds: structural/contract guards, ESLint, Ruff, Black, TypeScript, 11
+  repository ratchets, 22 Vitest files / 174 tests, the complete backend pytest
+  suite, and the 17-route production build.
+
+No ESM-1b model, precomputed archive, score corpus, bgzip/Tabix runtime asset,
+upload, Supabase mutation, provider change, deployment, or cleanup occurred.
+Phase-3c soak remains active; its time-valid middle sample is due around/after
+2026-07-18 11:31 UTC.
+
 ## 2026-07-17 12:42 +0000 - Codex - Phase-3c pre-middle pulse green
 
 Steven resumed the active soak 68 minutes after the production cutover. The
