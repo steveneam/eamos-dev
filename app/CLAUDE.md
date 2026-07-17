@@ -13,14 +13,14 @@ Full-stack application: Next.js/React frontend + FastAPI/Python backend.
 
 ```powershell
 # ACTIVE frontend (Next.js 16) — migrated surfaces
-npm --prefix app/web run dev        # → http://localhost:3000
+npm --prefix app/web run dev        # → http://localhost:3532
 
 # node lives at C:\Program Files\nodejs\node.exe (system install, on PATH)
 
-# Backend → http://localhost:8000
+# Backend → http://localhost:8532
 cd app/backend
-python -m uvicorn app.main:create_app --factory --reload
+python -m uvicorn app.main:create_app --factory --reload --port 8532
 ```
 
-API base URL (frontend → backend): `http://localhost:8000/api/v1`
+API base URL (frontend → backend): `http://localhost:8532/api/v1`
 Node.js: `C:\Program Files\nodejs\node.exe` (IT-managed system install, on PATH)

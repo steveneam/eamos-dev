@@ -9,7 +9,7 @@
 //   • console errors emitted during the report render
 //
 // The scan runs against any URL that returns the /report React tree — by
-// default http://localhost:3000/report?fixture=rpe65-negative (Next.js dev
+// default http://localhost:3532/report?fixture=rpe65-negative (Next.js dev
 // server). Sub-desktop/mobile overflow checks are disabled by Steven until he
 // explicitly reactivates them.
 //
@@ -53,7 +53,7 @@ const args = Object.fromEntries(
     return [raw.slice(0, sep), raw.slice(sep + 1)]
   }),
 )
-const URL_BASE = args.url ?? 'http://localhost:3000/report?fixture=rpe65-negative'
+const URL_BASE = args.url ?? 'http://localhost:3532/report?fixture=rpe65-negative'
 const DESKTOP_MIN_WIDTH = 1024
 const RAW_WIDTHS = String(args.widths ?? '1280')
   .split(',')

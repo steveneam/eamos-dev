@@ -5,9 +5,10 @@
   "scripts": {
     "preinstall": "node ../../scripts/guard-worktree-install.mjs",
     "guard:boundary": "node ../../scripts/eamos-web-boundary.mjs",
+    "guard:dev-ports": "node ../../scripts/eamos-dev-port-guard.mjs",
     "guard:vercel": "node ../../scripts/eamos-vercel-project-guard.mjs",
     "predev": "npm run guard:vercel",
-    "dev": "next dev",
+    "dev": "next dev -p 3532",
     "prebuild": "npm run guard:vercel",
     "build": "next build --webpack",
     "start": "next start",

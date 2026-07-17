@@ -68,7 +68,7 @@ no "save variant," no evidence-submission UI, and no pricing/checkout wired** ye
 ## 2. The architecture decision: where does the FastAPI backend live?
 
 Your browser (on Vercel) calls same-origin `/api/*`. `next.config.mjs` rewrites
-that to `API_PROXY_TARGET` (defaults to `http://localhost:8000`). In production you
+that to `API_PROXY_TARGET` (defaults locally to `http://localhost:8532`). In production you
 point `API_PROXY_TARGET` at a hosted backend — **no CORS, no code change.**
 
 Vercel can host the Next.js app but **not** this Python backend (it's a long-lived

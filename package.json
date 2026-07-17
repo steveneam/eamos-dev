@@ -2,6 +2,7 @@
   "scripts": {
     "audit": "node scripts/eamos-repo-gate.mjs audit",
     "build": "node scripts/eamos-repo-gate.mjs build",
+    "dev:backend": "node scripts/eamos-repo-gate.mjs dev:backend",
     "guard": "node scripts/eamos-repo-gate.mjs guard",
     "lint": "node scripts/eamos-repo-gate.mjs lint",
     "mail": "node scripts/eamos-repo-gate.mjs mail",

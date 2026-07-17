@@ -77,7 +77,7 @@ cp .env.example .env        # then edit .env — JWT_SECRET is required
 random characters.
 
 ```bash
-uvicorn app.main:create_app --factory --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8532
 ```
 
 ## Configuration (`.env`)

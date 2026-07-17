@@ -19,8 +19,8 @@ canary is `backend/tests/test_frontend_contract.py`.
 
 ```bash
 npm --prefix app/web run dev
-cd app/backend && python -m uvicorn app.main:create_app --factory --reload
+cd app/backend && python -m uvicorn app.main:create_app --factory --reload --port 8532
 ```
 
-The web app defaults to `http://localhost:3000`; the backend defaults to
-`http://localhost:8000/api/v1`.
+The web app uses its private lane at `http://localhost:3532`; the backend uses
+`http://localhost:8532/api/v1`.

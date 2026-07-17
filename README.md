@@ -45,13 +45,13 @@ Three layers organisationally: Layer 1 (the variant report + Workbench), Layer 2
 ```powershell
 # Backend
 $env:PATH = "C:\Program Files\Python310\;C:\Program Files\Python310\Scripts\;$env:PATH"
-cd app/backend
-python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
+npm run dev:backend
+# -> http://localhost:8532
 
 # Active frontend
 cd app/web
 npm run dev
-# -> http://localhost:3000
+# -> http://localhost:3532
 # Node.js: IT-managed system install at C:\Program Files\nodejs\ (already on PATH).
 ```
 

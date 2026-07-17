@@ -65,6 +65,12 @@ const stages = {
       cwd: ROOT,
     },
     {
+      label: 'local dev-port lanes',
+      command: NODE,
+      args: [join(ROOT, 'scripts', 'eamos-dev-port-guard.mjs')],
+      cwd: ROOT,
+    },
+    {
       label: 'landing browser-capture manifest',
       command: NODE,
       args: [join(ROOT, 'scripts', 'eamos-capture-landing-features.mjs'), '--check'],
@@ -130,9 +136,21 @@ const stages = {
 const requested = process.argv[2] ?? 'verify'
 if (requested === '--help' || requested === '-h') {
   process.stdout.write(
-    'Usage: node scripts/eamos-repo-gate.mjs [audit|guard|lint|typecheck|test|build|coordination|mail|verify]\n',
+    'Usage: node scripts/eamos-repo-gate.mjs [audit|guard|lint|typecheck|test|build|coordination|dev:backend|mail|verify]\n',
   )
   process.exit(0)
+}
+
+if (requested === 'dev:backend') {
+  const result = spawnSync(NODE, [join(ROOT, 'scripts', 'eamos-backend-dev.mjs'), ...process.argv.slice(3)], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  })
+  if (result.error) {
+    process.stderr.write(`eamos:dev:backend: could not start launcher: ${result.error.message}\n`)
+    process.exit(1)
+  }
+  process.exit(result.status ?? 1)
 }
 
 if (requested === 'mail') {

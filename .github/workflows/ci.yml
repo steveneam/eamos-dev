@@ -48,6 +48,7 @@ jobs:
       - run: npm ci
       - run: npm run guard:vercel
       - run: npm run guard:boundary
+      - run: npm run guard:dev-ports
       - run: npm run test
       - run: npx tsc --noEmit -p tsconfig.json
       - run: npm run lint

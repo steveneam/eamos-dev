@@ -2,10 +2,10 @@
 
 // Reproducible browser captures for the landing-page feature section.
 // Run a local Eamos web server first, then:
-//   node scripts/eamos-capture-landing-features.mjs --base-url=http://127.0.0.1:3001
+//   node scripts/eamos-capture-landing-features.mjs --base-url=http://127.0.0.1:3532
 //   node scripts/eamos-capture-landing-features.mjs --check
-//   node scripts/eamos-capture-landing-features.mjs --verify-hero --base-url=http://127.0.0.1:3001
-//   node scripts/eamos-capture-landing-features.mjs --verify-pass4 --base-url=http://127.0.0.1:3001
+//   node scripts/eamos-capture-landing-features.mjs --verify-hero --base-url=http://127.0.0.1:3532
+//   node scripts/eamos-capture-landing-features.mjs --verify-pass4 --base-url=http://127.0.0.1:3532
 
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -62,7 +62,7 @@ const args = Object.fromEntries(
   }),
 )
 
-const BASE_URL = String(args['base-url'] ?? 'http://localhost:3000').replace(/\/$/, '')
+const BASE_URL = String(args['base-url'] ?? 'http://localhost:3532').replace(/\/$/, '')
 
 const CAPTURES = [
   {

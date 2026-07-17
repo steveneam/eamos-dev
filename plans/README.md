@@ -73,12 +73,12 @@ attribution, not a lane. These rules are about *ordering and safety*, not roles:
 ```powershell
 # Frontend
 cd app/web
-npm run dev      # -> http://localhost:3000 or the next available Next.js port
+npm run dev      # -> http://localhost:3532 (pinned; never auto-increments)
 
 # Backend
 cd app/backend
-python -m uvicorn app.main:create_app --factory --reload
-# -> http://localhost:8000/api/v1
+python -m uvicorn app.main:create_app --factory --reload --port 8532
+# -> http://localhost:8532/api/v1
 ```
 
 ## Historical Codex Plugin Notes

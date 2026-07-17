@@ -70,7 +70,7 @@ line + a fenced stamped resume `Prompt:` (format in README.md).
 ```
 # Start frontend dev server
 cd app/web && npm run dev
-# → http://localhost:3000
+# → http://localhost:3532
 
 # Node.js (Windows): IT-managed system install at C:\Program Files\nodejs\node.exe (already on PATH)
 # Backend root: app/backend/

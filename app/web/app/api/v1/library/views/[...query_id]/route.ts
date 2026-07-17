@@ -1,4 +1,4 @@
-const API_TARGET = (process.env.API_PROXY_TARGET ?? 'http://localhost:8000').replace(/\/$/, '')
+const API_TARGET = (process.env.API_PROXY_TARGET ?? 'http://localhost:8532').replace(/\/$/, '')
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
