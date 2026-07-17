@@ -25,95 +25,80 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 13:51 +0000 — pre-middle
-  evidence is green; middle is due around/after 2026-07-18 11:31 UTC and the
-  48-hour floor around/after 2026-07-19 11:31 UTC. Steven authorized expansion
-  Phase 0 then Phase 1 next session as sequential verified slices. A due timed
-  soak checkpoint takes precedence. Render remains rollback; source
-  materialization, Phase 2+, and deployment Phase 4 require separate approval.
-- **Runtime:** Codex is inside the persistent `eamos` tmux session under
-  `agent-tmux.service`; the code-server terminal profile now defaults to that
-  seam, so a code-server restart no longer owns this process cgroup.
+- **Codex:** PHASE 0 COMPLETE @ 2026-07-17 15:46 +0000 — contract freeze is
+  committed and pushed at `49cdacb`. Local guard/lint/typecheck/full tests are
+  green; all required CI checks are green. Phase 1 is the next implementation
+  slice. Phase 2 is only a candidate and is not authorized.
+- **Phase-3c soak:** active. Middle evidence is due around/after
+  2026-07-18 11:31 UTC; 48-hour floor is around/after 2026-07-19 11:31 UTC.
+  A due timed checkpoint takes precedence over expansion work.
+- **Runtime:** persistent `eamos` tmux under `agent-tmux.service` remains the
+  execution seam.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 13:51 +0000 · Codex
+UNLOCKED · 2026-07-17 15:46 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the next-session scope lock at 2026-07-17 13:51 +0000.
+None.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 13:51 +0000 · Codex Phase 0/1 authorized
+# Resume prompt · 2026-07-17 15:46 +0000 · Codex Phase 1 next
 Read CURRENT.md, peer mail, the Phase-3c runbook, and plans/evidence-source-expansion/plan.md first.
-Steven explicitly authorized expansion Phase 0 and Phase 1 for this next session.
-If the roughly 24-hour soak checkpoint is due, run it first; never miss the timed evidence window.
-Implement Phase 0 as the first verified slice: calibration/Decimal/preselection, source policy, and MaveDB v2 contract.
-Commit, push, and require green CI before treating the shared contract as frozen.
-Then implement Phase 1 as a second verified slice: REVEL-led Computational card and its tests/visual proof.
-Preserve all four cards' independent inputs/colors; REVEL changes only Computational.
-Use synthetic fixtures only; no corpus materialization, Supabase/provider/deploy changes, or final-v4 label.
-Keep rollback infrastructure live and continue inside persistent tmux.
+Phase 0 is frozen at 49cdacb with required CI green; do not reopen it without a concrete regression.
+If the Phase-3c middle checkpoint is due (around/after 2026-07-18 11:31 UTC), run that evidence sample first.
+Otherwise implement Phase 1 as one bounded verified slice: the REVEL-led Computational card, backend-derived labels/theme/provenance, independent four-card semantics, accessibility, focused tests, and required visual proof.
+Commit, push, and watch CI at the verified boundary.
+Do not start Phase 2: Steven said it may be considered next session, which is not direct approval for its source-route/materialization gates.
+Use synthetic fixtures only; do not materialize corpora, mutate Supabase/provider/deployment state, or apply a final-SVC-v4 label.
 ```
 
 ## Pointer
 
-- Full mutation ledger, proof, and soak exit contract:
-  `docs/deployment/render-to-syd2-phase3.md` → Phase 3c.
-- Executable full-report failure ratchet:
-  `scripts/eamos-report-performance-audit.mjs --require-ok`; regression test:
-  `scripts/eamos-report-performance-audit.test.mjs`.
-- Hardened Compose: `5rBnRf20ht4wGRQ856ZLO`; public-label redeploy:
-  `SSvNBmx91esTGz1tohYoU`; immutable contract: `deploy/syd2/compose.yaml`.
-- Stable Vercel production seam: `eamos-dev.vercel.app`; initial cutover
-  deployment: `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ`. Every `main` push creates a
-  successor deployment, so follow the alias rather than treating that ID as
-  current. Prior rollback target: `https://eamos-dev-sg.onrender.com`.
-- Beginning-sample proof and 503 characterization are in the runbook; the
-  verification-only 12:40 pulse is at the top of `PROGRESS.md`; the 12:20
-  false-positive correction is in
-  `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
-- Trusted-proxy residual and remediation gate:
-  `docs/operations/risks-and-guardrails.md`.
-- Proposed evidence-source work:
-  `plans/evidence-source-expansion/research.md` and
-  `plans/evidence-source-expansion/plan.md`; current MaveDB acquisition boundary:
-  `docs/mavedb-license-gate/notes.md`.
+- Phase-3c timing, proof, and exit contract:
+  `docs/deployment/render-to-syd2-phase3.md`.
+- Evidence expansion contract and research:
+  `plans/evidence-source-expansion/plan.md` and `research.md`.
+- Phase 0 freeze commit: `49cdacb`; CI run:
+  `https://github.com/steveneam/eamos-dev/actions/runs/29593366520`.
+- Stable Vercel seam: `eamos-dev.vercel.app`; prior Render rollback target:
+  `https://eamos-dev-sg.onrender.com`.
+- Current MaveDB acquisition boundary: `docs/mavedb-license-gate/notes.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Three read-only research lanes plus a repository audit produced a proposed
-  implementation plan for REVEL/SVC v4, ESM-1b, OMIM, LOVD, MaveDB, and
-  OddsPath. `npm run guard` passed in 3.4 seconds.
-- The existing four-card report contract is preserved: REVEL controls only the
-  Computational card's PP3/BP4 state and color; Clinical, Population, and Lab &
-  Functional retain independent inputs and themes. Final SVC v4 remains gated
-  on publication, immutable transcription, shadow cases, and clinical approval.
-- MaveDB's pinned CC0 bulk subset is rights-eligible, but the current schema-v1
-  importer is not launchable: it overwrites variants within a score set, trusts
-  caller license/URL fields, bypasses checksum verification in readiness, and
-  collapses multiple matches. The plan freezes schema-v2, hostile-archive,
-  canonical-link, raw-score-only, and no-automatic-PS3/BS3 gates.
-- ESM-1b uses a clean offline regeneration route; OMIM stays provenance-correct
-  link-only; LOVD stays link/synthetic-fixture-only; OddsPath classification and
-  assay meanings remain distinct.
-- Steven's direct 2026-07-17 13:50 instruction authorizes implementation of
-  Phase 0 and Phase 1 in the next session, superseding the prior planning-only
-  hold for those two phases only. Phase 0 is the serial contract/correctness
-  slice; Phase 1 may begin only after Phase 0 is committed, pushed, and green.
-- No runtime code, source corpus, deployment, provider, environment, DNS,
-  Render, Supabase, credential, cleanup, or Phase-4 state changed.
+- Phase 0 froze backend/Pydantic and TypeScript contracts for versioned
+  computational decisions, source-fact policy, provenance, and MaveDB v2.
+- Predictor calibration and ACMG arithmetic now use backend `Decimal` with
+  canonical decimal-string output, explicit boundaries/inclusivity, immutable
+  profile checksums, REVEL preselection, no strongest-score fallback, and
+  PP3/BP4 plus PP3/PM1 dependency enforcement.
+- Source actions are field-specific and deny by default. Protected facts are
+  filtered server-side and again for TSV/HTML/copy/PDF export; unsafe export
+  link schemes are rejected.
+- MaveDB uses separate archive/score-set/target/variant/match contracts, exact
+  identity precedence, authoritative nested CC0 policy, neutral raw scores,
+  multiple unaggregated measurements, and archive plus logical checksum gates.
+  Zenodo v4 filename/size/MD5 are pinned; synthetic stores are explicitly
+  `fixture_ready` and cannot serialize publicly.
+- Local `npm run guard`, `lint`, `typecheck`, and `test` passed. CI required
+  checks passed, including sharded backend tests, frontend build/test/lint,
+  container contract, dependency security, and coordination ratchets.
+- No corpus materialization, Supabase/provider/deployment mutation, final-v4
+  activation, or Phase 2 work occurred.
+- The long closeout was ratcheted into Hard Rule 12 in
+  `agent_handoff/README.md`: freeze phase exits, triage late findings, stop
+  general review after the first full green gate, and collapse immediately to
+  commit/CI/handoff when Steven says wrap.
 
 ## Next Action
 
-- On next-session resume, run the Phase-3c middle sample first if it is at/after
-  roughly 2026-07-18 11:31 UTC. Otherwise begin expansion Phase 0 as one serial
-  verified slice; commit, push, and require green CI before freezing its shared
-  contract. Then implement Phase 1 as a separate verified REVEL Computational-
-  card slice. Interrupt expansion for any due timed soak evidence. Do not start
-  expansion Phase 2+, materialize source corpora, mutate Supabase/provider/
-  deployment state, apply a final-SVC-v4 label, or enter deployment Phase 4
-  without Steven's separate direct authorization.
+- On next-session resume, run the Phase-3c middle sample first if it is due.
+  Otherwise implement Phase 1 only, bounded to the REVEL Computational-card
+  slice and its proof. Preserve the other three cards' independent inputs and
+  colors. Do not begin Phase 2 or any source materialization without Steven's
+  separate direct authorization.

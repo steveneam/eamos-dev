@@ -72,6 +72,18 @@ worktree truth). Read `docs/governance/decisions.md` when relevant.
     paths (DL-019). Merge approval, destructive Git, cleanup deletion, secrets,
     deploy/cloud actions, Supabase mutations, and other named founder gates stay
     separate. Unverified, speculative, or mixed-ownership work is not swept in.
+12. **Bound phases and obey wrap immediately.** Before implementation, freeze a
+    short exit checklist and explicit exclusions from the active plan. A late
+    review finding is either (a) a concrete violation of that checklist or a
+    security/data-integrity invariant, or (b) deferred follow-up; it does not
+    silently widen the phase. After the first full green boundary, do not open
+    another general audit. After Steven says `wrap`, `stop`, or equivalent,
+    start no new implementation: resolve only red caused by the owned slice,
+    run the minimum remaining gate, commit/push, watch required CI, and hand
+    off. If a newly discovered critical issue truly prevents that boundary,
+    state the issue and its bounded fix before touching it. Verification is
+    focused during development, one full local gate at the boundary, and one CI
+    run; repeat a full layer only when a later mutation can affect that layer.
 
 ## Idle / Usage-Exhaustion Protocol
 
@@ -94,7 +106,9 @@ smoke, logs it in its section, flags drift in `## Cross-Agent Requests`.
 On "break / wrap / stop / pause": start no new scope, ask no new non-blocking
 questions, reach the nearest **verified** boundary, finalize the handoff (own
 `CURRENT.md` section if major + heartbeat + lock release; archive, never delete,
-anything superseded). **The final chat message must end with** (1) a labeled
+anything superseded). A review observation found after the stop instruction is
+recorded for the next slice unless it proves the current commit unsafe; it is
+not an invitation to resume auditing. **The final chat message must end with** (1) a labeled
 `Safe to clear: yes|no` line + reason and (2) a fenced, paste-ready resume
 `Prompt:` block — in the message, not only the files.
 

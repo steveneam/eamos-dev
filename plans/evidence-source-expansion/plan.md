@@ -1,6 +1,7 @@
 # Evidence Source Expansion — Implementation Plan
 
-Status: proposed; research complete; implementation not started.
+Status: Phase 0 complete at `49cdacb`; Phase 1 authorized for the next session;
+Phase 2 remains unapproved.
 
 Stamped: 2026-07-17 13:39 +0000 · Codex.
 

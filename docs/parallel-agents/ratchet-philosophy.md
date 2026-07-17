@@ -90,3 +90,27 @@ Suggested first drills:
   without the `curl -k` shortcut that hides cert-trust failures) and prints the
   exact 3-condition fix on red. Promotes the vault-MCP setup lesson from a
   runbook note (documentary rung) to an executable check.
+
+## Bounded-phase execution ratchet
+
+Added: 2026-07-17 15:48 +0000 · Codex, after evidence-expansion Phase 0.
+
+The Phase 0 exit contract was written, but the closing review was allowed to
+become an open-ended audit. Several findings were real; the process failure was
+letting each finding restart review and full verification after Steven had
+asked to wrap.
+
+For every phase, the lead now writes or points to:
+
+1. the finite exit checklist;
+2. explicit exclusions and founder-gated work;
+3. the focused tests used while editing; and
+4. the single full local gate and CI gate that close the slice.
+
+Late findings use a two-bin triage. An exit-contract, security, or data-integrity
+violation gets one bounded fix with its focused regression test. Everything
+else is recorded as follow-up. A green full gate closes general review; it does
+not begin another audit loop. A direct `wrap` or `stop` collapses the remaining
+workflow to red-fix → minimum affected gate → commit/push → required CI →
+handoff. The canonical enforceable session rule is Hard Rule 12 in
+`agent_handoff/README.md`.
