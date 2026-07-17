@@ -1,0 +1,468 @@
+{
+  "schema_version": "eamos.runtime_tree_manifest.v1",
+  "manifest_id": "syd2-runtime-tree-precutover-2026-07-17",
+  "bucket_id": "eamos-source-assets",
+  "reference_tree_manifest_sha256": "c907fa2aab78eb31a5ae30dcbc3e914ed89d90584d5aea845f360cdc25c20cbb",
+  "item_count": 23,
+  "total_bytes": 47943536945,
+  "source_object_count": 45,
+  "source_total_bytes": 48562226185,
+  "items": [
+    {
+      "item_id": "clingen_runtime_manifest",
+      "source_id": "eamos_clingen_local",
+      "asset_id": "clingen_local_manifest",
+      "role": "generated_sqlite_runtime_manifest",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/clingen/sha256-f96c78de20c80b61185e88da2a448fbf3a697638b31d35df0b2744cf0d77adde/clingen-local.manifest.json",
+      "destination_relpath": "clingen/clingen-local.manifest.json",
+      "byte_size": 303,
+      "sha256": "f96c78de20c80b61185e88da2a448fbf3a697638b31d35df0b2744cf0d77adde",
+      "license_status": "internal_generated_runtime_artifact",
+      "approval_status": "approved",
+      "launch_gate": "clingen_local_materialization"
+    },
+    {
+      "item_id": "alphamissense_runtime_manifest",
+      "source_id": "google_deepmind_alphamissense_hg38",
+      "asset_id": "alphamissense_hg38_manifest",
+      "role": "predictor_runtime_manifest",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/predictors/alphamissense/sha256-433400aea84dd22c0b3318afc1aeeca2f882bbf674b010e21265b0f157f28adc/AlphaMissense_hg38.tsv.gz.manifest.json",
+      "destination_relpath": "predictors/alphamissense/AlphaMissense_hg38.tsv.gz.manifest.json",
+      "byte_size": 771,
+      "sha256": "433400aea84dd22c0b3318afc1aeeca2f882bbf674b010e21265b0f157f28adc",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "clinvar_gene_distribution_runtime_manifest",
+      "source_id": "eamos_clinvar_gene_distribution_index",
+      "asset_id": "clinvar_gene_distribution_manifest",
+      "role": "generated_sqlite_runtime_manifest",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/clinvar/sha256-e4880b49300383afc9d3633a1be324b3161b992678423d6133bc42faf10b1427/clinvar-gene-distribution.manifest.json",
+      "destination_relpath": "clinvar/clinvar-gene-distribution.manifest.json",
+      "byte_size": 2110,
+      "sha256": "e4880b49300383afc9d3633a1be324b3161b992678423d6133bc42faf10b1427",
+      "license_status": "internal_generated_runtime_artifact",
+      "approval_status": "approved",
+      "launch_gate": "clinvar_gene_distribution_index_materialization"
+    },
+    {
+      "item_id": "clinvar_tabix_index",
+      "source_id": "ncbi_clinvar_vcf",
+      "asset_id": "clinvar_grch38_vcf_tbi",
+      "role": "clinvar_tabix_index",
+      "landing_set": "A_seed_manifest",
+      "object_path": "ncbi_clinvar_vcf/clinvar_grch38_vcf_tbi/sha256-8163ba8700e54c674784ab61fbd0816030d69778675c16f9e1a80694a85b13b7/clinvar.vcf.gz.tbi",
+      "destination_relpath": "clinvar/clinvar.vcf.gz.tbi",
+      "byte_size": 609481,
+      "sha256": "8163ba8700e54c674784ab61fbd0816030d69778675c16f9e1a80694a85b13b7",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "alphamissense_tabix_index",
+      "source_id": "google_deepmind_alphamissense_hg38",
+      "asset_id": "alphamissense_hg38_tbi",
+      "role": "predictor_tabix_index",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/predictors/alphamissense/sha256-79e270945664a9a9b849dcca70fd3b7e31805d46fb43cc587a449821e05f958c/AlphaMissense_hg38.tsv.gz.tbi",
+      "destination_relpath": "predictors/alphamissense/AlphaMissense_hg38.tsv.gz.tbi",
+      "byte_size": 690194,
+      "sha256": "79e270945664a9a9b849dcca70fd3b7e31805d46fb43cc587a449821e05f958c",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "pfam_hmmpress_h3i",
+      "source_id": "hmmer_pfam_a",
+      "asset_id": "pfam_a_hmm_h3i",
+      "role": "pfam_hmmpress_index_h3i",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/protein_annotation/sha256-8b6d65a94212adddd35953b7bfb420baca71b8a6bbfe052cc14ad5895b5b7478/Pfam-A.hmm.h3i",
+      "destination_relpath": "protein_annotation/Pfam-A.hmm.h3i",
+      "byte_size": 2720770,
+      "sha256": "8b6d65a94212adddd35953b7bfb420baca71b8a6bbfe052cc14ad5895b5b7478",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "dbsnp_tabix_index",
+      "source_id": "ncbi_dbsnp_gcf_000001405_40",
+      "asset_id": "dbsnp_grch38_vcf_tbi",
+      "role": "dbsnp_tabix_index",
+      "landing_set": "A_seed_manifest",
+      "object_path": "ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_tbi/sha256-d6c38c0b715e5fe16c715f2aaed04b3964ed7f38f00c5921e10afd3649b2b104/GCF_000001405.40.gz.tbi",
+      "destination_relpath": "dbsnp/GCF_000001405.40.gz.tbi",
+      "byte_size": 3140346,
+      "sha256": "d6c38c0b715e5fe16c715f2aaed04b3964ed7f38f00c5921e10afd3649b2b104",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "mane_refseq_gff",
+      "source_id": "mane_refseq_gff",
+      "asset_id": "mane_grch38_v1_5_refseq_genomic_gff_gz",
+      "role": "coordinate_builder_input",
+      "landing_set": "C_runtime_required",
+      "object_path": "transcripts/mane_refseq_gff/MANE.GRCh38.v1.5.refseq_genomic.gff.gz",
+      "destination_relpath": "transcripts/MANE.GRCh38.v1.5.refseq_genomic.gff.gz",
+      "byte_size": 8271212,
+      "sha256": "040f0d4056de2e9a416cd52bc20ff07ef403baadf5f5968faf188907893f6002",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "compact_coordinate_index",
+      "source_id": "eamos_coordinate_index",
+      "asset_id": "eamos_coordinate_index_2026_06_14",
+      "role": "compact_coordinate_runtime_index",
+      "landing_set": "C_runtime_required",
+      "object_path": "transcripts/eamos_coordinate_index/eamos-coordinate-index.2026-06-14-transcript-gff-v1.jsonl.gz",
+      "destination_relpath": "transcripts/eamos-coordinate-index.latest.jsonl.gz",
+      "byte_size": 11597735,
+      "sha256": "8b9e2b8c706d11823e92e25d2aaca23b2af978e086580667491ac141bfbf856e",
+      "license_status": "internal_generated_runtime_artifact",
+      "approval_status": "approved",
+      "launch_gate": "compact_coordinate_index_materialization"
+    },
+    {
+      "item_id": "refseq_grch38_p14_gff",
+      "source_id": "ncbi_refseq_grch38_p14",
+      "asset_id": "refseq_grch38_p14_genomic_gff_gz",
+      "role": "coordinate_builder_input",
+      "landing_set": "C_runtime_required",
+      "object_path": "transcripts/refseq_grch38_p14_gff/GCF_000001405.40_GRCh38.p14_genomic.gff.gz",
+      "destination_relpath": "transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz",
+      "byte_size": 56923273,
+      "sha256": "e7afdb4c789fdd03e0088afd1f57e466513301d23934861833fc4c0cf25c5220",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "clinvar_bgzip_vcf",
+      "source_id": "ncbi_clinvar_vcf",
+      "asset_id": "clinvar_grch38_vcf_gz",
+      "role": "clinvar_bgzip_vcf",
+      "landing_set": "A_seed_manifest",
+      "object_path": "ncbi_clinvar_vcf/clinvar_grch38_vcf_gz/sha256-bd3cdbc07bf26aa5d136219e2db665b65c6e40edcbf15778b1096f5aba615302/clinvar.vcf.gz",
+      "destination_relpath": "clinvar/clinvar.vcf.gz",
+      "byte_size": 191912185,
+      "sha256": "bd3cdbc07bf26aa5d136219e2db665b65c6e40edcbf15778b1096f5aba615302",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "pfam_a_hmm_gz",
+      "source_id": "hmmer_pfam_a",
+      "asset_id": "pfam_a_hmm_gz",
+      "role": "pfam_hmm_profile_database_source",
+      "landing_set": "C_runtime_required",
+      "object_path": "hmmer_pfam_a/pfam_current_release_2026-05-29/md5-dc814cc181ece09102c09c4e6c19f2fd/Pfam-A.hmm.gz",
+      "destination_relpath": "protein_annotation/downloads/Pfam-A.hmm.gz",
+      "byte_size": 384357362,
+      "sha256": "d3d30c8e6801bfedecf783408ecc98916f8f1dda8974c6e51036fcbdd765f591",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "pfam_hmmpress_h3f",
+      "source_id": "hmmer_pfam_a",
+      "asset_id": "pfam_a_hmm_h3f",
+      "role": "pfam_hmmpress_index_h3f",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/protein_annotation/sha256-1900c0cb11e741d5d25aabf05e7a5e2fd200d160b882823b3f3d2d3c5c486a15/Pfam-A.hmm.h3f",
+      "destination_relpath": "protein_annotation/Pfam-A.hmm.h3f",
+      "byte_size": 487128688,
+      "sha256": "1900c0cb11e741d5d25aabf05e7a5e2fd200d160b882823b3f3d2d3c5c486a15",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "clingen_local_sqlite",
+      "source_id": "eamos_clingen_local",
+      "asset_id": "clingen_local_sqlite",
+      "role": "generated_sqlite_runtime_store",
+      "landing_set": "A_seed_manifest",
+      "object_path": "generated/eamos_clingen_local/clingen_local_sqlite/sha256-50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b/clingen-local.sqlite",
+      "destination_relpath": "clingen/clingen-local.sqlite",
+      "byte_size": 527925248,
+      "sha256": "50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b",
+      "license_status": "internal_generated_runtime_artifact",
+      "approval_status": "approved",
+      "launch_gate": "clingen_local_materialization"
+    },
+    {
+      "item_id": "alphamissense_hg38",
+      "source_id": "google_deepmind_alphamissense_hg38",
+      "asset_id": "alphamissense_hg38_tsv_gz",
+      "role": "predictor_tabix_tsv",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/predictors/alphamissense/sha256-0516cfd71c0767ac8f9c469252d429000e94e02c008b6e3a46d4b4646fcd3475/AlphaMissense_hg38.tsv.gz",
+      "destination_relpath": "predictors/alphamissense/AlphaMissense_hg38.tsv.gz",
+      "byte_size": 642961469,
+      "sha256": "0516cfd71c0767ac8f9c469252d429000e94e02c008b6e3a46d4b4646fcd3475",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "repeatmasker_compact_interval_index",
+      "source_id": "repeatmasker_rmsk_bb",
+      "asset_id": "repeatmasker_compact_interval_index",
+      "role": "repeatmasker_compact_interval_index",
+      "landing_set": "A_seed_manifest",
+      "object_path": "generated/repeatmasker_rmsk_bb/repeatmasker_compact_interval_index/sha256-6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98/repeatmasker.interval-index.jsonl",
+      "destination_relpath": "repeatmasker/repeatmasker.interval-index.jsonl",
+      "byte_size": 701514606,
+      "sha256": "6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "clinvar_gene_distribution_sqlite",
+      "source_id": "eamos_clinvar_gene_distribution_index",
+      "asset_id": "clinvar_gene_distribution_sqlite",
+      "role": "generated_sqlite_runtime_store",
+      "landing_set": "C_runtime_required",
+      "object_path": "generated/eamos_clinvar_gene_distribution_index/clinvar_gene_distribution_sqlite/sha256-efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196/clinvar-gene-distribution.sqlite",
+      "destination_relpath": "clinvar/clinvar-gene-distribution.sqlite",
+      "byte_size": 737673216,
+      "sha256": "efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196",
+      "license_status": "internal_generated_runtime_artifact",
+      "approval_status": "approved",
+      "launch_gate": "clinvar_gene_distribution_index_materialization"
+    },
+    {
+      "item_id": "hg38_2bit",
+      "source_id": "ucsc_hg38_2bit",
+      "asset_id": "ucsc_hg38_2bit",
+      "role": "reference_genome_runtime",
+      "landing_set": "C_runtime_required",
+      "object_path": "genomes/ucsc_hg38_2bit/hg38.2bit",
+      "destination_relpath": "genomes/hg38.2bit",
+      "byte_size": 835393456,
+      "sha256": "1f67aaa17a77b327738fe750ab37430a85dddf73c7d9189385ad1839259acec0",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "pfam_hmmpress_h3m",
+      "source_id": "hmmer_pfam_a",
+      "asset_id": "pfam_a_hmm_h3m",
+      "role": "pfam_hmmpress_index_h3m",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/protein_annotation/sha256-9b195421ed810fef1b84f41bc60f2f0e3293ca8030e5180eefb61024942fe6cc/Pfam-A.hmm.h3m",
+      "destination_relpath": "protein_annotation/Pfam-A.hmm.h3m",
+      "byte_size": 854484190,
+      "sha256": "9b195421ed810fef1b84f41bc60f2f0e3293ca8030e5180eefb61024942fe6cc",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "pfam_hmmpress_h3p",
+      "source_id": "hmmer_pfam_a",
+      "asset_id": "pfam_a_hmm_h3p",
+      "role": "pfam_hmmpress_index_h3p",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/protein_annotation/sha256-bb79b871fa20d5722eae3abbbd831e79d99889f9d8dcfb8c12731e277e03079f/Pfam-A.hmm.h3p",
+      "destination_relpath": "protein_annotation/Pfam-A.hmm.h3p",
+      "byte_size": 1006902695,
+      "sha256": "bb79b871fa20d5722eae3abbbd831e79d99889f9d8dcfb8c12731e277e03079f",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "pfam_a_hmm",
+      "source_id": "hmmer_pfam_a",
+      "asset_id": "pfam_a_hmm",
+      "role": "pfam_hmm_profile_database",
+      "landing_set": "B_preserved_runtime",
+      "object_path": "render_precutover_20260716/protein_annotation/sha256-a78a42d6faf265b6bfca59e8f062d06fae6083ce2c6e335d7b381f20b82b7903/Pfam-A.hmm",
+      "destination_relpath": "protein_annotation/Pfam-A.hmm",
+      "byte_size": 2067046650,
+      "sha256": "a78a42d6faf265b6bfca59e8f062d06fae6083ce2c6e335d7b381f20b82b7903",
+      "license_status": "commercial_allowed",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "phylop_bigwig",
+      "source_id": "ucsc_phylop100way_hg38",
+      "asset_id": "ucsc_hg38_phylop100way_bw",
+      "role": "phylop_bigwig",
+      "landing_set": "A_seed_manifest",
+      "object_path": "ucsc_phylop100way_hg38/ucsc_hg38_phylop100way_bw/sha256-445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973/hg38.phyloP100way.bw",
+      "destination_relpath": "phylop/hg38.phyloP100way.bw",
+      "byte_size": 9870053206,
+      "sha256": "445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    },
+    {
+      "item_id": "dbsnp_bgzip_vcf",
+      "source_id": "ncbi_dbsnp_gcf_000001405_40",
+      "asset_id": "dbsnp_grch38_vcf_gz",
+      "role": "dbsnp_bgzip_vcf",
+      "landing_set": "A_seed_manifest",
+      "object_path": "ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_gz/sha256-43bb897b69177555a8e9edeb7d8c8ea3e581dddaefadfafe29f36bed0d870574/GCF_000001405.40.gz",
+      "destination_relpath": "dbsnp/GCF_000001405.40.gz",
+      "byte_size": 29552227779,
+      "sha256": "43bb897b69177555a8e9edeb7d8c8ea3e581dddaefadfafe29f36bed0d870574",
+      "license_status": "public_allowed_after_terms_review",
+      "approval_status": "approved",
+      "launch_gate": null
+    }
+  ],
+  "excluded_source_objects": [
+    {
+      "object_path": "generated/eamos_clingen_local/clingen_local_sqlite/sha256-4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d/clingen-local.sqlite",
+      "byte_size": 463036416,
+      "sha256": "4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d",
+      "disposition": "superseded_version_source_only"
+    },
+    {
+      "object_path": "generated/eamos_clingen_local/clingen_local_sqlite/sha256-4b4a93b86116425f9949ea168df506b3ca17808d26db4e336ad833d1f73ada3d/clingen-local.sqlite.manifest.json",
+      "byte_size": 1816,
+      "sha256": "48e6d5ba3c1bf82535e00f23bffcb3a677175fd33d9fd6bd6f1c6d9068d20e69",
+      "disposition": "superseded_version_metadata"
+    },
+    {
+      "object_path": "generated/eamos_clingen_local/clingen_local_sqlite/sha256-50e12d4c0caaefceeece8f1e04de654158c5197a03fb6def991728591028dd9b/clingen-local.sqlite.manifest.json",
+      "byte_size": 1816,
+      "sha256": "afd5d6045a7925d87aecca86e8c25a3e6988ba51a9e6f7e8d5ed81ec1d2c8be7",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "generated/eamos_clinvar_gene_distribution_index/clinvar_gene_distribution_sqlite/sha256-efbec24b6f0764d2bece7c0a3abc2c10fb9749494e7ae78e74e707a015f4f196/clinvar-gene-distribution.sqlite.manifest.json",
+      "byte_size": 2163,
+      "sha256": "6630d194af49752cfa9d232c09d540240b8af062103489baf56e07a766a63581",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "generated/repeatmasker_rmsk_bb/repeatmasker_compact_interval_index/sha256-6d7cd79c0f657dfb0549e71f64435ea35887a7dd797c52cfb655298690c32f98/repeatmasker.interval-index.jsonl.manifest.json",
+      "byte_size": 1156,
+      "sha256": "57aad2c84ee5ac49270cb8d0596f6f6aba89f2b309373dc06cbad7cb61d5c50a",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "genomes/ucsc_hg38_2bit/hg38.2bit.manifest.json",
+      "byte_size": 1446,
+      "sha256": "fe66ef5272fb1a6c4fbec60e8ac630d8d7106404fa6a7353b44b51818f73f96a",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ncbi_clinvar_vcf/clinvar_grch38_vcf_gz/sha256-bd3cdbc07bf26aa5d136219e2db665b65c6e40edcbf15778b1096f5aba615302/clinvar.vcf.gz.manifest.json",
+      "byte_size": 495,
+      "sha256": "68264c68a6e86815305c930960b1571e365add70e98bdf22e1fc0ee042f3d340",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ncbi_clinvar_vcf/clinvar_grch38_vcf_md5/sha256-d8f2149223cd82317bd0b605e2f4484bc1c0366a44f61987932e4cf4572d3ad9/clinvar.vcf.gz.md5",
+      "byte_size": 132,
+      "sha256": "d8f2149223cd82317bd0b605e2f4484bc1c0366a44f61987932e4cf4572d3ad9",
+      "disposition": "source_checksum_sidecar"
+    },
+    {
+      "object_path": "ncbi_clinvar_vcf/clinvar_grch38_vcf_md5/sha256-d8f2149223cd82317bd0b605e2f4484bc1c0366a44f61987932e4cf4572d3ad9/clinvar.vcf.gz.md5.manifest.json",
+      "byte_size": 492,
+      "sha256": "c06a9e9db88175ad8cdd3d1ddc72b75ae3419c2dfa6c18d260fba2b75b7fc9bb",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ncbi_clinvar_vcf/clinvar_grch38_vcf_tbi/sha256-8163ba8700e54c674784ab61fbd0816030d69778675c16f9e1a80694a85b13b7/clinvar.vcf.gz.tbi.manifest.json",
+      "byte_size": 500,
+      "sha256": "7ac7895ae1fedcc75b6f124b418aad9feb8ef78110d992cb38d6a471575223aa",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_gz/sha256-43bb897b69177555a8e9edeb7d8c8ea3e581dddaefadfafe29f36bed0d870574/GCF_000001405.40.gz.manifest.json",
+      "byte_size": 506,
+      "sha256": "7175d5c75e9fcd3790d50625d10301e3395930eade0e1b8bcf2a98064a6d5c3d",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_md5/sha256-54703681d36dfde0934a456db4855274f3cbc7b1718c75ef4210eba62792c308/GCF_000001405.40.gz.md5",
+      "byte_size": 54,
+      "sha256": "54703681d36dfde0934a456db4855274f3cbc7b1718c75ef4210eba62792c308",
+      "disposition": "source_checksum_sidecar"
+    },
+    {
+      "object_path": "ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_md5/sha256-54703681d36dfde0934a456db4855274f3cbc7b1718c75ef4210eba62792c308/GCF_000001405.40.gz.md5.manifest.json",
+      "byte_size": 499,
+      "sha256": "6765b08d0c67253b23035e7c481055a3ea62b06279140d2c8d27dd42dfa1c44e",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ncbi_dbsnp_gcf_000001405_40/dbsnp_grch38_vcf_tbi/sha256-d6c38c0b715e5fe16c715f2aaed04b3964ed7f38f00c5921e10afd3649b2b104/GCF_000001405.40.gz.tbi.manifest.json",
+      "byte_size": 509,
+      "sha256": "d49a3ed3747a8502ae32807dce23aa3e89557d584e9b251cbc88ac38af28fed9",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "repeatmasker_rmsk_bb/ucsc_hg38_rmsk_txt_gz/sha256-db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276/rmsk.txt.gz",
+      "byte_size": 155633856,
+      "sha256": "db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276",
+      "disposition": "source_only_build_input_replaced_by_compact_index"
+    },
+    {
+      "object_path": "repeatmasker_rmsk_bb/ucsc_hg38_rmsk_txt_gz/sha256-db60e6aa7ac175f8f5465cd01b48b550e67e1fb0fd828608d8343481867bb276/rmsk.txt.gz.manifest.json",
+      "byte_size": 511,
+      "sha256": "fe7c6774255ea6205423951baf0337fa6e35cd730bcd08841e39d3430d30ea8c",
+      "disposition": "source_only_build_input_metadata"
+    },
+    {
+      "object_path": "transcripts/eamos_coordinate_index/eamos-coordinate-index.2026-06-14-transcript-gff-v1.jsonl.gz.manifest.json",
+      "byte_size": 2655,
+      "sha256": "8084a8204ce4d5c08f1e173a7bda2baf8b39a304d47f62af4d8d3f9c958aa891",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "transcripts/mane_refseq_gff/MANE.GRCh38.v1.5.refseq_genomic.gff.gz.manifest.json",
+      "byte_size": 1478,
+      "sha256": "2a703a4164a498fa3ab671bc12d3c7ada356bb406e71b940ec5b1f00f60839cc",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "transcripts/refseq_grch38_p14_gff/GCF_000001405.40_GRCh38.p14_genomic.gff.gz.manifest.json",
+      "byte_size": 1519,
+      "sha256": "6be1819212fcda5c2cb4893aad5591a6aa22d270894d3a7285fece681433f235",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ucsc_phylop100way_hg38/ucsc_hg38_phylop100way_bw/sha256-445fa3473c94fc209a6854692143371a57c05a387241e3de55933032ac024973/hg38.phyloP100way.bw.manifest.json",
+      "byte_size": 560,
+      "sha256": "5a7199fb2e301443c8416f190f8d9c30f54c8125fbae21fbd3363d283bbaa7e5",
+      "disposition": "source_metadata_sidecar"
+    },
+    {
+      "object_path": "ucsc_phylop100way_hg38/ucsc_hg38_phylop100way_md5sum/sha256-70910cb0c8439722e6d5aa1fb1dd66b8b06d9b74b436a5df01efdc5e5a084799/md5sum.txt",
+      "byte_size": 156,
+      "sha256": "70910cb0c8439722e6d5aa1fb1dd66b8b06d9b74b436a5df01efdc5e5a084799",
+      "disposition": "source_checksum_sidecar"
+    },
+    {
+      "object_path": "ucsc_phylop100way_hg38/ucsc_hg38_phylop100way_md5sum/sha256-70910cb0c8439722e6d5aa1fb1dd66b8b06d9b74b436a5df01efdc5e5a084799/md5sum.txt.manifest.json",
+      "byte_size": 505,
+      "sha256": "4b89aedaddfb21eef09b5497739fb0fa74221d432f3303139d73eaf4455c4c1d",
+      "disposition": "source_metadata_sidecar"
+    }
+  ]
+}

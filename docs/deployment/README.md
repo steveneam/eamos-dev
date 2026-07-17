@@ -8,6 +8,7 @@ Workbench/CRISPR off-target runtime handling, start here:
 - [Render Provider Flip Workflows](render-provider-flip-workflows.md)
 - [Render Coordinate Assets](render-coordinate-assets.md)
 - [Render to syd2 Phase-1 Migration Readiness](render-to-syd2-phase1.md)
+- [Render to syd2 Phase-3 Seed and Cutover](render-to-syd2-phase3.md)
 
 > Written 2026-05-24 by Claude (overnight, while you slept) from your two Desktop
 > docs: *Comprehensive Technical Architecture* and *Supabase Database
