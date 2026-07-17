@@ -25,43 +25,38 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 12:43 +0000 — the beginning
-  sample and a verification-only pre-middle pulse are green. The two genuine
-  viewer 503s remain bounded to the application path; later direct/proxied
-  traffic is clean, and Swordfish withdrew its timestamp-filter false positive.
-  The roughly 24-hour middle sample is due around 2026-07-18 11:31 UTC; the
-  48-hour floor plus middle/end evidence remain open. This early resume was
-  deliberately verification-only because the timed gate was not yet valid.
-  Render stays live as rollback; Phase 4 remains held for a separate direct
-  Steven instruction.
+- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 13:40 +0000 — beginning and
+  verification-only pre-middle evidence remain green; the roughly 24-hour
+  middle sample is due around/after 2026-07-18 11:31 UTC and the 48-hour floor
+  around/after 2026-07-19 11:31 UTC. While waiting, the user-directed
+  evidence-source research/planning slice completed with no runtime, source,
+  provider, cloud, or database mutation. Render remains rollback; Phase 4
+  remains held for separate direct authorization.
 - **Runtime:** Codex is inside the persistent `eamos` tmux session under
   `agent-tmux.service`; the code-server terminal profile now defaults to that
   seam, so a code-server restart no longer owns this process cgroup.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 12:43 +0000 · Codex
+UNLOCKED · 2026-07-17 13:40 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the verification-only pre-middle checkpoint locks at
-  2026-07-17 12:43 +0000.
+- None. Codex released the evidence-expansion planning locks at
+  2026-07-17 13:40 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 12:43 +0000 · Codex Phase-3c active soak
-Read CURRENT.md, README.md, latest Swordfish mail, and the Phase-3 runbook's active-soak section.
-Do not repeat the domain attach or Vercel flip; preview-api and eamos-dev production already use syd2.
-Compose 5rBnRf20ht4wGRQ856ZLO and stable alias eamos-dev.vercel.app are the active seam.
-The 12:12 beginning sample is green; exactly two app viewer 503s remain in the historical tally.
-The 12:40 pre-middle pulse was also green but does not satisfy the roughly 24-hour time gate.
-Use the performance audit's --require-ok mode for the roughly 24-hour middle and 48-hour end samples.
-Run the middle sample around/after 2026-07-18 11:31 UTC and include exact Compose/resource proof.
-The 48-hour floor ends approximately 2026-07-19 11:31 UTC, but every evidence gate must also pass.
+# Resume prompt · 2026-07-17 13:40 +0000 · Codex Phase-3c active soak
+Read CURRENT.md, peer mail, and docs/deployment/render-to-syd2-phase3.md Phase 3c first.
+Evidence-source research and its proposed implementation plan are complete and linked below.
+Do not implement that plan or acquire/materialize source data during the frozen soak without direct approval.
+Use scripts/eamos-report-performance-audit.mjs --require-ok for the timed samples.
+Run the middle sample around/after 2026-07-18 11:31 UTC with exact Compose/resource proof.
+Run the end sample around/after 2026-07-19 11:31 UTC; elapsed time alone does not close Phase 3c.
 Keep Singapore Render and the old Application live; do not widen grants or enable auto-deploy.
-Do not flip forwarded-header trust ad hoc; the trusted-proxy boundary is a separate reviewed follow-up.
-Phase 4, Supabase, tags, credentials, cleanup, and Render cancellation remain held for direct gates.
+Phase 4, Supabase, credentials, cleanup, source materialization, and Render cancellation remain gated.
 Codex runs inside persistent tmux via agent-tmux.service; continue from that seam.
 ```
 
@@ -84,29 +79,31 @@ Codex runs inside persistent tmux via agent-tmux.service; continue from that sea
   `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
 - Trusted-proxy residual and remediation gate:
   `docs/operations/risks-and-guardrails.md`.
+- Proposed evidence-source work:
+  `plans/evidence-source-expansion/research.md` and
+  `plans/evidence-source-expansion/plan.md`; current MaveDB acquisition boundary:
+  `docs/mavedb-license-gate/notes.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Beginning DNS/TLS/redirect, direct/proxy/rollback health, provider state,
-  auth/CORS/security headers, exact Compose, and container-resource samples are
-  green. A 12:40 pre-middle pulse re-proved the public/rollback/security paths;
-  direct and proxied provider-health bytes still match and differ from Render.
-- The historical log has exactly two app-level viewer 503s, 18 viewer 200s, two
-  expected 422s, and zero 429s. A later 18-request window had 16x 200, 2x 422,
-  and no 503; the old structured error is unavailable, so transient external
-  coordinate resolution remains the bounded explanation rather than proof.
-- The 12:40 `--require-ok` pass returned 200 for lookup, summary, four lazy
-  sections, and viewer; lookup/viewer were 16.15/1.43 seconds. A handled
-  upstream `ReadTimeout` remained a warning rather than an HTTP failure.
-- `npm run verify` passed in 147.1 seconds: executable structural/contract
-  guards, lint/format/typecheck, 11 Node ratchet tests, 163 web tests, full
-  backend pytest, and the 17-route production build. CI run `29580021557` for
-  `faeae0a` also passed.
-- Forwarded-header trust remains disabled, collapsing app IP buckets behind
-  Traefik. It did not cause the 503s and was not changed during the frozen soak.
-- No deployment, provider, environment, DNS, Render, Supabase, credential,
-  source, cleanup, or Phase-4 mutation followed the cutover.
+- Three read-only research lanes plus a repository audit produced a proposed
+  implementation plan for REVEL/SVC v4, ESM-1b, OMIM, LOVD, MaveDB, and
+  OddsPath. `npm run guard` passed in 3.4 seconds.
+- The existing four-card report contract is preserved: REVEL controls only the
+  Computational card's PP3/BP4 state and color; Clinical, Population, and Lab &
+  Functional retain independent inputs and themes. Final SVC v4 remains gated
+  on publication, immutable transcription, shadow cases, and clinical approval.
+- MaveDB's pinned CC0 bulk subset is rights-eligible, but the current schema-v1
+  importer is not launchable: it overwrites variants within a score set, trusts
+  caller license/URL fields, bypasses checksum verification in readiness, and
+  collapses multiple matches. The plan freezes schema-v2, hostile-archive,
+  canonical-link, raw-score-only, and no-automatic-PS3/BS3 gates.
+- ESM-1b uses a clean offline regeneration route; OMIM stays provenance-correct
+  link-only; LOVD stays link/synthetic-fixture-only; OddsPath classification and
+  assay meanings remain distinct.
+- No runtime code, source corpus, deployment, provider, environment, DNS,
+  Render, Supabase, credential, cleanup, or Phase-4 state changed.
 
 ## Next Action
 

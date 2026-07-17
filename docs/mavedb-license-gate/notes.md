@@ -1,14 +1,20 @@
 # MaveDB License Gate
 
-Last updated: 2026-06-27 18:05 +1000 - Codex.
+Last updated: 2026-07-17 13:39 +0000 - Codex.
 
 This is an engineering risk note, not legal advice.
 
 ## Sources Checked
 
 - MaveDB documentation: `https://www.mavedb.org/docs/mavedb/index.html`
-- MaveDB data-format and score-set license documentation:
-  `https://www.mavedb.org/docs/mavedb/data_formats.html`
+- Current MaveDB license and data-usage-policy documentation:
+  `https://www.mavedb.org/docs/mavedb/submitting-data/metadata-guide.html`
+- Current CC0-only bulk-download documentation and concept DOI:
+  `https://www.mavedb.org/docs/mavedb/finding-data/downloading.html` and
+  `https://doi.org/10.5281/zenodo.11201736`
+- MaveDB API quickstart and citation guidance:
+  `https://www.mavedb.org/docs/mavedb/programmatic-access/api-quickstart.html`
+  and `https://www.mavedb.org/docs/mavedb/citation.html`
 - MaveDB API repository license:
   `https://github.com/VariantEffect/mavedb-api/blob/main/LICENSE`
 - GNU AGPLv3 text, including remote-network interaction terms:
@@ -20,32 +26,50 @@ Do not import, vendor, modify, host, containerize, or wrap the AGPL MaveDB
 application/API package as an Eamos runtime dependency without legal approval.
 A subprocess, CLI, or container boundary may reduce ordinary linking risk, but
 it should not be treated as a reliable commercial SaaS workaround for AGPLv3.
+Eamos becoming free-of-charge does not remove any applicable AGPL source-
+disclosure obligations.
 
-For Eamos, keep MaveDB as a licensed data-ingestion lane:
+For Eamos, keep MaveDB as a versioned CC0 data-ingestion lane:
 
-- ingest only operator-supplied score rows;
-- require row-level license metadata;
+- prefer a specifically resolved, immutable version of MaveDB's official
+  CC0-only Zenodo archive;
+- require authoritative archive and score-set metadata rather than trusting a
+  caller-supplied license string;
+- quarantine any non-empty restrictive or ambiguous `dataUsagePolicy`;
 - accept only CC0 rows in the current launch gate;
 - reject CC BY, CC BY-SA, missing-score, and missing-license rows unless a later
   legal/product gate explicitly supports the attribution or share-alike terms;
-- preserve source accession, source URL, license, and source-version metadata;
+- preserve archive DOI/hashes, score-set and variant URNs, target/mapping,
+  canonical source locator, license snapshot, policy decision,
+  deprecation/supersession, and source-version metadata;
 - avoid startup downloads, request-time downloads, remote mutation, provider
-  flips, or live MaveDB API dependence.
+  flips, or live MaveDB API dependence;
+- treat the archive as hostile input: verify its published digest, reject
+  traversal/symlinks and unapproved members, enforce compressed/expanded and
+  parser-shape limits, and fail atomically;
+- derive record links from validated URNs and a fixed allowlisted origin rather
+  than trusting imported URLs.
 
-This matches the current implementation in
-`app/backend/app/services/mavedb_local.py`: the materializer builds a local
-SQLite source asset from operator-supplied JSONL and filters accepted records to
-CC0 before they can appear in functional evidence.
+The current implementation in `app/backend/app/services/mavedb_local.py` is a
+synthetic-fixture scaffold only. It filters an operator-supplied JSONL license
+string to CC0, but it is not an official MaveDB archive parser and is not
+approved for real materialization. Its v1 table keys rows only by score-set URN,
+so variants within a real score set overwrite one another; it also lacks the
+authoritative license/policy, target, calibration, precision, checksum-readiness,
+and report provenance required for launch. The active repair plan is
+[`plans/evidence-source-expansion/plan.md`](../../plans/evidence-source-expansion/plan.md).
+The initial bulk lane is raw-score-only: calibration, mapped-VRS, and VA-Spec
+objects require a separately pinned API/source and rights review.
 
 ## Practical Boundary
 
 Allowed without changing the current gate:
 
-- Use the existing local materializer on reviewed JSONL rows whose score-set
-  license is CC0.
+- Use the existing local materializer only with hand-authored synthetic test
+  fixtures.
 - Link users back to MaveDB score-set URLs as source provenance.
-- Report MaveDB rows as uncurated functional evidence unless a separate curation
-  source asserts ACMG evidence strength.
+- Design and test a schema-v2 archive importer without acquiring the live
+  corpus.
 
 Not allowed without explicit legal/product approval:
 
@@ -55,10 +79,19 @@ Not allowed without explicit legal/product approval:
   network boundary as a license workaround.
 - Expanding the data gate to CC BY or CC BY-SA rows without attribution and
   share-alike handling.
+- Materializing a real MaveDB archive with schema v1 or treating a raw score as
+  PS3/BS3, OddsPath, or a call-card color.
+
+Calling the hosted public REST API through Eamos's own HTTP client does not
+import the AGPL server package. A bounded metadata supplement may be designed
+later, but bulk acquisition should use the official archive and must never run
+at request time.
 
 ## Follow-Up If More Coverage Is Needed
 
-If CC0-only coverage proves insufficient, the next architecture-safe step is a
-separate license matrix for MaveDB score-set licenses, attribution display,
-share-alike implications, and commercial launch policy. Do not solve that by
-embedding the AGPL application code.
+First complete the schema-v2, authoritative-license, exact-match,
+checksum-readiness, multi-match report, and no-PS3/BS3 tests in the evidence
+expansion plan. After that, an operator may approve one pinned CC0 archive
+release for materialization. If CC0-only coverage proves insufficient, use a
+separate license matrix for CC BY attribution and CC BY-SA adapted-database
+handling. Do not solve broader coverage by embedding the AGPL application code.
