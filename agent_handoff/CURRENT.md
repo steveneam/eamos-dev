@@ -25,39 +25,37 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 13:40 +0000 — beginning and
-  verification-only pre-middle evidence remain green; the roughly 24-hour
-  middle sample is due around/after 2026-07-18 11:31 UTC and the 48-hour floor
-  around/after 2026-07-19 11:31 UTC. While waiting, the user-directed
-  evidence-source research/planning slice completed with no runtime, source,
-  provider, cloud, or database mutation. Render remains rollback; Phase 4
-  remains held for separate direct authorization.
+- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 13:51 +0000 — pre-middle
+  evidence is green; middle is due around/after 2026-07-18 11:31 UTC and the
+  48-hour floor around/after 2026-07-19 11:31 UTC. Steven authorized expansion
+  Phase 0 then Phase 1 next session as sequential verified slices. A due timed
+  soak checkpoint takes precedence. Render remains rollback; source
+  materialization, Phase 2+, and deployment Phase 4 require separate approval.
 - **Runtime:** Codex is inside the persistent `eamos` tmux session under
   `agent-tmux.service`; the code-server terminal profile now defaults to that
   seam, so a code-server restart no longer owns this process cgroup.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 13:40 +0000 · Codex
+UNLOCKED · 2026-07-17 13:51 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the evidence-expansion planning locks at
-  2026-07-17 13:40 +0000.
+- None. Codex released the next-session scope lock at 2026-07-17 13:51 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 13:40 +0000 · Codex Phase-3c active soak
-Read CURRENT.md, peer mail, and docs/deployment/render-to-syd2-phase3.md Phase 3c first.
-Evidence-source research and its proposed implementation plan are complete and linked below.
-Do not implement that plan or acquire/materialize source data during the frozen soak without direct approval.
-Use scripts/eamos-report-performance-audit.mjs --require-ok for the timed samples.
-Run the middle sample around/after 2026-07-18 11:31 UTC with exact Compose/resource proof.
-Run the end sample around/after 2026-07-19 11:31 UTC; elapsed time alone does not close Phase 3c.
-Keep Singapore Render and the old Application live; do not widen grants or enable auto-deploy.
-Phase 4, Supabase, credentials, cleanup, source materialization, and Render cancellation remain gated.
-Codex runs inside persistent tmux via agent-tmux.service; continue from that seam.
+# Resume prompt · 2026-07-17 13:51 +0000 · Codex Phase 0/1 authorized
+Read CURRENT.md, peer mail, the Phase-3c runbook, and plans/evidence-source-expansion/plan.md first.
+Steven explicitly authorized expansion Phase 0 and Phase 1 for this next session.
+If the roughly 24-hour soak checkpoint is due, run it first; never miss the timed evidence window.
+Implement Phase 0 as the first verified slice: calibration/Decimal/preselection, source policy, and MaveDB v2 contract.
+Commit, push, and require green CI before treating the shared contract as frozen.
+Then implement Phase 1 as a second verified slice: REVEL-led Computational card and its tests/visual proof.
+Preserve all four cards' independent inputs/colors; REVEL changes only Computational.
+Use synthetic fixtures only; no corpus materialization, Supabase/provider/deploy changes, or final-v4 label.
+Keep rollback infrastructure live and continue inside persistent tmux.
 ```
 
 ## Pointer
@@ -102,13 +100,20 @@ Codex runs inside persistent tmux via agent-tmux.service; continue from that sea
 - ESM-1b uses a clean offline regeneration route; OMIM stays provenance-correct
   link-only; LOVD stays link/synthetic-fixture-only; OddsPath classification and
   assay meanings remain distinct.
+- Steven's direct 2026-07-17 13:50 instruction authorizes implementation of
+  Phase 0 and Phase 1 in the next session, superseding the prior planning-only
+  hold for those two phases only. Phase 0 is the serial contract/correctness
+  slice; Phase 1 may begin only after Phase 0 is committed, pushed, and green.
 - No runtime code, source corpus, deployment, provider, environment, DNS,
   Render, Supabase, credential, cleanup, or Phase-4 state changed.
 
 ## Next Action
 
-- At/after roughly 2026-07-18 11:31 UTC, run the Phase-3c middle sample:
-  `--require-ok` report/viewer coverage plus DNS/TLS, direct/proxy/rollback
-  health, provider, resource/restart/OOM, auth/CORS, and exact-contract checks.
-  Repeat at/after the 48-hour floor; do not close Phase 3c on elapsed time alone
-  or enter Phase 4 without Steven's separate direct authorization.
+- On next-session resume, run the Phase-3c middle sample first if it is at/after
+  roughly 2026-07-18 11:31 UTC. Otherwise begin expansion Phase 0 as one serial
+  verified slice; commit, push, and require green CI before freezing its shared
+  contract. Then implement Phase 1 as a separate verified REVEL Computational-
+  card slice. Interrupt expansion for any due timed soak evidence. Do not start
+  expansion Phase 2+, materialize source corpora, mutate Supabase/provider/
+  deployment state, apply a final-SVC-v4 label, or enter deployment Phase 4
+  without Steven's separate direct authorization.
