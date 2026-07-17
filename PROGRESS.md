@@ -1,5 +1,46 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-17 11:34 +0000 - Codex - Phase-3c public cutover live; soak active
+
+Steven directly authorized attaching `preview-api.swordfish.cfd` and flipping
+Vercel's production `API_PROXY_TARGET`. Eamos completed both mutations while
+keeping Singapore Render and the old Dokploy Application live as rollback.
+
+- Attached the one HTTPS/Let's Encrypt domain to hardened Compose
+  `5rBnRf20ht4wGRQ856ZLO` and performed the Dokploy-required same-contract
+  redeploy so Traefik could consume its labels. The public endpoint uses 443;
+  its `8000` label is only the isolated container listener, with zero host
+  bindings. Workstation dev remains executable-guarded at frontend `3532` and
+  backend `8532`.
+- Re-proved exact stored Compose SHA, immutable image, 55-name environment
+  allowlist, `autoDeploy=false`, and rate limiting enabled. TLS, HTTP->HTTPS,
+  health/database, security headers, hostile-Origin denial, and unauthenticated
+  401 behavior passed.
+- Changed Vercel production from the actual prior target
+  `https://eamos-dev-sg.onrender.com` to
+  `https://preview-api.swordfish.cfd`, read it back exact, and redeployed the
+  current production commit. Deployment
+  `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ` reached READY and now owns
+  `eamos-dev.vercel.app`.
+- Proved origin selection, not merely configuration: full provider-health JSON
+  through Vercel hashes identically to direct syd2 and differently from Render.
+  A Vercel-proxied deterministic RPE65 `c.271C>T` parse returned high
+  confidence; protected evidence submission remained 401.
+- Re-inspected the effective container after redeploy: exact digest, healthy,
+  restart 0, `1000:1000`, read-only root, cap-drop ALL,
+  no-new-privileges, 2-GiB/2-CPU/256-PID limits, read-only corpus mounts,
+  writable private state, and zero published ports. The immediate sample was
+  747.7 MiB / 2 GiB with 12 PIDs.
+
+One observation keeps the soak open: repeated direct viewer probes returned a
+mix of 200 and 503 while health and restart count stayed green. The Phase-3
+runbook now requires this to be characterized or fixed, plus the 48-hour floor
+and spaced functional/resource/security evidence, before Phase 3c can close.
+Render provider health remains 200; no Render, image-tag, auto-deploy, Supabase,
+credential, cleanup, or Phase-4 mutation occurred. Swordfish received the
+sanitized cutover receipt at 11:34 UTC with a request for passive independent
+verification only.
+
 ## 2026-07-17 10:56 +0000 - Codex - Phase-3b two-party closure and mailbox ratchet
 
 Swordfish's 10:45 inbound reply independently closed both outstanding checks.

@@ -25,73 +25,75 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED AT FOUNDER GATE @ 2026-07-17 10:57 +0000 — Phase 3a and
-  internal Phase 3b are two-party green. Swordfish moved and independently
-  consume-tested the deploy-only tenant grant. The public-hostname/Certificate-
-  Transparency and Phase-3c cutover/soak decision is now held for Steven; no
-  edge, DNS, Vercel, Render, or traffic mutation is in flight.
+- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 11:38 +0000 — Steven directly
+  authorized and Eamos completed the public-domain attach plus Vercel target
+  flip. DNS/TLS, proxy-origin proof, auth boundary, effective-container
+  hardening, and the full local repository gate are green. One mixed viewer
+  200/503 observation keeps the soak open. Render stays live as rollback;
+  Phase 4 remains held for a separate direct Steven instruction.
 - **Runtime:** Codex is inside the persistent `eamos` tmux session under
   `agent-tmux.service`; the code-server terminal profile now defaults to that
   seam, so a code-server restart no longer owns this process cgroup.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 11:16 +0000 · Codex
+UNLOCKED · 2026-07-17 11:38 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the bounded Swordfish-acknowledgement locks at
-  2026-07-17 11:16 +0000.
+- None. Codex released the bounded Phase-3c cutover evidence locks at
+  2026-07-17 11:38 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 10:57 +0000 · Codex Phase-3c founder gate
-Read CURRENT.md, README.md, the latest Swordfish ASK/FROM entries, and the Phase-3 runbook.
-Phase 3a and internal Phase 3b are two-party green on Compose 5rBnRf20ht4wGRQ856ZLO.
-Swordfish moved the tenant grant and proved Compose positive plus old-app/cross-tenant/Docker/SSH denial.
-The old Application rollback is deliberately human-only from CI; do not widen the grant.
-The mixed-heading mail ratchet now surfaces Swordfish's physically latest 10:45 reply.
-Stop for Steven's public preview-api hostname/CT-log and Phase-3c cutover/soak decision.
-If approved, freeze the external-routing and evidence-based soak contract before mutation.
-Keep Render and the old Application live; auto-deploy, tags, Phase 4, and Supabase stay held.
+# Resume prompt · 2026-07-17 11:38 +0000 · Codex Phase-3c active soak
+Read CURRENT.md, README.md, the latest Swordfish mail, and the Phase-3 runbook's Phase-3c section.
+Do not repeat the domain attach or Vercel flip: preview-api and eamos-dev production are already live on syd2.
+Compose 5rBnRf20ht4wGRQ856ZLO and Vercel deployment dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ are the active seam.
+Frontend/backend workstation ports remain 3532/8532; Dokploy 8000 is only the isolated container listener.
+Next, gather spaced soak evidence and characterize the immediate viewer probes that mixed 200 and 503.
+The 48-hour floor ends approximately 2026-07-19 11:31 UTC, but every evidence gate must also pass.
+Keep Singapore Render and the old Application live; do not widen grants or enable auto-deploy.
+Phase 4, Supabase, tags, credentials, cleanup, and Render cancellation remain held for direct gates.
 Codex runs inside persistent tmux via agent-tmux.service; continue from that seam.
 ```
 
 ## Pointer
 
-- Durable service contract: `deploy/syd2/compose.yaml`; ratchet:
-  `app/backend/tests/test_syd2_compose_contract.py`; commit `2374dbc`.
-- Actual green workflow: `29571532636` on `ac6d3e8`; internal Compose ID:
-  `5rBnRf20ht4wGRQ856ZLO`; deployment: `6FfxABW5Aplk_G7HWb1Z7`.
-- Proof-wrap workflow `29574642738` is fully green for `3048633`, including
-  image publication and immutable pull-back.
-- Full retained proof and credential boundary:
-  `docs/deployment/render-to-syd2-phase3.md` → Phase 3b internal Compose proof.
-- Cross-agent closure: Swordfish's 10:45 inbound reply and Eamos's 10:56
-  acceptance in `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
-- Mailbox regression ratchet: `.agent-mailboxes.json` and
-  `scripts/eamos-peer-mail.test.mjs` mixed-level/physical-latest coverage.
+- Full mutation ledger, proof, and soak exit contract:
+  `docs/deployment/render-to-syd2-phase3.md` → Phase 3c.
+- Hardened Compose: `5rBnRf20ht4wGRQ856ZLO`; public-label redeploy:
+  `SSvNBmx91esTGz1tohYoU`; immutable contract: `deploy/syd2/compose.yaml`.
+- Vercel production deployment: `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ`, alias
+  `eamos-dev.vercel.app`; prior rollback target:
+  `https://eamos-dev-sg.onrender.com`.
+- Immediate provider-health proof: direct syd2 and Vercel share SHA-256
+  `b087c5a6…`; Render differs and remains HTTP 200.
+- Cutover receipt sent to Swordfish at 11:34 UTC in
+  `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Through the tenant key, Compose returned 200; the old Application, a Thalon
-  service, Docker inventory, and SSH-key inventory returned 401; project scope
-  exposed only `project1`. The grant was moved, not copied.
-- Swordfish's direct container inspection independently corroborated healthy
-  state, read-only root, cap-drop ALL, 2-GiB limit, read-only corpus mounts,
-  writable private state, and zero host bindings.
-- The receiver registry now accepts legacy level-1 and current level-2 inbound
-  headings. Physical append order determines the latest inbound title, so a
-  delayed peer timestamp cannot mask new bytes; nine peer-mail tests pass.
-- The old hardened Application and Singapore Render service are both healthy.
-  Phase 3c has not started and no external hostname or production traffic moved.
+- `preview-api.swordfish.cfd` now serves the hardened Compose through valid LE
+  TLS, and Vercel production now proxies to it. The complete provider-health
+  payload proves the active origin is syd2 rather than Render.
+- Public 443, local frontend/backend 3532/8532, and isolated container 8000 are
+  explicitly separated. No host port was published.
+- Auth/CORS/security-header checks passed. Effective-container inspection after
+  redeploy retained the exact digest, all hardening, restart 0, and 747.7 MiB / 2
+  GiB immediate memory use.
+- `npm run verify` passed in 144.9 seconds: structural/port/contract guards,
+  lint/format/typecheck, 9 coordination tests, 163 web tests, full backend
+  pytest, and the 17-route production build.
+- Immediate repeated viewer probes mixed 200 and 503 without a crash or
+  restart. A later probe returned 200; this remains an explicit soak item.
 
 ## Next Action
 
-- Steven decides whether to create the public `preview-api.swordfish.cfd`
-  hostname, accepting its durable Certificate-Transparency footprint, and
-  authorizes the external proxy/Vercel Phase-3c path. If approved, freeze the
-  routing and evidence-based soak exit contract with Swordfish before any
-  mutation. Otherwise hold the internal Compose exactly as proved.
+- Run the Phase-3c spaced soak matrix from the runbook, beginning with the
+  viewer 503 characterization and representative Vercel-proxied viewer,
+  summary, full-report, provider, resource, TLS, auth, and rollback samples.
+  Do not close Phase 3c on elapsed time alone and do not enter Phase 4 without
+  Steven's separate direct authorization.

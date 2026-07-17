@@ -1,10 +1,11 @@
 # Render to syd2 Phase-3 Seed and Cutover
 
 Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof and
-two-party tenant-grant verification green; external proxy, traffic cutover,
-and Phase 3c remain held
+two-party tenant-grant verification green; Phase 3c public endpoint and Vercel
+traffic cutover live; evidence-based soak active; Render rollback live; Phase 4
+held
 
-Last verified: 2026-07-17 10:56 +0000 - Codex
+Last verified: 2026-07-17 11:34 +0000 - Codex
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -223,18 +224,92 @@ limit, read-only corpus mounts, writable private state, and an exposed image
 port with no host binding. This closes internal Phase 3b with two-party proof.
 No external mutation is implied by the closure.
 
-## Phase 3b and Phase 3c boundary
+## Phase 3c public cutover and soak
 
-The no-domain backend deployment, runtime-tree preflight, representative live
-lookup and predictor paths, and resource-headroom proof are complete on the
-reviewed immutable image. Phase 3c begins only after Steven explicitly approves
-the public hostname/Certificate-Transparency seam and the associated external
-proxy and Vercel mutations. Record every environment/provider mutation; do not
-change the managed Supabase data plane or move production traffic before the
-external proxy path itself is proved.
+Steven directly authorized the domain attach and Vercel `API_PROXY_TARGET`
+flip in the Eamos session on 2026-07-17. The mutation ledger is:
 
-Keep Render live and run both backends in parallel for Phase 3c. The controlling
-plan suggests at least 48 hours. Monitor errors, latency, memory, disk, asset
-lookups, and rollback readiness. A clean soak closes Phase 3; it does not open
-Phase 4. Only Steven may separately authorize Render cancellation after the
-seed proof, the Phase-1 preservation proof, and the parallel soak are all green.
+1. Swordfish had already created and independently verified the A record
+   `preview-api.swordfish.cfd -> 103.249.236.41`, TTL 600. Eamos re-proved the
+   answer through both `1.1.1.1` and `8.8.8.8`; Eamos did not mutate DNS.
+2. At `2026-07-17T11:23:44Z`, Eamos attached the one Dokploy domain to Compose
+   `5rBnRf20ht4wGRQ856ZLO`, service `backend`, HTTPS with Let's Encrypt, no
+   Basic Auth, no forward auth, and no path stripping. Dokploy read-back is
+   exact and `autoDeploy` remains false.
+3. Dokploy Compose domains are materialized as Traefik container labels, so the
+   route required one same-contract redeploy. Deployment
+   `SSvNBmx91esTGz1tohYoU` completed at `2026-07-17T11:25:12Z`; the stored
+   Compose SHA-256, 55-name environment allowlist, immutable image digest, and
+   rate-limit-enabled posture remained exact.
+4. Vercel production `API_PROXY_TARGET` was read back as
+   `https://eamos-dev-sg.onrender.com`, changed to
+   `https://preview-api.swordfish.cfd`, and read back exact. Vercel deployment
+   `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ` was created at 11:28:28 UTC from the
+   existing production commit `40d759e`, reached `READY`, and was promoted to
+   `eamos-dev.vercel.app` at approximately 11:31 UTC.
+
+The Dokploy domain's port `8000` is strictly the isolated container listener
+named in the frozen Compose file. It is not a host-published or shared
+workstation port. Public traffic uses HTTPS 443, host port bindings remain
+empty, and the executable local-development contract remains frontend `3532`
+plus backend `8532`; shared-workstation `3000` and `8000` remain unallocated
+collision sentinels.
+
+Immediate cutover proof passed:
+
+- plain HTTP redirects to HTTPS; the Let's Encrypt certificate has the exact
+  `preview-api.swordfish.cfd` SAN and is valid from 2026-07-17 through
+  2026-10-15;
+- direct `/healthz` returns 200 with application and database status `ok`;
+  provider-cache health returns overall `ok` with the protein annotation and
+  CRISPR providers available;
+- a hostile `Origin` receives no `Access-Control-Allow-Origin`; security
+  headers remain present; an unauthenticated evidence submission returns 401
+  both directly and through Vercel;
+- the complete provider-health JSON hashes to
+  `b087c5a6993b7f8e64351f27eae0f656a27ba3e524533d84e06735dd64002620`
+  both directly on syd2 and through `eamos-dev.vercel.app`. Render returns a
+  different payload hash, proving the production proxy is reaching syd2 rather
+  than the retained rollback origin;
+- the production proxy resolves `RPE65 c.271C>T` deterministically with high
+  confidence, normalized as `RPE65:c.271C>T`; and
+- direct post-redeploy container inspection still reports the exact immutable
+  digest, `1000:1000`, healthy/restart 0, read-only root, capability drop
+  `ALL`, no-new-privileges, 2-GiB/2-CPU/256-PID limits, read-only corpus binds,
+  private writable state, and zero published ports. The immediate resource
+  sample was 747.7 MiB / 2 GiB, 12 PIDs, and 0.11% CPU.
+
+Singapore Render remains independently reachable with provider-cache HTTP 200,
+and its exact former Vercel target is retained above for rollback. No Render,
+old-Application, image-tag, auto-deploy, Supabase, credential, cleanup, or
+Phase-4 mutation occurred.
+
+### Active soak observation and exit contract
+
+Repeated direct synthetic `POST /api/v1/viewer` probes during the immediate
+window returned both 200 and 503. The container stayed healthy with restart
+count zero and no matching crash traceback, so this is not evidence of an edge
+or container restart; it is nevertheless an unresolved application-path
+observation. Do not call the soak green until it is reproduced and
+characterized or a reviewed explanation/fix is verified.
+
+Phase 3c cannot close earlier than the controlling plan's 48-hour observation
+floor (approximately 2026-07-19 11:31 UTC), and elapsed time alone is
+insufficient. All of these evidence gates must also pass:
+
+1. spaced beginning/middle/end samples keep DNS, TLS, direct health, Vercel
+   proxy health, and Render rollback health green;
+2. representative parse, initial-summary, full-report, viewer, and local
+   predictor/asset paths pass through the Vercel origin without unexplained
+   migration-specific 5xx responses; the viewer observation above is closed;
+3. the syd2 container records zero unexpected restarts, OOM events, or cgroup
+   pressure, preserves meaningful memory/disk headroom, and retains the exact
+   digest, hardening, mounts, environment-name set, and zero host bindings;
+4. protected endpoints remain 401 without a valid JWT, arbitrary origins gain
+   no CORS access, and rate limiting remains enabled; and
+5. the Render origin remains a tested 200 rollback path, with the old Vercel
+   target and redeploy sequence available until a separate Phase-4 decision.
+
+A clean soak closes Phase 3 only. It does not authorize Render cancellation.
+Only Steven may separately open Phase 4 after the seed, preservation, and soak
+proofs are all green.
