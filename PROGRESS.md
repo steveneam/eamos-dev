@@ -1,5 +1,35 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-17 12:42 +0000 - Codex - Phase-3c pre-middle pulse green
+
+Steven resumed the active soak 68 minutes after the production cutover. The
+roughly 24-hour middle sample was not yet time-valid, so this session ran a
+bounded verification-only pulse and kept the required middle/end gates open.
+
+- Cloudflare and Google DNS still returned `103.249.236.41` at TTL 600. HTTP
+  redirected to HTTPS, and the exact-host Let's Encrypt certificate remained
+  valid through 2026-10-15.
+- Direct syd2 and retained Render `/healthz` both returned application/database
+  `ok`. The full direct and Vercel provider-health payloads matched byte for
+  byte; Render returned a different healthy payload, continuing to prove the
+  stable production alias reaches syd2.
+- Direct and proxied hostile-Origin requests received no
+  `Access-Control-Allow-Origin`. HSTS, `nosniff`, and `SAMEORIGIN` remained
+  present, and unauthenticated evidence submissions remained 401 on both paths.
+- A Vercel-proxied `RPE65:c.271C>T` audit with `--require-ok` returned 200 for
+  full lookup, initial summary, all four lazy sections, and viewer. Lookup took
+  16.15 seconds and viewer 1.43 seconds. One upstream `ReadTimeout` was exposed
+  as a handled report warning; it did not become an endpoint failure.
+- CI run `29580021557` for the prior soak-ratchet commit `faeae0a` passed. The
+  Swordfish correction of its timestamp-grep false positive was acknowledged;
+  passive anchored-status monitoring continues with no further request.
+
+This was deliberately not labeled the middle sample. Exact Compose,
+restart/OOM/cgroup, and resource evidence remains mandatory in the spaced
+middle sample at roughly 2026-07-18 11:31 UTC. No deployment, provider,
+environment, DNS, Render, Supabase, credential, source, cleanup, or Phase-4
+mutation occurred; the verification-only time gate constrained this session.
+
 ## 2026-07-17 12:20 +0000 - Codex - Phase-3c beginning soak green; viewer 503 bounded
 
 The first spaced Phase-3c sample passed without crossing any held mutation

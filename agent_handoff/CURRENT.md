@@ -25,11 +25,13 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 12:21 +0000 — the beginning
-  sample is green. The two genuine viewer 503s are bounded to the application
-  path; edge/container/rate-limit causes are ruled out, later direct/proxied
-  traffic is clean, and Swordfish's apparent third 503 was a timestamp-filter
-  false positive. The 48-hour floor plus middle/end evidence remain open.
+- **Codex:** PHASE-3C SOAK ACTIVE @ 2026-07-17 12:43 +0000 — the beginning
+  sample and a verification-only pre-middle pulse are green. The two genuine
+  viewer 503s remain bounded to the application path; later direct/proxied
+  traffic is clean, and Swordfish withdrew its timestamp-filter false positive.
+  The roughly 24-hour middle sample is due around 2026-07-18 11:31 UTC; the
+  48-hour floor plus middle/end evidence remain open. This early resume was
+  deliberately verification-only because the timed gate was not yet valid.
   Render stays live as rollback; Phase 4 remains held for a separate direct
   Steven instruction.
 - **Runtime:** Codex is inside the persistent `eamos` tmux session under
@@ -38,23 +40,24 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 12:21 +0000 · Codex
+UNLOCKED · 2026-07-17 12:43 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the Phase-3c beginning-soak checkpoint locks at
-  2026-07-17 12:21 +0000.
+- None. Codex released the verification-only pre-middle checkpoint locks at
+  2026-07-17 12:43 +0000.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 12:21 +0000 · Codex Phase-3c active soak
+# Resume prompt · 2026-07-17 12:43 +0000 · Codex Phase-3c active soak
 Read CURRENT.md, README.md, latest Swordfish mail, and the Phase-3 runbook's active-soak section.
 Do not repeat the domain attach or Vercel flip; preview-api and eamos-dev production already use syd2.
 Compose 5rBnRf20ht4wGRQ856ZLO and stable alias eamos-dev.vercel.app are the active seam.
 The 12:12 beginning sample is green; exactly two app viewer 503s remain in the historical tally.
-The apparent 11:57 third 503 was /healthz 200 with 503 only in timestamp nanoseconds.
+The 12:40 pre-middle pulse was also green but does not satisfy the roughly 24-hour time gate.
 Use the performance audit's --require-ok mode for the roughly 24-hour middle and 48-hour end samples.
+Run the middle sample around/after 2026-07-18 11:31 UTC and include exact Compose/resource proof.
 The 48-hour floor ends approximately 2026-07-19 11:31 UTC, but every evidence gate must also pass.
 Keep Singapore Render and the old Application live; do not widen grants or enable auto-deploy.
 Do not flip forwarded-header trust ad hoc; the trusted-proxy boundary is a separate reviewed follow-up.
@@ -75,8 +78,9 @@ Codex runs inside persistent tmux via agent-tmux.service; continue from that sea
   deployment: `dpl_2Yy6712rwE4zHqaKPHjJoCxmC9SZ`. Every `main` push creates a
   successor deployment, so follow the alias rather than treating that ID as
   current. Prior rollback target: `https://eamos-dev-sg.onrender.com`.
-- Beginning-sample proof and 503 characterization are in the runbook and
-  `PROGRESS.md`; the 12:20 false-positive correction is in
+- Beginning-sample proof and 503 characterization are in the runbook; the
+  verification-only 12:40 pulse is at the top of `PROGRESS.md`; the 12:20
+  false-positive correction is in
   `agent_handoff/ASK-BACKS-FOR-SWORDFISH.md`.
 - Trusted-proxy residual and remediation gate:
   `docs/operations/risks-and-guardrails.md`.
@@ -86,23 +90,27 @@ Codex runs inside persistent tmux via agent-tmux.service; continue from that sea
 
 - Beginning DNS/TLS/redirect, direct/proxy/rollback health, provider state,
   auth/CORS/security headers, exact Compose, and container-resource samples are
-  green. No cloud/runtime mutation followed the already-completed cutover.
+  green. A 12:40 pre-middle pulse re-proved the public/rollback/security paths;
+  direct and proxied provider-health bytes still match and differ from Render.
 - The historical log has exactly two app-level viewer 503s, 18 viewer 200s, two
   expected 422s, and zero 429s. A later 18-request window had 16x 200, 2x 422,
   and no 503; the old structured error is unavailable, so transient external
   coordinate resolution remains the bounded explanation rather than proof.
-- `--require-ok` now makes any required audit endpoint failure executable and
-  preserves status/error detail. Two local regression tests cover all-2xx and
-  viewer-503 cases.
+- The 12:40 `--require-ok` pass returned 200 for lookup, summary, four lazy
+  sections, and viewer; lookup/viewer were 16.15/1.43 seconds. A handled
+  upstream `ReadTimeout` remained a warning rather than an HTTP failure.
 - `npm run verify` passed in 147.1 seconds: executable structural/contract
   guards, lint/format/typecheck, 11 Node ratchet tests, 163 web tests, full
-  backend pytest, and the 17-route production build.
+  backend pytest, and the 17-route production build. CI run `29580021557` for
+  `faeae0a` also passed.
 - Forwarded-header trust remains disabled, collapsing app IP buckets behind
   Traefik. It did not cause the 503s and was not changed during the frozen soak.
+- No deployment, provider, environment, DNS, Render, Supabase, credential,
+  source, cleanup, or Phase-4 mutation followed the cutover.
 
 ## Next Action
 
-- At roughly the 24-hour point, run the Phase-3c middle sample from the runbook:
+- At/after roughly 2026-07-18 11:31 UTC, run the Phase-3c middle sample:
   `--require-ok` report/viewer coverage plus DNS/TLS, direct/proxy/rollback
   health, provider, resource/restart/OOM, auth/CORS, and exact-contract checks.
   Repeat at/after the 48-hour floor; do not close Phase 3c on elapsed time alone
