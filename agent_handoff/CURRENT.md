@@ -36,12 +36,12 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 10:57 +0000 · Codex
+UNLOCKED · 2026-07-17 11:16 +0000 · Codex
 
 ## Shared File Locks
 
-- None. Codex released the Phase-3b two-party closure locks at
-  2026-07-17 10:57 +0000.
+- None. Codex released the bounded Swordfish-acknowledgement locks at
+  2026-07-17 11:16 +0000.
 
 ## Resume Prompt
 
