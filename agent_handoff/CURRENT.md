@@ -25,13 +25,14 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** DONE @ 2026-07-19 09:49 +0000 — recorded Steven's Product Workflow
-  V1/five-lane approval and reconciled Supabase with the established serialized
-  lane-author/lead-apply convention. No implementation or cloud mutation ran.
-- **Product-workflow sprint:** APPROVED. Next `gogogo` launches Lane A only,
-  after the recovery sample if due. Lane B may author/test its migration; the
-  lead performs the post-merge Task F application checkpoint. Every merge still
-  waits for Steven's explicit approval and green required CI.
+- **Codex:** ACTIVE @ 2026-07-19 09:55 +0000 — launched Product Workflow Lane A
+  in `.claude/worktrees/product-contract-v1` on `agent/product/contract-v1` from
+  `origin/main@4b3c130`. Backend dependencies are isolated in the lane venv;
+  web dependencies are linked read-only to the main checkout.
+- **Product-workflow sprint:** ACTIVE, Lane A only. Lane A owns the frozen
+  Pydantic/TypeScript contract and canaries. B/C remain dependency-held until A
+  is reviewed, required-CI green, explicitly approved, merged, and verified.
+  Every later merge and Task F remote mutation retains its separate gate.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
@@ -47,23 +48,24 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 09:49 +0000 · Codex
+UNLOCKED · 2026-07-19 09:56 +0000 · Codex
 
 ## Shared File Locks
 
-- None.
+- **Codex / Lane A:** `app/backend/app/schemas/{__init__,workflow,batch,paper_variants,gene_viewer,workbench,report,variant_library}.py`,
+  `app/web/lib/backend.ts`, Lane A contract canaries, and the Product Workflow
+  Lane A row in `COORDINATION.md` until review handoff.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 09:49 +0000 · Codex launch Product Workflow Lane A
+# Resume prompt · 2026-07-19 09:55 +0000 · Codex continue Product Workflow Lane A
 Read CURRENT.md, peer mail, and plans/product-workflow-integration/{research,spec,plan}.md first.
-If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it before sprint work.
-Delta: Steven approved Product Workflow V1, all five lanes, and Lane B migration authoring; Supabase follows the existing lane-author/lead-apply Task F convention.
-Launch Lane A only with plan.md's Wave-0 command and Lane A kickoff prompt.
+Work only in .claude/worktrees/product-contract-v1 on agent/product/contract-v1.
+Delta: Lane A is launched from origin/main@4b3c130; no product files are edited yet.
 Implement only the frozen Pydantic/TypeScript contract and canaries in Lane A's owned paths; commit/push/PR, but never merge.
 Do not fork B/C until A is reviewed, CI-green, explicitly merge-approved, merged, and verified on main.
-Lane B never mutates remote Supabase; after its merge the lead presents Task F's exact eamos-dev mutation card, applies once if approved, then runs advisors/smokes.
+If the recovery-middle floor passes before Lane A finishes, run that read-only sample before continuing.
 Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-green merge gate, and the watcher-owned dirty inbox.
 ```
 
@@ -71,6 +73,8 @@ Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollba
 
 - Audit, contract, and launch package: `plans/product-workflow-integration/`
   (`research.md`, `spec.md`, and `plan.md`).
+- Lane checkout: `.claude/worktrees/product-contract-v1`; branch:
+  `agent/product/contract-v1`; live board: `COORDINATION.md`.
 - Approval receipt: `docs/governance/decisions.md` (2026-07-19 Product Workflow
   V1 decision).
 - Supabase convention:
@@ -89,22 +93,18 @@ Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollba
 
 ## Delta
 
-- Steven approved the frozen V1 contract, five-lane ownership/merge order, and
-  Lane B local migration authoring on 2026-07-19.
-- The contract includes canonical variant/context/selection, disclosure,
-  workflow run/artifact, related/curated variants, URLs, and async states.
-- Whole gene spans every exon, intervening intron, and UTR; a distant-exon
-  selection/edit must feed Primer without replacing or cropping the locus.
-- The Mode B sprint is A contract → B backend and C surface flow in parallel → D
-  Workbench → E ratchets, with one web writer per wave and serialized delivery
-  order A→B→Task F apply→C→D→E.
-- Supabase is not deferred: Lane B authors/tests; after its merge the lead uses
-  Task F to reconcile the remote ledger, obtain exact apply approval, mutate
-  `eamos-dev` once, run advisors/two-user smokes, and update the inventory.
-- Known preflight issue: July's read-only audit found local/remote migration-name
-  drift and the repo's `user_library` migration absent remotely; never blind-push.
-- No application, lane, cloud, deploy, Supabase, source, or Phase-7 mutation ran
-  while recording this approval.
+- `gogogo` launched only Lane A at `origin/main@4b3c130`; no later lane launched.
+- The repository's worktree install ratchet rejected the plan's stale lane-local
+  `npm ci`; Codex restored the intended shared dependency link without deleting
+  the generated 895 MB recovery copy, now at
+  `/tmp/eamos-product-contract-v1-node_modules-20260719T0953Z` pending explicit
+  cleanup authority.
+- Evidence Security and Vibe Security are active in secure-implementation mode:
+  bound untrusted nested input, reject unknown fields, allowlist same-origin
+  return paths, and prove negative cases without expanding into route/auth work.
+- Lane A exit is frozen: exact V1 schema parity, existing contract compatibility,
+  all focused web/backend/boundary gates green, committed/pushed PR handoff, and
+  no merge.
 - Evidence expansion Phases 0-6 remain complete; Phase 7 and all source/live
   activations remain held.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
@@ -114,7 +114,6 @@ Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollba
 
 ## Next Action
 
-- Run the recovery-middle sample first if its 2026-07-20 01:46 UTC floor has
-  passed. Otherwise launch Lane A only using the exact Wave-0 command and kickoff
-  prompt in `plans/product-workflow-integration/plan.md`; drive it through
-  commit/push/PR/CI review, then pause for Steven's explicit merge approval.
+- From the Lane A worktree, inventory current schema/contract conventions and
+  run the focused baseline canaries; then implement only the frozen V1 contract,
+  verify, commit/push/open the PR, and pause before merge.
