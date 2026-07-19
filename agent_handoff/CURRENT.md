@@ -25,8 +25,8 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** EVIDENCE EXPANSION PHASE 6 COMPLETE @ 2026-07-19 08:39 +0000 —
-  the bounded code-only ruleset hardening passed full local verification.
+- **Codex:** WRAPPED @ 2026-07-19 08:47 +0000 — Phase 6 is complete; Steven
+  queued an end-to-end product audit and executable plan for the next session.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
@@ -42,7 +42,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 08:39 +0000 · Codex
+UNLOCKED · 2026-07-19 08:47 +0000 · Codex
 
 ## Shared File Locks
 
@@ -51,26 +51,27 @@ UNLOCKED · 2026-07-19 08:39 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 08:39 +0000 · Codex Phase-6 complete
-Read CURRENT.md, peer mail, PROGRESS.md, the evidence-expansion plan, and the Phase-3c runbook first.
-Phase 6 ruleset hardening is complete; full npm run verify passed in 310.2 seconds.
+# Resume prompt · 2026-07-19 08:47 +0000 · Codex end-to-end product plan
+Read CURRENT.md, peer mail, PRODUCT.md, DESIGN.md, existing product plans, and the Phase-3c runbook first.
 If the recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
-Before that floor, do not start Phase 7; it requires the final published standard and explicit activation gates.
-Keep source acquisition/materialization, live providers, deploys, Supabase, new-ruleset activation, and SVC v4 held.
-The clean soak window started at 2026-07-19T01:46:12Z; earliest closure is 2026-07-21 01:46 UTC.
-Do not buy GitHub Actions minutes; required Phase-6 CI waits for monthly renewal.
-Do not mutate deployments/providers/Supabase/Render or clean watcher-owned files.
+Then audit actual code and runtime behavior across Variant Report, Batch, Paper, and Workbench; produce the plan only.
+Include related/nearby/curated variants, every report-to-tool handoff, and the Workbench tool rail.
+Plan whole gene/transcript sequence navigation and smooth range selection, not only the local variant window.
+Cover primer design, CRISPR, alignment, compare, annotations, editing, exports, persistence, and every state/error.
+Trace backend/data/auth/upload/privacy, accessibility, responsive, performance, and test gaps; mark real, fixture, partial, or missing.
+Freeze shared contracts and propose 3-5 Forj lanes with owned globs, merge order, and exact launch commands.
+Do not launch lanes or implement until Steven approves the partition; keep all evidence, cloud, deploy, Supabase, and Phase-7 holds.
 ```
 
 ## Pointer
 
-- Phase-6 implementation and verification receipt: top `PROGRESS.md` entry and
+- Product/design contract: `PRODUCT.md` and `DESIGN.md`.
+- Existing product plans: `plans/variant-report-experience/` and
+  `plans/variant-report-data-orchestration/`; audit the code before trusting them.
+- Surface inventory starts in `app/web/app/`, `app/web/components/report/`,
+  Workbench components, and the backend batch/report/search routes.
+- Phase-6 receipt remains at the top of `PROGRESS.md` and in
   `plans/evidence-source-expansion/plan.md`.
-- Phase-6 backend: `app/backend/app/services/acmg_points_engine.py`,
-  `acmg_policy_registry.py`, `functional_assay_validation.py`, and
-  `app/backend/app/schemas/run.py`.
-- Phase-6 web mirror/instruments: `app/web/lib/backend.ts`,
-  `app/web/lib/acmg/points.ts`, and `app/web/components/report/PosteriorGauge.tsx`.
 - Recovery checkpoint and reset receipt: `d326d06`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
@@ -82,23 +83,20 @@ Do not mutate deployments/providers/Supabase/Render or clean watcher-owned files
 
 ## Delta
 
-- Aggregate likelihood ratio and Bayesian quantities are honestly named under
-  a version-pinned historical replay; BA1 has no model posterior and renders N/A.
-- PS3/BS3 count only through a published, exact-context, confusion-matrix-backed
-  assay validation with Brnich OddsPath, confidence, provenance, selection, and
-  independent-evidence gates. Unvalidated source assertions remain context-only.
-- Versioned population policies replace global thresholds. Exact RPE65 GN120
-  context gets deterministic CSpec precedence plus an auditable general-policy diff.
-- Full `npm run verify` passed in 310.2 seconds with 193 web tests, the complete
-  backend suite, all ratchets, and the 17-route production build.
-- No source acquisition/materialization, live request, upload, provider,
-  deployment, Render, Supabase, cleanup, new-ruleset, or SVC v4 action occurred.
+- Evidence expansion Phases 0-6 are complete; Phase 6 passed full local verify
+  and shipped at `1120598`. Phase 7 and every source/live activation remain held.
+- Steven queued the next session to inventory Variant Report, Batch, Paper, and
+  Workbench end to end, then write a dependency-ordered implementation plan.
+- The plan must cover related variants and all rails/handoffs, plus whole-sequence
+  navigation/selection, primers, CRISPR, alignment, compare, and supporting states.
+- No product audit, plan file, implementation, lane launch, or mutation began in
+  this wrap session. Impeccable and evidence-security context were only loaded.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
   still live as rollback.
 - Swordfish's watcher-owned inbox remains dirty and was not edited or staged.
 
 ## Next Action
 
-- At or after the 2026-07-20 01:46 UTC floor, run the Phase-3c recovery-middle
-  sample first. Before that floor, preserve the evidence and runtime holds;
-  do not start Phase 7 or close/cancel Render.
+- Run the recovery-middle sample first if its 2026-07-20 01:46 UTC floor has
+  passed. Otherwise start the comprehensive product audit and planning pass,
+  stop before implementation, and present the lane partition for Steven's approval.
