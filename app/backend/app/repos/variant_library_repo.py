@@ -26,6 +26,7 @@ MAX_LIBRARY_FOLDER_LIMIT = 500
 LIBRARY_TOMBSTONE_PREFIX = "__eamos_tombstone__:"
 LIBRARY_SCHEMA_MARKER_ID = "__eamos_schema__:v2"
 LIBRARY_SCHEMA_MARKER_QUERY = "library.v2"
+SUPABASE_LIBRARY_MAX_WRITE_ATTEMPTS = 4
 
 
 class VariantLibraryRepoError(RuntimeError):
@@ -385,26 +386,43 @@ class SupabaseVariantLibraryRepo:
         variants: list[dict[str, Any]],
         folders: list[dict[str, Any]],
     ) -> UserLibraryDocumentRecord:
-        existing = self.get_document(user_id=user_id)
-        merged_variants = merge_library_variant_documents(
-            existing.variants if existing is not None else [],
-            variants,
-        )
-        updated_at = datetime.now(timezone.utc).isoformat()
-        rows = self._post_rows(
-            "user_library",
-            json={
+        for _attempt in range(SUPABASE_LIBRARY_MAX_WRITE_ATTEMPTS):
+            existing = self.get_document(user_id=user_id)
+            merged_variants = merge_library_variant_documents(
+                existing.variants if existing is not None else [],
+                variants,
+            )
+            payload = {
                 "user_id": user_id,
                 "variants": merged_variants,
                 "folders": folders,
-                "updated_at": updated_at,
-            },
-            params={"on_conflict": "user_id"},
-            prefer="resolution=merge-duplicates,return=representation",
-        )
-        if not rows:
-            raise VariantLibraryWriteError("user library upsert returned no row")
-        return _library_document_from_row(rows[0])
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if existing is None:
+                # Insert only. If another writer created the row after our GET,
+                # PostgREST returns no representation and the next attempt
+                # re-reads and deterministically merges its document.
+                rows = self._post_rows(
+                    "user_library",
+                    json=payload,
+                    params={"on_conflict": "user_id"},
+                    prefer="resolution=ignore-duplicates,return=representation",
+                )
+            else:
+                # Compare-and-swap on the version already merged. A concurrent
+                # writer changes updated_at, yielding zero rows and a retry
+                # against the newer tombstone/active state.
+                rows = self._patch_rows(
+                    "user_library",
+                    json=payload,
+                    params={
+                        "user_id": f"eq.{user_id}",
+                        "updated_at": f"eq.{existing.updated_at.isoformat()}",
+                    },
+                )
+            if rows:
+                return _library_document_from_row(rows[0])
+        raise VariantLibraryWriteError("user library changed during every merge attempt")
 
     def list_variants(
         self,
