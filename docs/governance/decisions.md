@@ -3,6 +3,20 @@
 Relocated from `agent_handoff/DECISIONS.md`: 2026-07-15 21:39 +1000 by Codex
 to keep durable reference material outside the live session handoff.
 
+## 2026-07-19: Workbench Design-Binding Contract Re-plan Approved
+
+Section added: 2026-07-19 13:08 +0000 · Codex.
+
+Decision (Steven, 2026-07-19): approve the minimal contract re-plan needed to
+bind Primer, CRISPR, and Align requests to canonical Workbench build/reference
+basis, edit revision, and context digest. Begin that re-plan next session, not
+during the current wrap.
+
+This approval authorizes the bounded planning/contract amendment and its local
+verification. It does not approve a lane merge, red-CI waiver, Task F or other
+Supabase mutation, deploy, provider/source action, Phase 7, or cleanup. Lane B
+still requires green GitHub Actions and Steven's explicit merge approval.
+
 ## 2026-07-19: Repository-Local Google Fonts Approved
 
 Section added: 2026-07-19 11:14 +0000 · Codex.
