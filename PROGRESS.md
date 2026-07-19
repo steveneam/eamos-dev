@@ -1,5 +1,44 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-19 06:13 +0000 - Codex - Phase 4 LOVD synthetic-fixture pilot
+
+Phase 4 now has one installation-scoped Global Variome shared LOVD identity
+and a fixture-only exact-match path. `LovdInstallationSource`,
+`LovdBasicObservation`, and the report section freeze the canonical HTTPS
+origin, installation and record namespaces, versioned transcript plus coding
+HGVS, build, source-edited timestamp, record-level license, source policy, and
+the live-launch hold. The future live guard is fixed at no more than five
+requests/second/domain and at least a four-hour negative-cache TTL, but live
+access and positive caching remain disabled.
+
+The bounded adapter parses only hand-authored synthetic JSON/Atom fixtures,
+has no network client, rejects XML DTD/entities, projects allowed scalar fields
+before validation, and returns one exact assembly/transcript-version/HGVS
+match or fails closed. Unknown licenses, ambiguous matches, transcript/build
+drift, arbitrary installations/hosts, malformed URLs, and inconsistent policy
+decisions are denied with fixed warning codes. Patient/person, phenotype,
+submitter/curator, classification, case-count, `Times_reported`, raw-payload,
+and unsafe policy text cannot enter the typed observation, frontend projection,
+logs, errors, cache, analytics, or export. Product-export serialization removes
+the LOVD section entirely.
+
+The report renders a neutral, source-linked presence block only when the safe
+matched fixture contract is present and states: `Matching LOVD basic record;
+presence is not a classification.` Synthetic LOVD input, including injected
+classification/criteria/points, produces byte-equivalent ACMG results and call
+cards with unchanged UI themes. The product-register design pass retained the
+report's dense hairline/token vocabulary and added no classification color.
+
+Focused backend policy/schema/orchestration/neutrality and frontend projection
+coverage passed with the backend/frontend contract canary, structural ratchets,
+Ruff, Black, ESLint, and TypeScript. Full `npm run verify` passed in 302.4
+seconds: 11 Node ratchets, 24 Vitest files / 186 tests, the complete backend
+suite, and the 17-route production Next build. No live LOVD request, scraping,
+source acquisition/materialization, persistence, provider/deploy change,
+Supabase mutation, Render action, or cleanup occurred. Prior Phase-3 CI run
+`29675375104` failed before all jobs started (zero steps/logs), consistent with
+the known Actions-minute lock; it was not rerun and no spend was requested.
+
 ## 2026-07-19 05:44 +0000 - Codex - Phase 3 safe OMIM cross-reference slice
 
 Phase 3 now exposes OMIM only as a supplier-owned identifier link. The new

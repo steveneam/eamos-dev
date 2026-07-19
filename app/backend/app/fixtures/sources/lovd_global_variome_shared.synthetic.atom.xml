@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:lovd-fixture="urn:eamos:fixture:lovd-basic:v1">
+  <title>Hand-authored synthetic LOVD basic-record schema fixture</title>
+  <lovd-fixture:fixture_status>hand_authored_synthetic</lovd-fixture:fixture_status>
+  <lovd-fixture:installation_id>global_variome_shared_lovd</lovd-fixture:installation_id>
+  <entry>
+    <id>urn:eamos:fixture:lovd:fixture-rpe65-c260ag</id>
+    <updated>2026-07-17T00:00:00Z</updated>
+    <link rel="alternate"
+          href="https://databases.lovd.nl/shared/variants/fixture-rpe65-c260ag" />
+    <lovd-fixture:record_id>fixture-rpe65-c260ag</lovd-fixture:record_id>
+    <lovd-fixture:genome_build>GRCh38</lovd-fixture:genome_build>
+    <lovd-fixture:transcript_accession>NM_000329.3</lovd-fixture:transcript_accession>
+    <lovd-fixture:hgvs_c>c.260A&gt;G</lovd-fixture:hgvs_c>
+    <lovd-fixture:record_license>CC-BY-4.0</lovd-fixture:record_license>
+  </entry>
+</feed>

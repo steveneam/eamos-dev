@@ -25,29 +25,25 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** EVIDENCE EXPANSION PHASE 3 COMPLETE @ 2026-07-19 05:44 +0000 —
-  safe OMIM cross-reference behavior and its full local gate are recorded in
-  the top `PROGRESS.md` entry and the active evidence-expansion plan.
+- **Codex:** EVIDENCE EXPANSION PHASE 4 COMPLETE @ 2026-07-19 06:14 +0000 —
+  the installation-scoped LOVD synthetic-fixture pilot and its 302.4-second
+  full local gate are recorded in `PROGRESS.md` and the active plan.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
-  live and Phase 4 remains held.
-- **GitHub Actions:** Steven ruled no additional spend; wait for the monthly
-  included-minutes renewal. Commit/push continues normally, but new code or
-  deploy slices cannot clear a required CI boundary while Actions is blocked.
-- **Evidence expansion:** Phases 0-3 are complete. Steven authorized the
-  remaining code-eligible sequence; Phase 4 LOVD link/synthetic-fixture pilot
-  is next, then Phases 5-6 only as their bounded gates pass. Phase 7 and every
-  live/materialization gate remain held.
-- **Live comm:** `agent-comm` is installed but targets Claude panes only, and
-  `live-comm` is not exposed to Codex. Swordfish was notified at 05:10 UTC;
-  async peer mail remains the reachable channel. This does not block Phase 3c.
+  live as rollback; do not close/cancel it.
+- **GitHub Actions:** Phase-3 run `29675375104` failed with zero steps/logs,
+  consistent with the known minute lock. Steven ruled no additional spend;
+  commit/push continues, but required CI waits for monthly renewal.
+- **Evidence expansion:** Phases 0-4 are complete. Phase 5 code-only MaveDB
+  importer repair is next, followed by Phase 6 only if its bounded gate passes.
+  Source acquisition/materialization, live providers, and Phase 7 remain held.
 - **Runtime:** persistent `eamos` tmux under `agent-tmux.service` remains the
   execution seam.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 05:44 +0000 · Codex
+UNLOCKED · 2026-07-19 06:14 +0000 · Codex
 
 ## Shared File Locks
 
@@ -56,25 +52,27 @@ None.
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 05:44 +0000 · Codex Phase-4 evidence expansion
+# Resume prompt · 2026-07-19 06:14 +0000 · Codex Phase-5 evidence expansion
 Read CURRENT.md, peer mail, PROGRESS.md, the evidence-expansion plan, and the Phase-3c runbook first.
-Phase 3 safe OMIM cross-references are complete and full npm run verify is green.
+Phase 4 LOVD fixture-only integration is complete and full npm run verify passed in 302.4 seconds.
 If the recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
-Otherwise freeze the bounded Phase-4 exit checklist, then implement the LOVD link/synthetic-fixture pilot.
-Use one reviewed installation identity, hand-authored schema fixtures, exact matches, and non-evidentiary presence only.
-Keep live LOVD access, scraping, case/patient data, source downloads, materialization, providers, deploys, and Supabase held.
-After Phase 4, advance through code-eligible Phases 5-6 only as each bounded gate passes; Phase 7 is held.
+Otherwise freeze a code-only Phase-5 MaveDB importer-repair checklist against hand-authored synthetic fixtures.
+Repair schema-v2 identity, streaming archive parsing, exact Decimal values, license joins, canonical links, and neutral multi-match output.
+Keep real archive acquisition/materialization, uploads, providers, deploys, Supabase, and all live source access held.
+Advance to Phase 6 only after the bounded Phase-5 gate is fully green; Phase 7 remains held.
 The clean soak window started at 2026-07-19T01:46:12Z; earliest closure is 2026-07-21 01:46 UTC.
 Commit/push normally, but do not buy GitHub Actions minutes; required new-code CI waits for renewal.
-Do not mutate deployments/providers/Supabase/Render, start Render-cancellation Phase 4, or clean watcher-owned files.
+Do not mutate deployments/providers/Supabase/Render or clean watcher-owned files.
 ```
 
 ## Pointer
 
-- Phase-3 implementation and verification receipt: top `PROGRESS.md` entry and
+- Phase-4 implementation and verification receipt: top `PROGRESS.md` entry and
   `plans/evidence-source-expansion/plan.md`.
-- OMIM contract/normalizer: `app/backend/app/schemas/run.py` and
-  `app/backend/app/services/omim_cross_references.py`.
+- LOVD contract/adapter: `app/backend/app/schemas/run.py` and
+  `app/backend/app/services/lovd_fixture_adapter.py`.
+- Existing MaveDB scaffold: `app/backend/app/services/mavedb_local.py`,
+  `app/backend/app/data_sources/registry_records_mavedb.py`, and focused tests.
 - Recovery checkpoint and reset receipt: `d326d06`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
@@ -86,21 +84,22 @@ Do not mutate deployments/providers/Supabase/Render, start Render-cancellation P
 
 ## Delta
 
-- OMIM is now a typed, supplier-owned, `identifier_only` cross-reference with
-  fixed canonical links and explicit MONDO/HPO/ClinGen/GenCC policy proof.
-- Bare/legacy identifiers, unknown suppliers, wrong entry types, substituted
-  URLs, and missing or denied decisions fail closed; links cannot create
-  gene-disease validity or ACMG evidence.
-- `omim_mim2gene` and `omim_licensed_api` are reserved but fully disabled. No
-  OMIM content, parser, API client, download, cache, or provider was added.
-- Full `npm run verify` passed in 212.1 seconds after the structural hotspot
-  ratchet moved OMIM logic out of the report orchestrator (887 lines).
+- LOVD now has one fixed Global Variome shared installation identity and a
+  hand-authored JSON/Atom fixture adapter with no network capability.
+- Exact assembly/transcript-version/HGVS matching, record-license checks,
+  canonical URLs, and fixed policy decisions fail closed on drift or ambiguity.
+- Prohibited case/person/classification/raw fields cannot enter backend or web
+  models, product export, logs, analytics, or cache; unknown licenses are denied.
+- The neutral report block states presence is not classification. LOVD input
+  cannot alter ACMG points, criteria, call cards, or their UI themes.
+- Full `npm run verify` passed in 302.4 seconds with 186 web tests, the complete
+  backend suite, all ratchets, and the production build.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
   still live as rollback. No live/cloud/Supabase/deploy mutation occurred.
 - Swordfish's watcher-owned inbox remains dirty and was not edited or staged.
 
 ## Next Action
 
-- At the next session, run the recovery-middle Phase-3c sample first only if its
-  2026-07-20 01:46 UTC floor has passed. Otherwise start the bounded Phase-4
-  LOVD link and synthetic-fixture pilot. Do not close/cancel Render.
+- Run the recovery-middle sample first only after its 2026-07-20 01:46 UTC
+  floor. Otherwise start bounded, synthetic-fixture-only Phase 5 MaveDB importer
+  repair. Do not acquire/materialize a real archive or close/cancel Render.

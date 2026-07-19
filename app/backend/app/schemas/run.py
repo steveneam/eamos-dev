@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
+import re
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, Field, field_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from app.schemas.gene_viewer import ViewerSegment, ViewerSequences, ViewerWindow
 from app.schemas.protein_annotation import ProteinDomainTrack
@@ -296,6 +298,184 @@ def _omim_cross_reference_output_allowed(reference: OmimCrossReference, action: 
         and bool(relevant)
         and all(decision.outcome == "allowed" for decision in relevant)
         and _source_fact_output_allowed(reference, action)
+    )
+
+
+LOVD_FIXTURE_SOURCE_ID = "lovd_global_variome_shared_fixture"
+LOVD_INSTALLATION_ID = "global_variome_shared_lovd"
+LOVD_INSTALLATION_BASE_URL = "https://databases.lovd.nl/shared"
+LOVD_BASIC_RECORD_FIELD = "basic_record"
+LOVD_POLICY_DECIDED_AT = datetime(2026, 7, 17, 13, 39, tzinfo=UTC)
+LOVD_FIXTURE_POLICY_DECISIONS: dict[str, tuple[str, str]] = {
+    "acquire": ("denied", "acquisition_not_approved"),
+    "normalize": ("allowed", "allowed_by_source_allowlist"),
+    "public_serialize": ("allowed", "allowed_by_source_allowlist"),
+    "cache": ("denied", "field_not_allowlisted"),
+    "product_export": ("denied", "action_not_allowlisted"),
+    "log": ("denied", "action_not_allowlisted"),
+    "analyze": ("denied", "action_not_allowlisted"),
+    "backup": ("denied", "action_not_allowlisted"),
+    "stage": ("denied", "action_not_allowlisted"),
+    "restore": ("denied", "action_not_allowlisted"),
+    "raw_debug": ("denied", "action_not_allowlisted"),
+}
+_LOVD_RECORD_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,79}")
+_LOVD_TRANSCRIPT_RE = re.compile(r"(?:NM|NR)_\d+\.\d+")
+_LOVD_CDNA_RE = re.compile(r"c\.[^\s:]{1,120}")
+
+
+class LovdInstallationSource(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    source_id: Literal["lovd_global_variome_shared_fixture"] = LOVD_FIXTURE_SOURCE_ID
+    installation_id: Literal["global_variome_shared_lovd"] = LOVD_INSTALLATION_ID
+    display_name: Literal["Global Variome shared LOVD"] = "Global Variome shared LOVD"
+    base_url: Literal["https://databases.lovd.nl/shared"] = LOVD_INSTALLATION_BASE_URL
+    live_access_enabled: Literal[False] = False
+    maximum_requests_per_second: float = Field(default=5.0, gt=0, le=5)
+    minimum_negative_cache_ttl_seconds: int = Field(default=14_400, ge=14_400)
+    positive_cache_policy: Literal["not_approved"] = "not_approved"
+    record_license_mode: Literal["record_level_required"] = "record_level_required"
+    installation_permission_is_record_license: Literal[False] = False
+
+
+class LovdBasicObservation(SourceFactPolicyEnvelope):
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: Literal["lovd_global_variome_shared_fixture"] = LOVD_FIXTURE_SOURCE_ID
+    source_record_id: str
+    source_version: Literal["LOVD 3 basic API synthetic schema fixture v1"] = (
+        "LOVD 3 basic API synthetic schema fixture v1"
+    )
+    source_url: str
+    origin_kind: Literal["derived"] = "derived"
+    match_level: Literal["exact_normalized_hgvs"] = "exact_normalized_hgvs"
+    record_license: Literal["CC-BY-4.0"]
+    terms_version_or_hash: Literal["lovd-doc-review-2026-07-17"] = "lovd-doc-review-2026-07-17"
+    license_gate: Literal["synthetic_fixture_record_license_example"] = (
+        "synthetic_fixture_record_license_example"
+    )
+    launch_gate: Literal["live_access_disabled_pending_written_permission"] = (
+        "live_access_disabled_pending_written_permission"
+    )
+    public_serialization_allowed: Literal[True] = True
+    export_allowed: Literal[False] = False
+    cache_allowed: Literal[False] = False
+    attribution: Literal["Global Variome shared LOVD (synthetic fixture)"] = (
+        "Global Variome shared LOVD (synthetic fixture)"
+    )
+    policy_version: Literal["lovd-fixture-policy-v1"] = "lovd-fixture-policy-v1"
+    installation: LovdInstallationSource = Field(default_factory=LovdInstallationSource)
+    presence: Literal[True] = True
+    genome_build: Literal["GRCh37", "GRCh38"]
+    transcript_accession: str
+    hgvs_c: str
+    source_edited_at: datetime
+    evidence_role: Literal["presence_only"] = "presence_only"
+
+    @model_validator(mode="after")
+    def _validate_safe_fixture_observation(self) -> LovdBasicObservation:
+        prefix = f"{LOVD_INSTALLATION_ID}:variant:"
+        if not self.source_record_id.startswith(prefix):
+            raise ValueError("LOVD observation record namespace is invalid")
+        record_id = self.source_record_id.removeprefix(prefix)
+        if _LOVD_RECORD_ID_RE.fullmatch(record_id) is None:
+            raise ValueError("LOVD observation record identifier is invalid")
+
+        parsed = urlsplit(self.source_url)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "databases.lovd.nl"
+            or parsed.port is not None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or parsed.path != f"/shared/variants/{record_id}"
+        ):
+            raise ValueError("LOVD observation record URL is outside the reviewed installation")
+        if _LOVD_TRANSCRIPT_RE.fullmatch(self.transcript_accession) is None:
+            raise ValueError("LOVD observation requires a versioned RefSeq transcript")
+        if _LOVD_CDNA_RE.fullmatch(self.hgvs_c) is None:
+            raise ValueError("LOVD observation requires canonical coding HGVS")
+        if self.source_edited_at.tzinfo is None:
+            raise ValueError("LOVD observation source-edited time requires a timezone")
+
+        decisions_by_action = {decision.action: decision for decision in self.policy_decisions}
+        if len(decisions_by_action) != len(self.policy_decisions) or set(
+            decisions_by_action
+        ) != set(LOVD_FIXTURE_POLICY_DECISIONS):
+            raise ValueError("LOVD observation policy decision set is incomplete")
+        for action, (expected_outcome, expected_reason) in LOVD_FIXTURE_POLICY_DECISIONS.items():
+            decision = decisions_by_action[action]
+            if (
+                decision.field != LOVD_BASIC_RECORD_FIELD
+                or decision.outcome != expected_outcome
+                or decision.reason != expected_reason
+                or decision.decided_at != LOVD_POLICY_DECIDED_AT
+            ):
+                raise ValueError("LOVD observation policy decision is inconsistent")
+        if self.decision_reason != "acquire:basic_record:acquisition_not_approved":
+            raise ValueError("LOVD observation decision summary is inconsistent")
+
+        public_decisions = [
+            decision
+            for decision in self.policy_decisions
+            if decision.action == "public_serialize" and decision.field == LOVD_BASIC_RECORD_FIELD
+        ]
+        cache_decisions = [
+            decision
+            for decision in self.policy_decisions
+            if decision.action == "cache" and decision.field == LOVD_BASIC_RECORD_FIELD
+        ]
+        export_decisions = [
+            decision
+            for decision in self.policy_decisions
+            if decision.action == "product_export" and decision.field == LOVD_BASIC_RECORD_FIELD
+        ]
+        if not public_decisions or any(item.outcome != "allowed" for item in public_decisions):
+            raise ValueError("LOVD observation requires an allowed serialization decision")
+        if not cache_decisions or any(item.outcome != "denied" for item in cache_decisions):
+            raise ValueError("LOVD fixture observation caching must remain denied")
+        if not export_decisions or any(item.outcome != "denied" for item in export_decisions):
+            raise ValueError("LOVD fixture observation export must remain denied")
+        if (
+            self.public_serialization_allowed is not True
+            or self.cache_allowed is not False
+            or self.export_allowed is not False
+        ):
+            raise ValueError("LOVD observation policy projections are inconsistent")
+        return self
+
+
+class LovdBasicRecordsSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    installation: LovdInstallationSource = Field(default_factory=LovdInstallationSource)
+    status: Literal["matched", "not_found", "ambiguous", "denied"]
+    observations: list[LovdBasicObservation] = Field(default_factory=list, max_length=1)
+    live_request_performed: Literal[False] = False
+    warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_result_shape(self) -> LovdBasicRecordsSection:
+        if self.status == "matched" and len(self.observations) != 1:
+            raise ValueError("matched LOVD fixture result requires exactly one observation")
+        if self.status != "matched" and self.observations:
+            raise ValueError("non-matching LOVD fixture result cannot expose observations")
+        return self
+
+
+def _lovd_observation_output_allowed(observation: LovdBasicObservation, action: str) -> bool:
+    relevant = [
+        decision
+        for decision in observation.policy_decisions
+        if decision.action == action and decision.field == LOVD_BASIC_RECORD_FIELD
+    ]
+    return (
+        bool(relevant)
+        and all(decision.outcome == "allowed" for decision in relevant)
+        and _source_fact_output_allowed(observation, action)
     )
 
 
@@ -1383,6 +1563,7 @@ class VariantReportProfile(BaseModel):
     acmg_worksheet: AcmgWorksheetLedger | None = None
     expert_panel: ExpertPanelSection | None = None
     therapies_trials: TherapiesTrialsSection | None = None
+    lovd_basic_records: LovdBasicRecordsSection | None = None
     section_signals: list[ReportSectionSignal] = Field(default_factory=list)
     provenance: list[SourceProvenance] = Field(default_factory=list)
 
@@ -1392,6 +1573,19 @@ class VariantReportProfile(BaseModel):
     ) -> list[SourceProvenance]:
         action = _serialization_policy_action(info)
         return [item for item in provenance if _source_fact_output_allowed(item, action)]
+
+    @field_serializer("lovd_basic_records", when_used="json")
+    def _serialize_lovd_basic_records(
+        self,
+        section: LovdBasicRecordsSection | None,
+        info: Any,
+    ) -> LovdBasicRecordsSection | None:
+        if section is None or section.status != "matched":
+            return None
+        action = _serialization_policy_action(info)
+        if all(_lovd_observation_output_allowed(item, action) for item in section.observations):
+            return section
+        return None
 
 
 REPORT_SOURCE_FILENAMES_MAX = 32

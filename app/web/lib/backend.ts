@@ -1175,6 +1175,56 @@ export interface OmimCrossReference {
   evidence_role: 'identifier_only'
 }
 
+export interface LovdInstallationSource {
+  source_id: 'lovd_global_variome_shared_fixture'
+  installation_id: 'global_variome_shared_lovd'
+  display_name: 'Global Variome shared LOVD'
+  base_url: 'https://databases.lovd.nl/shared'
+  live_access_enabled: false
+  maximum_requests_per_second: number
+  minimum_negative_cache_ttl_seconds: number
+  positive_cache_policy: 'not_approved'
+  record_license_mode: 'record_level_required'
+  installation_permission_is_record_license: false
+}
+
+export interface LovdBasicObservation {
+  source_id: 'lovd_global_variome_shared_fixture'
+  source_record_id: string
+  source_version: 'LOVD 3 basic API synthetic schema fixture v1'
+  source_url: string
+  retrieved_at?: string | null
+  origin_kind: 'derived'
+  match_level: 'exact_normalized_hgvs'
+  record_license: 'CC-BY-4.0'
+  terms_version_or_hash: 'lovd-doc-review-2026-07-17'
+  license_gate: 'synthetic_fixture_record_license_example'
+  launch_gate: 'live_access_disabled_pending_written_permission'
+  public_serialization_allowed: true
+  export_allowed: false
+  cache_allowed: false
+  attribution: 'Global Variome shared LOVD (synthetic fixture)'
+  policy_version: 'lovd-fixture-policy-v1'
+  decision_reason?: string | null
+  decision_at?: string | null
+  policy_decisions: SourcePolicyDecision[]
+  installation: LovdInstallationSource
+  presence: true
+  genome_build: 'GRCh37' | 'GRCh38'
+  transcript_accession: string
+  hgvs_c: string
+  source_edited_at: string
+  evidence_role: 'presence_only'
+}
+
+export interface LovdBasicRecordsSection {
+  installation: LovdInstallationSource
+  status: 'matched' | 'not_found' | 'ambiguous' | 'denied'
+  observations: LovdBasicObservation[]
+  live_request_performed: false
+  warnings: string[]
+}
+
 export interface SourceProvenance {
   source_id?: string | null
   source_record_id?: string | null
@@ -1738,6 +1788,7 @@ export interface VariantReportProfile {
   acmg_worksheet?: AcmgWorksheetLedger | null
   expert_panel?: ExpertPanelSection | null
   therapies_trials?: TherapiesTrialsSection | null
+  lovd_basic_records?: LovdBasicRecordsSection | null
   section_signals: ReportSectionSignal[]
   provenance: SourceProvenance[]
 }

@@ -52,11 +52,12 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 38
+    assert len(source_ids) == 39
     assert "mavedb_cc0_bulk" in source_ids
     assert "mavedb_public_api_metadata" in source_ids
     assert "omim_mim2gene" in source_ids
     assert "omim_licensed_api" in source_ids
+    assert "lovd_global_variome_shared_fixture" in source_ids
     assert {
         "myvariant_gnomad_only",
         "google_deepmind_alphamissense_hg38",
@@ -92,6 +93,25 @@ def test_omim_content_routes_are_reserved_but_not_enabled() -> None:
     assert "api_payloads" in licensed_api.restricted_fields
     assert licensed_api.download_approved is False
     assert licensed_api.day1_status == "blocked_until_signed_license"
+
+
+def test_lovd_source_is_one_installation_scoped_fixture_only_identity() -> None:
+    record = DEFAULT_DATA_SOURCE_REGISTRY.get("lovd_global_variome_shared_fixture")
+
+    assert record.license_status is LicenseStatus.INTERNAL_FIXTURE_ONLY
+    assert record.source_url == "https://databases.lovd.nl/shared/docs/"
+    assert record.adapter == "lovd_basic_fixture_adapter"
+    assert record.allowed_product_tiers == ("internal_fixture_only",)
+    assert record.download_approved is False
+    assert record.cache_policy.startswith("disabled_fixture_only")
+    assert "basic_record.presence" in record.allowed_fields
+    assert {
+        "basic_record.patient",
+        "basic_record.phenotype",
+        "basic_record.classification",
+        "basic_record.times_reported",
+        "basic_record.raw_payload",
+    } <= set(record.restricted_fields)
 
 
 def test_protein_annotation_rows_are_commercial_allowed_but_not_runtime_approved() -> None:

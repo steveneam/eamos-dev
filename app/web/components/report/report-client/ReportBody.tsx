@@ -18,6 +18,7 @@ import { ExportMenu } from '@/components/report/ExportMenu'
 import { GeneViewerErrorBoundary } from '@/components/report/GeneViewerErrorBoundary'
 import { LazySection } from '@/components/report/LazySection'
 import { LossOfFunctionBlock } from '@/components/report/LossOfFunctionBlock'
+import { LovdBasicRecordsBlock } from '@/components/report/LovdBasicRecordsBlock'
 import { MaveFunctionalBlock } from '@/components/report/MaveFunctionalBlock'
 import { MolecularContextBlock } from '@/components/report/MolecularContextBlock'
 import { PopulationFrequencySection } from '@/components/report/PopulationFrequencySection'
@@ -333,6 +334,9 @@ export function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = 
             {(section) => <ExpertPanelSection data={section} />}
           </LazySection>
           <ClinVarBlock evidence={data.evidence} />
+          {/* LOVD is neutral presence context only. It is deliberately outside
+              every classification and call-card computation path. */}
+          <LovdBasicRecordsBlock section={payload.report_profile?.lovd_basic_records ?? null} />
           {/* Functional evidence (PS3/BS3) from MaveDB — wet-lab MAVE/DMS assays;
               sits with the clinical evidence that drives the classification. */}
           <MaveFunctionalBlock

@@ -36,6 +36,7 @@ from app.services.computational_evidence import (
     build_computational_evidence_decision,
     selection_accounting,
 )
+from app.services.lovd_fixture_adapter import validated_lovd_basic_records
 from app.services.report_data_currency import current_report_timestamp, latest_evidence_timestamp
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.report_provenance import (
@@ -159,6 +160,7 @@ class VariantReportDataOrchestrator:
             acmg_worksheet=acmg_worksheet,
             expert_panel=expert_panel,
             therapies_trials=therapies_trials,
+            lovd_basic_records=validated_lovd_basic_records(evidence_map.get("lovd_fixture")),
             section_signals=_build_section_signals(
                 payload=payload,
                 interpretation_summary=interpretation_summary,

@@ -222,6 +222,7 @@ class SourceFieldPolicy:
             if (
                 product_tier_value is ProductTier.INTERNAL_FIXTURE
                 and action_value is PolicyAction.PUBLIC_SERIALIZE
+                and record.license_status is not LicenseStatus.INTERNAL_FIXTURE_ONLY
             ):
                 return _allow(
                     source_id,
@@ -294,6 +295,8 @@ class SourceFieldPolicy:
         source_overrides = self._action_field_allowlists.get(record.source_id, {})
         if action in source_overrides:
             return source_overrides[action]
+        if action is PolicyAction.CACHE and record.cache_policy.startswith("disabled"):
+            return ()
         if action in {
             PolicyAction.ACQUIRE,
             PolicyAction.CACHE,

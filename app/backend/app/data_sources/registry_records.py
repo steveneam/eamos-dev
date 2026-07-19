@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.data_sources.registry_models import DataSourceRecord, LicenseStatus
+from app.data_sources.registry_records_lovd import LOVD_SOURCE_RECORDS
 from app.data_sources.registry_records_mavedb import MAVEDB_SOURCE_RECORDS
 from app.data_sources.registry_records_omim import OMIM_SOURCE_RECORDS
 
@@ -1062,6 +1063,7 @@ DEFAULT_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
     ),
     *MAVEDB_SOURCE_RECORDS,
     *OMIM_SOURCE_RECORDS,
+    *LOVD_SOURCE_RECORDS,
     DataSourceRecord(
         source_id="uniprotkb_reviewed_swissprot",
         display_name="UniProtKB reviewed Swiss-Prot protein annotations",

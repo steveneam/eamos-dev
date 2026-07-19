@@ -1,0 +1,16 @@
+{
+  "fixture_status": "hand_authored_synthetic",
+  "schema_reference": "LOVD 3 basic API documentation; no live response content",
+  "installation_id": "global_variome_shared_lovd",
+  "records": [
+    {
+      "record_id": "fixture-rpe65-c260ag",
+      "record_url": "https://databases.lovd.nl/shared/variants/fixture-rpe65-c260ag",
+      "genome_build": "GRCh38",
+      "transcript_accession": "NM_000329.3",
+      "hgvs_c": "c.260A>G",
+      "source_edited_at": "2026-07-17T00:00:00Z",
+      "record_license": "CC-BY-4.0"
+    }
+  ]
+}

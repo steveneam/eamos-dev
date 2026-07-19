@@ -291,6 +291,43 @@ def test_reserved_omim_content_sources_deny_every_action() -> None:
             assert decision.allowed is False
 
 
+def test_lovd_fixture_policy_is_internal_only_and_cache_disabled() -> None:
+    policy = SourceFieldPolicy()
+    source_id = "lovd_global_variome_shared_fixture"
+
+    public = policy.can_serialize(source_id, "basic_record.presence")
+    fixture = policy.can_serialize(
+        source_id,
+        "basic_record.presence",
+        product_tier=ProductTier.INTERNAL_FIXTURE,
+    )
+    cache = policy.can_cache(
+        source_id,
+        "basic_record.presence",
+        product_tier=ProductTier.INTERNAL_FIXTURE,
+    )
+    acquire = policy.can_request(
+        source_id,
+        "basic_record.presence",
+        product_tier=ProductTier.INTERNAL_FIXTURE,
+    )
+    prohibited = policy.can_serialize(
+        source_id,
+        "basic_record.classification",
+        product_tier=ProductTier.INTERNAL_FIXTURE,
+    )
+
+    assert public.allowed is False
+    assert public.reason == "internal_fixture_only"
+    assert fixture.allowed is True
+    assert cache.allowed is False
+    assert cache.reason == "field_not_allowlisted"
+    assert acquire.allowed is False
+    assert acquire.reason == "acquisition_not_approved"
+    assert prohibited.allowed is False
+    assert prohibited.reason == "restricted_field"
+
+
 def test_unknown_license_and_product_tier_deny_by_default() -> None:
     class RegistryWithUnknownLicense:
         def get(self, source_id: str):

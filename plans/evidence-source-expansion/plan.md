@@ -1,15 +1,15 @@
 # Evidence Source Expansion — Implementation Plan
 
 Status: Phase 0 complete at `49cdacb`; Phase 1 and the synthetic-fixture Phase 2
-are complete at `b7c41c7`; the safe OMIM cross-reference Phase 3 completed and
-passed the full local verification boundary on 2026-07-19. Steven authorized
-the remaining code-eligible work on 2026-07-19: advance through Phases 4-6 only
-as each bounded exit gate passes. Phase 7 still requires the final published
-standard. Full ESM-1b model/corpus acquisition, scoring,
+are complete at `b7c41c7`; the safe OMIM cross-reference Phase 3 and the
+fixture-only LOVD Phase 4 completed and passed their full local verification
+boundaries on 2026-07-19. Steven authorized the remaining code-eligible work on
+2026-07-19: advance through Phases 5-6 only as each bounded exit gate passes.
+Phase 7 still requires the final published standard. Full ESM-1b model/corpus acquisition, scoring,
 bgzip/Tabix materialization, upload, activation, licensed-content ingestion,
 provider/deployment changes, and Supabase mutation remain separate gates.
 
-Stamped: 2026-07-19 05:44 +0000 · Codex.
+Stamped: 2026-07-19 06:13 +0000 · Codex.
 
 ## Goal
 
@@ -579,6 +579,31 @@ An OMIM API integration begins only after signed terms define permitted display,
 cache, export, backup, public-API, and ML/RAG uses.
 
 ## Phase 4 — LOVD Link and Fixture Pilot
+
+Implementation checkpoint: 2026-07-19 06:13 +0000 · Codex.
+
+- One registry identity and typed installation contract pin Global Variome
+  shared LOVD to `https://databases.lovd.nl/shared`; arbitrary hosts and record
+  namespaces cannot enter the report. Live access and positive caching are
+  disabled, while the future-live rate and negative-cache minimums are frozen.
+- The adapter has no network capability and accepts only bounded, hand-authored
+  synthetic JSON/Atom documents. It rejects DTD/entities and projects the
+  allowed basic-record scalars before any validation or fixed-code failure.
+- Exact build, versioned RefSeq transcript, and coding HGVS equality is
+  required. Missing/unknown licenses, ambiguous matches, mismatches, malformed
+  canonical links, and policy drift fail closed; only the synthetic
+  `CC-BY-4.0` example can form an observation.
+- Backend `extra=forbid` models and the independent frontend safe projection
+  exclude patient/person, phenotype, classification, submitter/curator,
+  case-count, `Times_reported`, raw-payload, and unrecognized policy metadata.
+  Cache, product export, log, analysis, backup, staging, restore, and raw-debug
+  decisions remain denied; product-export serialization removes the section.
+- The report uses neutral product tokens and the required presence-only copy,
+  names the installation and exact match, and links only the validated origin.
+  LOVD input cannot activate ACMG or change any of the four call cards/themes.
+- Focused safety/contract/neutrality tests and full `npm run verify` passed; the
+  full boundary completed in 302.4 seconds with 186 web tests, the complete
+  backend suite, and the production build. No live/source/cloud mutation ran.
 
 1. Add installation-scoped source and observation models.
 2. Allowlist one reviewed Global Variome shared LOVD installation.
