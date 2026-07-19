@@ -3,6 +3,40 @@
 Relocated from `agent_handoff/DECISIONS.md`: 2026-07-15 21:39 +1000 by Codex
 to keep durable reference material outside the live session handoff.
 
+## 2026-07-19: Product Workflow V1 And Five-Lane Sprint Approved
+
+Section added: 2026-07-19 09:43 +0000 · Codex.
+
+Decision (Steven, 2026-07-19): approve the Product Workflow V1 contract and the
+five-lane Mode B partition in `plans/product-workflow-integration/`. Full gene
+means the continuous resolved locus across every exon, intervening intron, and
+UTR; the queried variant is initial focus only. Lane A may launch on the next
+`gogogo`, subject to the already-recorded recovery-check ordering.
+
+Supabase uses the repository's existing serialized convention:
+
+- Lane B is the sole owner of its allocated migration file and may author and
+  test it locally.
+- A lane never links to or mutates the shared Supabase project. The Codex lead
+  owns the post-merge application checkpoint from current `main`.
+- Remote application is part of completing the sprint, not an indefinite
+  backlog. Before applying, the lead follows
+  `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`,
+  reconciles the remote migration ledger, fills the exact mutation approval
+  template, and obtains Steven's confirmation for the named command/SQL,
+  objects, rollback, and target.
+- The current known target is dev project `eamos-dev`
+  (`cpdjxsgasaesysvxkpmi`). Verify that live identity and migration state at the
+  checkpoint; this approval does not authorize any other or future production
+  project.
+- After application, run RLS/grant and two-user ownership smokes, security and
+  performance advisors, bounded lifecycle/delete tests, and update
+  `docs/db/supabase-inventory.md` with the sanitized receipt.
+
+Every lane merge still waits for Steven's explicit approval and green required
+CI. All cloud/provider/source/Phase-7 holds outside that named, reviewed dev
+migration remain unchanged.
+
 ## 2026-07-16: One Free Predictor Catalog, Decide Source Retention Later
 
 Section added: 2026-07-16 12:47 +0000 · Codex.

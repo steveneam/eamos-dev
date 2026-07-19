@@ -25,12 +25,13 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** DONE @ 2026-07-19 09:34 +0000 — completed the evidence-backed
-  product plan and tightened whole-gene acceptance after Steven's viewer
-  clarification. No product implementation or lane launch occurred.
-- **Product-workflow sprint:** founder-gated. Steven must approve the proposed
-  V1 contract, lane partition, and local-migration-authoring choice before Lane A
-  starts. Every later merge retains its own explicit approval gate.
+- **Codex:** DONE @ 2026-07-19 09:48 +0000 — recorded Steven's Product Workflow
+  V1/five-lane approval and reconciled Supabase with the established serialized
+  lane-author/lead-apply convention. No implementation or cloud mutation ran.
+- **Product-workflow sprint:** APPROVED. Next `gogogo` launches Lane A only,
+  after the recovery sample if due. Lane B may author/test its migration; the
+  lead performs the post-merge Task F application checkpoint. Every merge still
+  waits for Steven's explicit approval and green required CI.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
@@ -46,7 +47,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 09:35 +0000 · Codex
+UNLOCKED · 2026-07-19 09:48 +0000 · Codex
 
 ## Shared File Locks
 
@@ -55,20 +56,26 @@ UNLOCKED · 2026-07-19 09:35 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 09:34 +0000 · Codex whole-gene viewer approval gate
+# Resume prompt · 2026-07-19 09:48 +0000 · Codex launch Product Workflow Lane A
 Read CURRENT.md, peer mail, and plans/product-workflow-integration/{research,spec,plan}.md first.
 If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it before sprint work.
-Delta: full gene now explicitly spans every exon, intervening intron, and UTR; the variant is only initial focus, and a distant-exon edit-to-Primer path is required.
-Review the three P0s and the frozen contract/ownership/merge order in plan.md.
-Founder gate: approve or amend the V1 contract and five lanes, and say whether Lane B may author (never apply) its local Supabase migration.
-If approved, launch Lane A only with the Wave-0 command and prompt; do not fork B/C until A is merged and verified.
-Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-green merge gate, and the watcher-owned dirty inbox.
+Delta: Steven approved Product Workflow V1, all five lanes, and Lane B migration authoring; Supabase follows the existing lane-author/lead-apply Task F convention.
+Launch Lane A only with plan.md's Wave-0 command and Lane A kickoff prompt.
+Implement only the frozen Pydantic/TypeScript contract and canaries in Lane A's owned paths; commit/push/PR, but never merge.
+Do not fork B/C until A is reviewed, CI-green, explicitly merge-approved, merged, and verified on main.
+Lane B never mutates remote Supabase; after its merge the lead presents Task F's exact eamos-dev mutation card, applies once if approved, then runs advisors/smokes.
+Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-green merge gate, and the watcher-owned dirty inbox.
 ```
 
 ## Pointer
 
 - Audit, contract, and launch package: `plans/product-workflow-integration/`
   (`research.md`, `spec.md`, and `plan.md`).
+- Approval receipt: `docs/governance/decisions.md` (2026-07-19 Product Workflow
+  V1 decision).
+- Supabase convention:
+  `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`;
+  durable target/ledger inventory: `docs/db/supabase-inventory.md`.
 - P0s: Paper omits required bearer auth; Batch leaves orphaned plaintext upload
   snapshots; Workbench overflows/clips at 390px.
 - Whole-gene acceptance: variant is initial focus only; the continuous locus
@@ -76,35 +83,28 @@ Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-gre
 - Baseline: web 193/193; focused backend 398 collected and green with expected
   skips; coordination 9/9; frontend boundary 275 tracked files and green.
 - Whole-gene clarification `b9af5a8`; CI `29681846578` (zero-step minute lock).
-- Recovery checkpoint and reset receipt: `d326d06`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- The live product has substantial real behavior, but its four surfaces lack one
-  durable typed workflow. Report is visually mature; Batch/Paper/Workbench have
-  the highest continuity, retention, and interaction gaps.
-- The plan freezes canonical variant/context/selection, processing disclosure,
-  workflow run/artifact, related/curated variant, URL, and async-state contracts.
-- Steven's viewer clarification is explicit: a wider variant window or
-  fixture-only demo cannot pass; the user must navigate, select, and edit a
-  distant exon and submit that exact interval to Primer without losing the locus.
+- Steven approved the frozen V1 contract, five-lane ownership/merge order, and
+  Lane B local migration authoring on 2026-07-19.
+- The contract includes canonical variant/context/selection, disclosure,
+  workflow run/artifact, related/curated variants, URLs, and async states.
+- Whole gene spans every exon, intervening intron, and UTR; a distant-exon
+  selection/edit must feed Primer without replacing or cropping the locus.
 - The Mode B sprint is A contract → B backend and C surface flow in parallel → D
-  Workbench → E ratchets, with one web writer per wave and merge order A→B→C→D→E.
-- Batch owns 2–3-variant comparison; Align owns sequence comparison. Full locus
-  extends the current virtualized viewer rather than creating a second viewer.
-- Local fixture baselines are recorded, including ABCA4 full locus at 128,315
-  bases/851,744 bytes/380ms and RPE65 lookup at 119,033 bytes/50ms warm.
-- Auth/upload/privacy review found no concrete client service-role exposure;
-  issuer validation, upload lifecycle, raw-input disclosure, and Library
-  tombstones are explicit hardening work.
-- The two audit dev servers were stopped and the temporary browser script was
-  removed. No application, cloud, deploy, Supabase, source, or Phase-7 mutation
-  occurred.
-- Planning docs and clarification are committed/pushed through `b9af5a8`;
-  required CI remains blocked by the zero-step Actions lock, not a test failure.
+  Workbench → E ratchets, with one web writer per wave and serialized delivery
+  order A→B→Task F apply→C→D→E.
+- Supabase is not deferred: Lane B authors/tests; after its merge the lead uses
+  Task F to reconcile the remote ledger, obtain exact apply approval, mutate
+  `eamos-dev` once, run advisors/two-user smokes, and update the inventory.
+- Known preflight issue: July's read-only audit found local/remote migration-name
+  drift and the repo's `user_library` migration absent remotely; never blind-push.
+- No application, lane, cloud, deploy, Supabase, source, or Phase-7 mutation ran
+  while recording this approval.
 - Evidence expansion Phases 0-6 remain complete; Phase 7 and all source/live
   activations remain held.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
@@ -115,6 +115,6 @@ Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-gre
 ## Next Action
 
 - Run the recovery-middle sample first if its 2026-07-20 01:46 UTC floor has
-  passed. Otherwise Steven reviews the proposed V1 contract and five-lane plan,
-  then explicitly approves/amends them and answers whether Lane B may author its
-  local Supabase migration. On approval, the Codex lead launches Lane A only.
+  passed. Otherwise launch Lane A only using the exact Wave-0 command and kickoff
+  prompt in `plans/product-workflow-integration/plan.md`; drive it through
+  commit/push/PR/CI review, then pause for Steven's explicit merge approval.

@@ -1,31 +1,32 @@
 # Integrated Product Workflow Delivery Plan
 
-Status: proposed Mode B sprint; do not launch or implement until Steven approves
-the contract and lane partition.
+Status: approved by Steven on 2026-07-19; Lane A launch is queued for the next
+`gogogo` after any due recovery check.
 
-Plan stamped: 2026-07-19 09:33 +0000 · Codex lead.
+Plan stamped: 2026-07-19 09:48 +0000 · Codex lead.
 
 ## Outcome And Authority
 
-This plan turns the evidence in [`research.md`](research.md) and the proposed
+This plan turns the evidence in [`research.md`](research.md) and the approved
 contract in [`spec.md`](spec.md) into one verified product slice. It connects
 Variant Report, Paper, Batch/Compare, and Workbench without weakening source
 truth, privacy, accessibility, or the existing structural ratchets.
 
 The delivery authority is:
 
-1. `spec.md` for product behavior and the proposed V1 contract;
+1. `spec.md` for product behavior and the approved V1 contract;
 2. this file for dependencies, lane ownership, gates, and merge order;
 3. `COORDINATION.md` for live worktree state after launch;
 4. the repository's executable boundary and frontend-contract guards for
    cross-code wiring.
 
-No lane launch, application code change, local Supabase migration authoring,
-cloud mutation, deploy, provider activation, source materialization, Phase-7
-work, or merge is authorized by this planning commit. Steven must approve the
-proposed contract and partition first. Local migration-file authoring is a
-separate explicit choice; applying a migration remains out of scope even if
-authoring is approved.
+Steven approved the V1 contract, five-lane partition, and Lane B's local
+migration-file authoring on 2026-07-19. That approval authorizes Lane A to launch
+on the next `gogogo`; it does not pre-approve a lane merge or an unspecified
+remote mutation. A lane never applies migrations. The Codex lead owns the
+serialized post-merge Supabase checkpoint under the repository's Task F
+runbook, including an exact mutation approval card immediately before the
+named remote action.
 
 ## Delivery Graph
 
@@ -34,24 +35,22 @@ boundaries, two complex frontend surfaces, and a committed browser ratchet.
 
 ```text
 Lane A: freeze code contract
-            |
-            v
-Lane B: backend + persistence  ──┐
-                                 ├──> Lane D: Workbench canvas/tools
-Lane C: Report/Paper/Batch UI  ──┘              |
-                                                v
-                                  Lane E: integrated ratchets
+  ├──> Lane B: backend + persistence ──> B merge ──> Task F apply ──┐
+  └──> Lane C: surface flow (parallel work) ────────────────────────┤
+                                                                   v
+                                              C merge ──> Lane D ──> Lane E
 ```
 
 Only B and C run concurrently. There is one web writer in each wave: C in the
 first implementation wave, D in the second. Merge order is strictly
-**A → B → C → D → E**. Codex is the sprint lead and sole merger. Every merge
-waits for Steven's explicit approval and green required CI; the current GitHub
-Actions minute lock may delay merges but does not lower the gate.
+**A → B → Task F apply → C → D → E**; Task F is a serialized lead checkpoint,
+not a sixth lane or merge. Codex is the sprint lead and sole merger. Every
+merge waits for Steven's explicit approval and green required CI; the current
+GitHub Actions minute lock may delay merges but does not lower the gate.
 
 ## Contract Freeze
 
-Steven's approval freezes these `spec.md` elements before Lane A starts:
+Steven's 2026-07-19 approval freezes these `spec.md` elements before Lane A starts:
 
 - `CanonicalVariantRefV1`;
 - `WorkflowContextV1`;
@@ -94,11 +93,14 @@ shared governance files remain lead-owned.
 
 | Lane | Branch | Starts after | Owned surface | Exit |
 | --- | --- | --- | --- | --- |
-| A — Contract V1 | `agent/product/contract-v1` | Steven approves this plan | Shared schemas, TypeScript contract, contract canaries | V1 types serialize identically and existing contract tests pass |
+| A — Contract V1 | `agent/product/contract-v1` | Next `gogogo`; recovery sample first if due | Shared schemas, TypeScript contract, contract canaries | V1 types serialize identically and existing contract tests pass |
 | B — Workflow backend | `agent/product/workflow-backend` | A merged | Auth, lifecycle, persistence, cleanup, related/curated APIs, Workbench service safety | Backend P0s and owner/retention/API tests pass |
 | C — Surface flow | `agent/product/surface-flow` | A merged; parallel with B | Report, Paper, Batch/Compare, Library, shared navigation | Paper P0 and cross-surface handoffs pass in the active Next.js app |
 | D — Workbench canvas | `agent/product/workbench-canvas` | B and C merged | Sequence/locus viewer and Primer/CRISPR/Align UI | Mobile P0, selection/tool binding, and exports pass |
 | E — Workflow ratchets | `agent/product/workflow-ratchets` | D merged | Browser/a11y/performance scripts, CI wiring, verification receipt | Integrated browser and structural gate is committed and green |
+
+Lane C may work while Lane B is in flight, but it is not merged until Lane B is
+merged and the Task F `eamos-dev` checkpoint has completed successfully.
 
 ### Lane A — Contract V1
 
@@ -190,14 +192,14 @@ app/backend/tests/test_variant_library_api.py
 app/backend/tests/test_variant_library_supabase.py
 app/backend/tests/test_workbench_api.py
 app/backend/tests/test_supabase_migrations.py
-supabase/migrations/20260719*_product_workflow_runs.sql      # only if separately approved
+supabase/migrations/20260719*_product_workflow_runs.sql      # local authoring approved
 ```
 
 No schema file is owned here. If a route cannot be implemented with Lane A's
 contract, stop and request a contract re-plan. The migration prefix above has
-one owner; the lane may author it only if Steven explicitly approves that local
-file work. The lane never links a project, applies a migration, invokes a
-Supabase MCP mutation, or changes production data.
+one owner and Steven approved its local authoring on 2026-07-19. The lane never
+links a project, applies a migration, invokes a Supabase MCP mutation, or
+changes remote data; the lead owns the post-merge checkpoint below.
 
 Tasks, in order:
 
@@ -240,8 +242,9 @@ Security and persistence acceptance:
   prove stale spools cannot become immortal.
 - Redirect/return paths are same-origin allowlisted; raw input and tokens do not
   appear in logs, URLs, filenames, errors, or exported provenance.
-- Migration lint/security tests are local only. Application to any Supabase
-  project is a later, separately approved action.
+- Migration lint/security tests are local in the lane. Remote application is a
+  required lead-run checkpoint after merge, with the exact mutation separately
+  confirmed under Task F.
 
 Required verification:
 
@@ -263,6 +266,42 @@ app/backend/.venv/bin/pytest -q \
 app/backend/.venv/bin/pytest -q app/backend/tests/test_frontend_contract.py
 app/backend/.venv/bin/pytest -q app/backend/tests/test_boundary.py
 ```
+
+### Lead Checkpoint — Apply The Supabase Migration
+
+This is not a sixth lane. It is a serialized lead operation after Lane B is
+approved, merged, and verified on `main`, and before persistence is called
+complete or Lane C is merged. Follow
+`docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`.
+
+The lead must:
+
+1. Re-check the current Supabase changelog and discover the installed official
+   CLI command shape with `--help`; use the repository's official CLI → REST →
+   MCP → Steven-dashboard escalation order.
+2. Verify project `eamos-dev` / `cpdjxsgasaesysvxkpmi`, environment `dev`, the
+   current remote migration ledger, exposed schemas, and backup/rollback owner.
+3. Reconcile known local/remote migration-name drift and the previously reported
+   missing `20260614195800_user_library_document.sql` before ordering the new
+   workflow migration. Do not blindly push every local file.
+4. Review the exact pending SQL, affected tables/policies/indexes/grants, Data
+   API exposure, rollback SQL, and secrets-redaction plan. Run the local reset,
+   migration tests, RLS tests, and a dry-run/list operation supported by the
+   current CLI.
+5. Present Task F's filled mutation approval template to Steven. Only after that
+   exact confirmation, apply the reviewed missing migration set once from the
+   lead/operator environment, never from a lane worktree.
+6. Verify migration history, table/policy/grant/index state, two-user isolation,
+   create/read/list/page/cancel/delete/expiry behavior, raw-input absence, and
+   backend service-role access without browser service-role exposure.
+7. Run Supabase security and performance advisors plus bounded smoke queries,
+   resolve or disposition every finding, then update
+   `docs/db/supabase-inventory.md` with a sanitized application receipt.
+
+Application to an unnamed production project, direct Dashboard schema editing,
+environment/provider flips, deploys, and seed/source writes remain outside this
+checkpoint. A failed preflight or ledger mismatch stops the apply and returns to
+review; it is never repaired speculatively.
 
 ### Lane C — Report, Paper, Batch, And Shared Flow
 
@@ -478,8 +517,8 @@ state while merge remains held; it is never treated as green CI.
 
 ## Exact Launch Commands
 
-Do not run these until Steven approves the plan. Launch A alone. Launch B and C
-only after A is reviewed, explicitly approved, merged, and verified on `main`.
+Approval is recorded. On the next `gogogo`, launch A alone. Launch B and C only
+after A is reviewed, explicitly approved, merged, and verified on `main`.
 Launch D only after B and C merge. Launch E only after D merges.
 
 ### Wave 0 — Lane A
@@ -561,7 +600,7 @@ You own Lane A (Contract V1) on agent/product/contract-v1. Read AGENTS.md, neste
 ### Lane B Prompt
 
 ```text
-You own Lane B (Workflow Backend) on agent/product/workflow-backend. Read AGENTS.md, nested instructions, COORDINATION.md, agent_handoff/README.md, and plans/product-workflow-integration/{research,spec,plan}.md completely. Confirm Lane A is present in your base, then implement Lane B in its exact owned paths, prioritizing Batch snapshot cleanup, owner-scoped run lifecycle, canonical report/related/curated APIs, honest Paper processing, JWT issuer validation, Library tombstones, and Workbench/CRISPR/trace safety. Consume Lane A schemas without editing them. Author the allocated local Supabase migration only if Steven's approval explicitly includes it; never link/apply/mutate a project. No deploy/provider/source/Phase-7 action and no out-of-glob edit except your own COORDINATION row. Run all Lane B/security/boundary gates and diff-check, stage only owned paths, commit/push without AI attribution, open/update the PR, mark review, and hand Codex lead {branch, PR number, files, isolation, tests, risks}. Never merge.
+You own Lane B (Workflow Backend) on agent/product/workflow-backend. Read AGENTS.md, nested instructions, COORDINATION.md, agent_handoff/README.md, and plans/product-workflow-integration/{research,spec,plan}.md completely. Confirm Lane A is present in your base, then implement Lane B in its exact owned paths, prioritizing Batch snapshot cleanup, owner-scoped run lifecycle, canonical report/related/curated APIs, honest Paper processing, JWT issuer validation, Library tombstones, and Workbench/CRISPR/trace safety. Consume Lane A schemas without editing them. Steven approved authoring and locally testing the allocated Supabase migration. Never link or mutate a remote project from the lane; after merge, the Codex lead performs the canonical Task F application checkpoint. No deploy/provider/source/Phase-7 action and no out-of-glob edit except your own COORDINATION row. Run all Lane B/security/boundary gates and diff-check, stage only owned paths, commit/push without AI attribution, open/update the PR, mark review, and hand Codex lead {branch, PR number, files, isolation, tests, risks}. Never merge.
 ```
 
 ### Lane C Prompt
@@ -598,27 +637,26 @@ git diff --check
 The lead also verifies every `spec.md` Definition of Done item, records the
 required-CI URLs and browser/performance receipt, confirms no raw upload remains
 after expiry/delete, confirms no attribution footer/trailer exists, and checks
-that Render rollback, provider configuration, Supabase projects, sources, and
-Phase 7 are unchanged.
+that Render rollback, provider configuration, sources, and Phase 7 are
+unchanged. Supabase must match the sanitized post-Task-F inventory exactly,
+with no mutation beyond the approved `eamos-dev` migration set.
 
 ## Bounded Exclusions
 
 This sprint does not include pricing or account-role gates, live provider
 activation, production source acquisition/materialization, a production deploy,
-applying database migrations, Phase 7, final regulated-ELN claims, clinical
-decision automation, or arbitrary chromosome-scale/DMD-scale expansion. Those
-require their own contracts and approvals. Predictor integration remains
-backend-wide when Steven says “admin”; no commercial label may defer or hide
-predictor wiring, and license/provenance/launch-gate metadata remains intact.
+database migrations outside the serialized Task F application of the reviewed
+workflow migration to named dev project `eamos-dev`, Phase 7, final
+regulated-ELN claims, clinical decision automation, or arbitrary
+chromosome-scale/DMD-scale expansion. Any other target or migration requires
+its own contract and approval. Predictor integration remains backend-wide when
+Steven says “admin”; no commercial label may defer or hide predictor wiring,
+and license/provenance/launch-gate metadata remains intact.
 
-## Approval Requested
+## Approval Receipt And Remaining Gates
 
-Before any launch command runs, Steven must explicitly approve:
-
-1. the V1 contract freeze in `spec.md`;
-2. the five-lane ownership and merge order in this plan; and
-3. whether Lane B may author, but not apply, the allocated local Supabase
-   migration file.
-
-Approval starts Lane A only. Every later wave still waits for its dependency
-merge, and every merge still waits for a separate Steven approval.
+Steven approved the V1 contract, five-lane ownership/merge order, and Lane B's
+local migration authoring on 2026-07-19. The next `gogogo` starts Lane A only.
+Every later wave still waits for its dependency merge, every merge waits for a
+separate Steven approval, and the lead presents Task F's exact mutation card
+before applying the reviewed migration to `eamos-dev`.

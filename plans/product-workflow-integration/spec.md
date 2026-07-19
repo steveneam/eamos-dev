@@ -1,8 +1,9 @@
 # Integrated Product Workflow Specification
 
-Status: proposed contract freeze; implementation and lane launch require Steven's approval.
+Status: approved and frozen by Steven on 2026-07-19; Lane A launch is queued
+for the next `gogogo`.
 
-Spec stamped: 2026-07-19 09:33 +0000 · Codex.
+Spec stamped: 2026-07-19 09:48 +0000 · Codex.
 
 ## Product Outcome
 
@@ -51,9 +52,12 @@ The four surfaces remain distinct:
 9. Batch is the variant-comparison surface; Align is the sequence-comparison
    tool. A legacy `tool=compare` value redirects to Batch with a notice and is
    not shown as a fifth Workbench tool.
-10. Existing evidence/provider/cloud/Phase-7 holds remain unchanged.
+10. Existing evidence/provider/Phase-7 holds and all unrelated cloud holds
+    remain unchanged. The only approved cloud-state path in this sprint is the
+    reviewed workflow migration to named dev project `eamos-dev`, applied by
+    the lead through the serialized Task F checkpoint in `plan.md`.
 
-## Proposed Contract Freeze: Product Workflow V1
+## Approved Contract Freeze: Product Workflow V1
 
 The following is the only shared seam for the sprint. Lane A lands it
 schema-first in Pydantic, mirrors it in `app/web/lib/backend.ts`, and makes the
@@ -430,9 +434,12 @@ Cross-cutting rules:
 - **Delete:** removes durable run/artifact rows and any ephemeral server spool;
   UI immediately clears local mirrors. Deletion and expiry are testable.
 
-Any production Supabase migration is a separate Steven-approved action. A lane
-may author a local migration file only if the approved lane scope explicitly
-includes it; no lane applies it to a shared project.
+Lane B is approved to author and locally test the allocated workflow migration;
+no lane applies it to a shared project. After Lane B merges, the lead applies
+the reviewed migration to named dev project `eamos-dev` only through the
+serialized Task F approval, rollback, RLS, advisor, and inventory checkpoint in
+`plan.md`. Any production Supabase target or unrelated migration remains a
+separate Steven-approved action.
 
 ## Accessibility Acceptance
 
