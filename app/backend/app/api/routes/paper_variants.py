@@ -111,6 +111,22 @@ async def extract_paper_variants(
             result_payload=_sanitized_paper_result(extraction_response),
         )
         return extraction_response
+    except asyncio.CancelledError:
+        # An aborted browser fetch cancels the ASGI task while the threadpool
+        # extractor may still be winding down. Keep the durable lifecycle
+        # truthful and terminal; the repository guard prevents any late
+        # non-cancelled update from overwriting this state.
+        try:
+            workflow.cancel_run(
+                run_id=run.run_id,
+                user_id=principal.user_id,
+                owner_provider=principal.provider,
+            )
+        except ProductWorkflowStateError:
+            # A response completed at the same instant as the disconnect.
+            # Preserve that terminal state rather than manufacturing a cancel.
+            pass
+        raise
     except Exception as exc:
         workflow.update_run(
             run_id=run.run_id,

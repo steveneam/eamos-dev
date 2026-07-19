@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Event
 
 import httpx
 import pytest
+from fastapi import Response
+from starlette.requests import Request
 
 from app.api.routes.batch import _tsv_line
+from app.api.routes.paper_variants import extract_paper_variants
+from app.core.deps import AuthenticatedPrincipal
 from app.repos.product_workflow_repo import (
     ProductWorkflowRunRecord,
     SupabaseProductWorkflowRepo,
@@ -451,6 +457,89 @@ def test_cancelled_paper_run_cannot_be_overwritten_by_late_result(auth_client) -
     assert record is not None
     assert record.status == "cancelled"
     assert record.result_payload is None
+
+
+def test_aborted_paper_request_marks_its_durable_run_cancelled(
+    auth_client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started = Event()
+    release = Event()
+
+    def slow_extract(_service, _text: str, *, validate: bool = True):  # noqa: ARG001
+        started.set()
+        release.wait(timeout=2)
+        raise AssertionError("cancelled request must not resume response handling")
+
+    monkeypatch.setattr("app.api.routes.paper_variants.PaperVariantsService.extract", slow_extract)
+    body = json.dumps({"text": "RPE65 c.260A>G in a publication."}).encode("utf-8")
+    delivered = False
+
+    async def receive() -> dict:
+        nonlocal delivered
+        if not delivered:
+            delivered = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        return {"type": "http.disconnect"}
+
+    request = Request(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/v1/paper-variants/extract",
+            "raw_path": b"/api/v1/paper-variants/extract",
+            "query_string": b"",
+            "headers": [(b"content-type", b"application/json")],
+            "client": ("127.0.0.1", 12345),
+            "server": ("testserver", 80),
+            "app": auth_client.app,
+        },
+        receive,
+    )
+    user_id = _current_user_id(auth_client)
+    principal = AuthenticatedPrincipal(
+        user_id=user_id,
+        provider="eamos",
+        token="test-token",
+    )
+    workflow = auth_client.app.state.product_workflow_service
+
+    async def cancel_mid_request() -> str:
+        task = asyncio.create_task(extract_paper_variants(request, Response(), principal))
+        for _ in range(100):
+            if started.is_set():
+                break
+            await asyncio.sleep(0.01)
+        assert started.is_set()
+        records, _cursor, total = workflow.repo.list_runs(
+            user_id=user_id,
+            owner_provider="eamos",
+            kind="paper",
+            limit=10,
+            cursor=None,
+        )
+        assert total == 1
+        run_id = records[0].run_id
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        return run_id
+
+    try:
+        run_id = asyncio.run(cancel_mid_request())
+    finally:
+        release.set()
+
+    record = workflow.repo.get_run(
+        run_id=run_id,
+        user_id=user_id,
+        owner_provider="eamos",
+    )
+    assert record is not None
+    assert record.status == "cancelled"
 
 
 def test_related_and_curated_variant_contracts_are_backend_derived(auth_client) -> None:
