@@ -25,8 +25,12 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** WRAPPED @ 2026-07-19 08:47 +0000 — Phase 6 is complete; Steven
-  queued an end-to-end product audit and executable plan for the next session.
+- **Codex:** DONE @ 2026-07-19 09:25 +0000 — completed the evidence-backed
+  Report/Paper/Batch/Workbench audit, proposed V1 contract, and five-lane Mode B
+  delivery plan. No product implementation or lane launch occurred.
+- **Product-workflow sprint:** founder-gated. Steven must approve the proposed
+  V1 contract, lane partition, and local-migration-authoring choice before Lane A
+  starts. Every later merge retains its own explicit approval gate.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
@@ -42,7 +46,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 08:47 +0000 · Codex
+UNLOCKED · 2026-07-19 09:25 +0000 · Codex
 
 ## Shared File Locks
 
@@ -51,52 +55,58 @@ UNLOCKED · 2026-07-19 08:47 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 08:47 +0000 · Codex end-to-end product plan
-Read CURRENT.md, peer mail, PRODUCT.md, DESIGN.md, existing product plans, and the Phase-3c runbook first.
-If the recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
-Then audit actual code and runtime behavior across Variant Report, Batch, Paper, and Workbench; produce the plan only.
-Include related/nearby/curated variants, every report-to-tool handoff, and the Workbench tool rail.
-Plan whole gene/transcript sequence navigation and smooth range selection, not only the local variant window.
-Cover primer design, CRISPR, alignment, compare, annotations, editing, exports, persistence, and every state/error.
-Trace backend/data/auth/upload/privacy, accessibility, responsive, performance, and test gaps; mark real, fixture, partial, or missing.
-Freeze shared contracts and propose 3-5 Forj lanes with owned globs, merge order, and exact launch commands.
-Do not launch lanes or implement until Steven approves the partition; keep all evidence, cloud, deploy, Supabase, and Phase-7 holds.
+# Resume prompt · 2026-07-19 09:25 +0000 · Codex product-workflow approval gate
+Read CURRENT.md, peer mail, and plans/product-workflow-integration/{research,spec,plan}.md first.
+If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it before sprint work.
+Delta: the full product audit, proposed V1 contract, and exact five-lane Mode B launch package are committed and pushed; no implementation launched.
+Review the three P0s and the frozen contract/ownership/merge order in plan.md.
+Founder gate: approve or amend the V1 contract and five lanes, and say whether Lane B may author (never apply) its local Supabase migration.
+If approved, launch Lane A only with the Wave-0 command and prompt; do not fork B/C until A is merged and verified.
+Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-green merge gate, and the watcher-owned dirty inbox.
 ```
 
 ## Pointer
 
-- Product/design contract: `PRODUCT.md` and `DESIGN.md`.
-- Existing product plans: `plans/variant-report-experience/` and
-  `plans/variant-report-data-orchestration/`; audit the code before trusting them.
-- Surface inventory starts in `app/web/app/`, `app/web/components/report/`,
-  Workbench components, and the backend batch/report/search routes.
-- Phase-6 receipt remains at the top of `PROGRESS.md` and in
-  `plans/evidence-source-expansion/plan.md`.
+- Audit, contract, and launch package: `plans/product-workflow-integration/`
+  (`research.md`, `spec.md`, and `plan.md`).
+- P0s: Paper omits required bearer auth; Batch leaves orphaned plaintext upload
+  snapshots; Workbench overflows/clips at 390px.
+- Baseline: web 193/193; focused backend 398 collected and green with expected
+  skips; coordination 9/9; frontend boundary 275 tracked files and green.
 - Recovery checkpoint and reset receipt: `d326d06`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
-- Shared-edge reboot guardrail:
-  `docs/operations/risks-and-guardrails.md`.
-- Evidence expansion contract and research:
-  `plans/evidence-source-expansion/plan.md` and `research.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Evidence expansion Phases 0-6 are complete; Phase 6 passed full local verify
-  and shipped at `1120598`. Phase 7 and every source/live activation remain held.
-- Steven queued the next session to inventory Variant Report, Batch, Paper, and
-  Workbench end to end, then write a dependency-ordered implementation plan.
-- The plan must cover related variants and all rails/handoffs, plus whole-sequence
-  navigation/selection, primers, CRISPR, alignment, compare, and supporting states.
-- No product audit, plan file, implementation, lane launch, or mutation began in
-  this wrap session. Impeccable and evidence-security context were only loaded.
+- The live product has substantial real behavior, but its four surfaces lack one
+  durable typed workflow. Report is visually mature; Batch/Paper/Workbench have
+  the highest continuity, retention, and interaction gaps.
+- The plan freezes canonical variant/context/selection, processing disclosure,
+  workflow run/artifact, related/curated variant, URL, and async-state contracts.
+- The Mode B sprint is A contract → B backend and C surface flow in parallel → D
+  Workbench → E ratchets, with one web writer per wave and merge order A→B→C→D→E.
+- Batch owns 2–3-variant comparison; Align owns sequence comparison. Full locus
+  extends the current virtualized viewer rather than creating a second viewer.
+- Local fixture baselines are recorded, including ABCA4 full locus at 128,315
+  bases/851,744 bytes/380ms and RPE65 lookup at 119,033 bytes/50ms warm.
+- Auth/upload/privacy review found no concrete client service-role exposure;
+  issuer validation, upload lifecycle, raw-input disclosure, and Library
+  tombstones are explicit hardening work.
+- The two audit dev servers were stopped and the temporary browser script was
+  removed. No application, cloud, deploy, Supabase, source, or Phase-7 mutation
+  occurred.
+- Evidence expansion Phases 0-6 remain complete; Phase 7 and all source/live
+  activations remain held.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
   still live as rollback.
-- Swordfish's watcher-owned inbox remains dirty and was not edited or staged.
+- Swordfish's watcher-owned inbox remains dirty and was neither edited nor
+  staged by Codex.
 
 ## Next Action
 
 - Run the recovery-middle sample first if its 2026-07-20 01:46 UTC floor has
-  passed. Otherwise start the comprehensive product audit and planning pass,
-  stop before implementation, and present the lane partition for Steven's approval.
+  passed. Otherwise Steven reviews the proposed V1 contract and five-lane plan,
+  then explicitly approves/amends them and answers whether Lane B may author its
+  local Supabase migration. On approval, the Codex lead launches Lane A only.

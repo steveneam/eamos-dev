@@ -2,7 +2,7 @@
 
 Active and historical work plans for Eamos.
 
-Plan index refreshed: 2026-07-17 13:39 +0000 · Codex.
+Plan index refreshed: 2026-07-19 09:24 +0000 · Codex.
 
 ## Universal-Free Product Ratchet
 
@@ -28,6 +28,7 @@ do not recreate a second hand-maintained frontend or contract mirror.
 
 | File | Owner | Scope |
 | ---- | ----- | ----- |
+| [`product-workflow-integration/`](product-workflow-integration/) | Codex | **Proposed.** Evidence-backed integration contract and five-lane Mode B delivery plan for Report, Paper, Batch/Compare, Workbench, persistence, handoffs, privacy, accessibility, and executable product ratchets. No implementation or lane launch is approved yet. |
 | [`evidence-source-expansion/`](evidence-source-expansion/) | Codex | **Proposed.** REVEL-led computational evidence within the existing four independent call-card axes; calibration/source-contract repairs; clean ESM-1b regeneration; safe OMIM/LOVD slices; corrected CC0 MaveDB ingestion; OddsPath hardening; final-publication gate for SVC v4. |
 | [`variant-report-experience/plan.md`](variant-report-experience/plan.md) | Codex | **Complete.** Four call cards hand directly to Clinical, with one coherent chapter system across all report sections. |
 | [`landing-free-public/plan.md`](landing-free-public/plan.md) | Codex | **Complete.** Free-public landing, universal-free predictor presentation, responsive product gallery, safe share paths, and privacy-safe discovery telemetry. |
