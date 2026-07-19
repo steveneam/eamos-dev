@@ -9,6 +9,7 @@ from app.schemas.run import (
     AcmgCriterion,
     ComputationalAlternate,
     ComputationalEvidenceDecision,
+    FunctionalEvidenceDisplayMetrics,
     FunctionalEvidenceSummary,
     InSilicoPredictions,
     PopulationFrequencyDetail,
@@ -65,6 +66,32 @@ def _decision(**updates) -> ComputationalEvidenceDecision:
     }
     values.update(updates)
     return ComputationalEvidenceDecision(**values)
+
+
+def test_mavedb_only_measurements_keep_lab_call_card_neutral() -> None:
+    payload = ReportPayload(
+        patient_id="lookup_test",
+        functional_evidence=FunctionalEvidenceSummary(
+            total_count=2,
+            display_metrics=FunctionalEvidenceDisplayMetrics(
+                state="uncurated",
+                primary_label="Functional Work Found - Not ACMG-graded",
+                acmg_badge_text="No code asserted",
+                verdict_source="uncurated",
+                study_count_badge_text="2 Unique",
+                ui_color_theme="neutral_slate_state",
+            ),
+        ),
+    )
+
+    card = _call_card(payload, "lab_functional")
+
+    assert card["ui_color_theme"] == "neutral_slate_state"
+    assert {badge["text"] for badge in card["support_badges"]} == {
+        "No code asserted",
+        "2 Unique",
+    }
+    assert not {"PS3", "BS3"}.intersection(badge["text"] for badge in card["support_badges"])
 
 
 def test_population_card_does_not_infer_acmg_badge_from_raw_frequency_only() -> None:

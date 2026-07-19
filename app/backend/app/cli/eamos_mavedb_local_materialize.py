@@ -18,17 +18,10 @@ from app.services.mavedb_local import (
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Materialize a schema-v2 local MaveDB CC0 asset from operator-supplied JSONL "
-            "only after verifying a pinned upstream archive digest. This performs no "
+            "Materialize a schema-v2 local MaveDB CC0 asset by streaming an already-acquired "
+            "documented bulk ZIP only after verifying its pinned upstream digest. This performs no "
             "network, Supabase, Render, or provider mutation."
         )
-    )
-    parser.add_argument(
-        "--input-jsonl",
-        action="append",
-        type=Path,
-        required=True,
-        help="MaveDB JSONL file; may be repeated",
     )
     parser.add_argument("--output", type=Path, help="destination SQLite path")
     parser.add_argument("--manifest-path", type=Path, help="destination manifest sidecar path")
@@ -36,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--archive-path",
         type=Path,
+        required=True,
         help="already-acquired archive whose published digest must be verified",
     )
     parser.add_argument(
@@ -58,35 +52,29 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     proof_args = (args.archive_path, args.archive_digest_algorithm, args.archive_digest)
-    if any(proof_args) and not all(proof_args):
+    if not all(proof_args):
         parser.error(
             "--archive-path, --archive-digest-algorithm, and --archive-digest are required together"
         )
-    if args.fixture_only and not all(proof_args):
-        parser.error("--fixture-only requires the complete archive proof arguments")
-    archive_proof = (
-        verify_mavedb_archive_file(
-            args.archive_path,
-            expected_digest_algorithm=args.archive_digest_algorithm,
-            expected_digest_value=args.archive_digest,
-            release_doi=(
-                f"{MAVEDB_FIXTURE_RELEASE_PREFIX}cli"
-                if args.fixture_only
-                else MAVEDB_ARCHIVE_RELEASE_DOI_V4
-            ),
-            source_url=(
-                MAVEDB_FIXTURE_SOURCE_URL if args.fixture_only else MAVEDB_ARCHIVE_SOURCE_URL_V4
-            ),
-            allow_synthetic_fixture=args.fixture_only,
-        )
-        if all(proof_args)
-        else None
+    archive_proof = verify_mavedb_archive_file(
+        args.archive_path,
+        expected_digest_algorithm=args.archive_digest_algorithm,
+        expected_digest_value=args.archive_digest,
+        release_doi=(
+            f"{MAVEDB_FIXTURE_RELEASE_PREFIX}cli"
+            if args.fixture_only
+            else MAVEDB_ARCHIVE_RELEASE_DOI_V4
+        ),
+        source_url=(
+            MAVEDB_FIXTURE_SOURCE_URL if args.fixture_only else MAVEDB_ARCHIVE_SOURCE_URL_V4
+        ),
+        allow_synthetic_fixture=args.fixture_only,
     )
 
     settings = Settings(jwt_secret="mavedb-local-materialize")
     result = materialize_mavedb_local_store(
         settings,
-        jsonl_files=args.input_jsonl,
+        archive_path=args.archive_path,
         archive_proof=archive_proof,
         output_path=args.output,
         manifest_path=args.manifest_path,

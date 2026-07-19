@@ -1,15 +1,16 @@
 # Evidence Source Expansion — Implementation Plan
 
 Status: Phase 0 complete at `49cdacb`; Phase 1 and the synthetic-fixture Phase 2
-are complete at `b7c41c7`; the safe OMIM cross-reference Phase 3 and the
-fixture-only LOVD Phase 4 completed and passed their full local verification
-boundaries on 2026-07-19. Steven authorized the remaining code-eligible work on
-2026-07-19: advance through Phases 5-6 only as each bounded exit gate passes.
-Phase 7 still requires the final published standard. Full ESM-1b model/corpus acquisition, scoring,
-bgzip/Tabix materialization, upload, activation, licensed-content ingestion,
-provider/deployment changes, and Supabase mutation remain separate gates.
+are complete at `b7c41c7`; the safe OMIM cross-reference Phase 3, fixture-only
+LOVD Phase 4, and code-only MaveDB Phase 5 completed and passed their full local
+verification boundaries on 2026-07-19. Steven authorized the remaining
+code-eligible work on 2026-07-19: Phase 6 is next only through its bounded exit
+gate. Phase 7 still requires the final published standard. Full ESM-1b
+model/corpus acquisition, scoring, bgzip/Tabix materialization, upload,
+activation, licensed-content ingestion, provider/deployment changes, and
+Supabase mutation remain separate gates.
 
-Stamped: 2026-07-19 06:13 +0000 · Codex.
+Stamped: 2026-07-19 07:05 +0000 · Codex.
 
 ## Goal
 
@@ -693,6 +694,21 @@ Complete these steps before acquiring or materializing a real release:
 
 Materialization of the approved archive and any runtime/provider enablement
 remain explicit operator actions after this code and clinical review is green.
+
+Completion receipt — 2026-07-19 07:05 +0000 · Codex: Phase 5 now streams only
+the documented root `main.json` and score CSV members from an already-acquired
+ZIP into schema v2. It preserves authoritative experiment, score-set, target,
+variant, method, identifier, exact source-number/`Decimal`, uncertainty,
+deprecation, member-digest, and immutable-release provenance while rejecting
+unknown/restricted policy, identity drift, ambiguous/deprecated matches, stale
+schema signatures, and hostile archive structures with fixed safe codes. The
+report renders every permitted exact score-set match independently as neutral
+`Uncurated` context; MaveDB input cannot activate PS3/BS3, points, or clinical
+color. Focused evidence/contract tests and structural ratchets passed, followed
+by full `npm run verify` in 224.9 seconds: 11 Node ratchets, 25 Vitest files / 188
+tests, the complete backend suite, lint/format/type checks, and the 17-route
+production build. No real archive acquisition/materialization, live request,
+upload, provider/deploy change, Supabase mutation, or cleanup occurred.
 
 ## Phase 6 — Current OddsPath and Ruleset Hardening
 

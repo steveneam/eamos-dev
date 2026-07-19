@@ -8,7 +8,7 @@ MAVEDB_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         display_name="MaveDB CC0 bulk archive",
         priority="p4_functional_evidence_contract",
         tier="tier_3_local_archive_candidate",
-        day1_status="contract_ready_materialization_not_approved",
+        day1_status="code_ready_materialization_not_approved",
         files_or_api=("official MaveDB CC0-only Zenodo archive",),
         upstream_source="MaveDB / Variant Effect",
         source_url="https://doi.org/10.5281/zenodo.18511521",
@@ -22,11 +22,16 @@ MAVEDB_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
         allowed_fields=(
             "archive_provenance",
             "score_set_metadata",
+            "score_set_metadata.experiment",
+            "score_set_metadata.methods",
+            "score_set_metadata.linked_identifiers",
             "target_metadata",
+            "target_metadata.assembly",
             "variant_scores.raw_score",
             "variant_scores.score_column",
             "variant_scores.score_unit",
             "variant_scores.identifiers",
+            "variant_scores.uncertainty",
             "deprecation_state",
         ),
         restricted_fields=(
@@ -51,8 +56,9 @@ MAVEDB_SOURCE_RECORDS: tuple[DataSourceRecord, ...] = (
             "score set with a non-empty restrictive or ambiguous dataUsagePolicy."
         ),
         notes=(
-            "Contract only. No corpus acquisition or materialization is approved in Phase 0. "
-            "The bulk archive does not authorize calibration or VA-Spec objects."
+            "The bounded streaming importer and exact-match local-store contract are code-ready. "
+            "No corpus acquisition or materialization has been performed or approved. The bulk "
+            "archive does not authorize calibration or VA-Spec objects."
         ),
     ),
     DataSourceRecord(

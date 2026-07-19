@@ -165,6 +165,6 @@ def test_mavedb_gate_accepts_only_cc0_records_with_scores() -> None:
     assert result.accepted == (cc0,)
     assert result.rejected == (non_cc0, nonfinite_score)
     assert result.warnings == (
-        "mavedb_non_cc0_rejected:urn:mavedb:0002-a-1#2",
-        "mavedb_invalid_score_rejected:urn:mavedb:0003-a-1#3",
+        "mavedb_non_cc0_rejected",
+        "mavedb_invalid_score_rejected",
     )

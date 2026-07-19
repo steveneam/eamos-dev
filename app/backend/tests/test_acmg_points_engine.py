@@ -7,6 +7,8 @@ import pytest
 from app.schemas.run import (
     ComputationalEvidenceDecision,
     DiseaseMechanismSection,
+    FunctionalEvidenceDisplayMetrics,
+    FunctionalEvidenceSummary,
     GeneContextSnapshot,
     GeneContextTranscriptExon,
     GeneContextVariantProjection,
@@ -81,6 +83,38 @@ def test_strength_points_are_applied_per_criterion_direction():
     assert points_for_strength("benign", "strong") == -4
     assert points_for_strength("benign", "moderate") == -2
     assert points_for_strength("benign", "supporting") == -1
+
+
+def test_mavedb_only_uncurated_measurements_cannot_activate_ps3_bs3_or_points():
+    baseline = compute_report_acmg_classification(ReportPayload(patient_id="baseline"), {}, {})
+    with_mavedb = compute_report_acmg_classification(
+        ReportPayload(
+            patient_id="with-mavedb",
+            functional_evidence=FunctionalEvidenceSummary(
+                total_count=2,
+                evidence_codes=[],
+                source_asserted_codes=[],
+                display_metrics=FunctionalEvidenceDisplayMetrics(
+                    state="uncurated",
+                    primary_label="Functional Work Found - Not ACMG-graded",
+                    acmg_badge_text="No code asserted",
+                    verdict_source="uncurated",
+                    study_count_badge_text="2 Unique",
+                    ui_color_theme="neutral_slate_state",
+                ),
+            ),
+        ),
+        {},
+        {},
+    )
+
+    assert with_mavedb.net_points == baseline.net_points
+    assert with_mavedb.tier == baseline.tier
+    rows = _rows_by_code(with_mavedb)
+    assert rows["PS3"].triggered is False
+    assert rows["PS3"].points == 0
+    assert rows["BS3"].triggered is False
+    assert rows["BS3"].points == 0
 
 
 def test_very_strong_plus_strong_is_pathogenic():

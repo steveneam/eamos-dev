@@ -17,6 +17,7 @@ from app.schemas.run import (
     FunctionalEvidenceSourceBreakdown,
     FunctionalEvidenceSourceTag,
     FunctionalEvidenceSummary,
+    FunctionalMeasurementValue,
     FunctionalStudy,
     SourceProvenance,
 )
@@ -46,11 +47,16 @@ _SOURCE_ORDER = {"clingen": 0, "clinvar": 1, "pubmed": 2, "mavedb": 3}
 _MAVEDB_PUBLIC_FIELDS = (
     "archive_provenance",
     "score_set_metadata",
+    "score_set_metadata.experiment",
+    "score_set_metadata.methods",
+    "score_set_metadata.linked_identifiers",
     "target_metadata",
+    "target_metadata.assembly",
     "variant_scores.raw_score",
     "variant_scores.score_column",
     "variant_scores.score_unit",
     "variant_scores.identifiers",
+    "variant_scores.uncertainty",
     "deprecation_state",
 )
 _SOURCE_FAILED_STATUSES = {"fallback", "error", "failed"}
@@ -214,6 +220,13 @@ class _FunctionalEvidenceCollector:
                 or hit.asserted_codes_by_source.get("clinvar")
             }
         )
+        non_mavedb_count = len(
+            {
+                hit.id
+                for hit in self.by_pmid.values()
+                if any(source != "mavedb" for source in hit.source_tags)
+            }
+        )
         return FunctionalEvidenceSummary(
             total_count=len(studies),
             source_breakdown=FunctionalEvidenceSourceBreakdown(
@@ -228,6 +241,7 @@ class _FunctionalEvidenceCollector:
                 total_count=len(studies),
                 source_asserted_codes_by_source=source_asserted_codes_by_source,
                 curator_cited_count=curator_cited_count,
+                mavedb_only_uncurated=bool(studies) and non_mavedb_count == 0,
             ),
             studies=studies,
             warnings=warnings,
@@ -293,12 +307,38 @@ def _functional_study(hit: _FunctionalHit) -> FunctionalStudy:
         score_direction="source_defined_neutral",
         score_set_urn=match.score_set.score_set_urn,
         variant_urn=match.variant_score.variant_urn,
+        experiment_urn=match.score_set.experiment_urn,
+        experiment_set_urn=match.score_set.experiment_set_urn,
         target_accession=match.target.target_accession,
+        target_kind=match.target.target_kind,
+        target_assembly=match.target.target_assembly,
+        target_sequence_checksum=match.target.target_sequence_checksum,
         target_identity=match.target.exact_identity,
-        archive_release_doi=match.archive_release_doi,
-        archive_sha256=(
-            match.archive_digest_value if match.archive_digest_algorithm == "sha256" else None
+        mave_hgvs_nt=match.variant_score.mave_hgvs_nt,
+        mave_hgvs_splice=match.variant_score.mave_hgvs_splice,
+        mave_hgvs_pro=match.variant_score.mave_hgvs_pro,
+        score_column_description=match.variant_score.score_column_description,
+        score_column_details=match.variant_score.score_column_details,
+        uncertainty_values=[
+            FunctionalMeasurementValue(
+                column=value.column,
+                source_value=value.source_value,
+                parsed_value=value.parsed_value,
+                description=value.description,
+                details=value.details,
+            )
+            for value in match.variant_score.uncertainty_values
+        ],
+        assay_context=(
+            match.score_set.short_description
+            or match.score_set.experiment_short_description
+            or match.score_set.title
         ),
+        method_text=_mavedb_method_text(match),
+        linked_doi_identifiers=list(match.score_set.doi_identifiers),
+        linked_publication_identifiers=list(match.score_set.publication_identifiers),
+        archive_release_doi=match.archive_release_doi,
+        archive_sha256=match.archive_sha256,
         archive_checksum_algorithm=match.archive_digest_algorithm,
         archive_checksum_value=match.archive_digest_value,
         archive_checksum_verified=match.archive_digest_verified,
@@ -319,6 +359,9 @@ def _mavedb_public_archive_verified(match: MaveDbMatchRecord) -> bool:
         and match.archive_digest_algorithm == MAVEDB_ARCHIVE_DIGEST_ALGORITHM_V4
         and match.archive_digest_value == MAVEDB_ARCHIVE_DIGEST_VALUE_V4
         and match.archive_digest_verified
+        and bool(re.fullmatch(r"[0-9a-f]{64}", match.archive_sha256))
+        and match.archive_member_digests_verified
+        and bool(match.metadata_schema_version)
         and match.local_logical_checksum_verified
     )
 
@@ -566,6 +609,7 @@ class FunctionalEvidenceExtractor:
         if inspection.status != "ready" and not self.include_nonpublic_mavedb_fixtures:
             warnings.append(f"functional_mavedb_nonpublic:{inspection.status}")
             return
+        warnings.extend(f"functional_mavedb_notice:{notice}" for notice in inspection.warnings)
         for record in records:
             collector.add(
                 source="mavedb",
@@ -705,6 +749,7 @@ def _display_metrics(
     total_count: int,
     source_asserted_codes_by_source: dict[FunctionalEvidenceSourceTag, list[str]],
     curator_cited_count: int,
+    mavedb_only_uncurated: bool = False,
 ) -> FunctionalEvidenceDisplayMetrics:
     study_count_badge_text = f"{total_count} Unique"
     clingen_codes = source_asserted_codes_by_source.get("clingen", [])
@@ -760,7 +805,7 @@ def _display_metrics(
         acmg_badge_text="No code asserted",
         verdict_source="uncurated",
         study_count_badge_text=study_count_badge_text,
-        ui_color_theme="info_blue_state",
+        ui_color_theme=("neutral_slate_state" if mavedb_only_uncurated else "info_blue_state"),
     )
 
 
@@ -894,11 +939,23 @@ def _citation_from_sentence(sentence: str) -> str | None:
 
 
 def _mavedb_public_snippet(record: MaveDbRecord) -> str:
-    score = f"{record.score:g}" if record.score is not None else "unavailable"
+    score = record.variant_score.raw_score_source or f"{record.score:g}"
     gene = f"{record.gene} " if record.gene else ""
     return (
         f"MaveDB CC0 score {score} for {gene}{record.variant}; " f"score set {record.score_set_id}."
     )
+
+
+def _mavedb_method_text(record: MaveDbRecord) -> str | None:
+    parts = [
+        text.strip()
+        for text in (
+            record.score_set.score_set_method_text,
+            record.score_set.experiment_method_text,
+        )
+        if text and text.strip()
+    ]
+    return "\n\n".join(parts) or None
 
 
 def _split_sentences(text: str) -> list[str]:

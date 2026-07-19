@@ -5,6 +5,12 @@ const MAVE_TIP =
   'MAVE and deep mutational scanning assays measure the functional effects of many variants in one experiment.'
 const UNCURATED_TIP =
   'These are source-reported measurements. No ACMG PS3 or BS3 strength has been asserted.'
+const SCORE_SET_URN_RE = /^urn:mavedb:\d{8}-(?:[a-z]+|0)-[1-9]\d*$/
+const EXACT_MATCH_LEVELS = new Set([
+  'exact_vrs',
+  'exact_genomic_identity',
+  'exact_target_accession_mave_hgvs',
+])
 
 interface MaveFunctionalBlockProps {
   gene?: string | null
@@ -19,7 +25,7 @@ export function MaveFunctionalBlock({
 }: MaveFunctionalBlockProps) {
   const term = gene ?? query ?? ''
   const mavedbHref = `https://www.mavedb.org/#/search?search=${encodeURIComponent(term)}`
-  const exactStudies = studies.filter((study) => study.source_tags.includes('mavedb'))
+  const exactStudies = exactMaveStudies(studies)
 
   return (
     <div
@@ -98,7 +104,8 @@ export function MaveFunctionalBlock({
             }}
           >
             Raw source values are assay-specific and are not comparable across score sets.
-            They are shown without aggregation, calibration, or an ACMG PS3/BS3 assignment.
+            Each exact match is a separate Uncurated measurement, shown without aggregation,
+            calibration, or an ACMG PS3/BS3 assignment.
           </p>
           <ol
             aria-label="Exact MaveDB measurements"
@@ -176,8 +183,10 @@ function MaveMeasurement({
   const accession = study.score_set_urn ?? study.source_accession ?? study.citation ?? study.id
   const scoreLabel = study.score_column ? `Raw ${study.score_column}` : 'Raw score'
   const score = rawScore(study)
-  const sourceHref = study.url ?? fallbackHref
-  const linkLabel = study.url ? 'Open MaveDB score set ↗' : `Search MaveDB for ${gene ?? 'this gene'} ↗`
+  const sourceHref = canonicalMaveScoreSetHref(study.score_set_urn) ?? fallbackHref
+  const linkLabel = study.score_set_urn
+    ? 'Open MaveDB score set ↗'
+    : `Search MaveDB for ${gene ?? 'this gene'} ↗`
 
   return (
     <li
@@ -204,6 +213,45 @@ function MaveMeasurement({
         />
         <Metric label="Interpretation" value="Uncurated" hint="no ACMG strength" />
       </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: 8,
+          marginTop: 10,
+          paddingTop: 10,
+          borderTop: '0.5px solid var(--line)',
+        }}
+      >
+        <ContextValue label="Target" value={study.target_accession ?? 'source target'} />
+        <ContextValue label="Assembly" value={study.target_assembly ?? 'not supplied'} />
+        <ContextValue
+          label="Variant"
+          value={study.mave_hgvs_nt ?? study.mave_hgvs_pro ?? study.variant_urn ?? 'source variant'}
+        />
+      </div>
+      {study.uncertainty_values.length > 0 && (
+        <dl
+          aria-label="Source-reported additional score values"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px 14px',
+            margin: '10px 0 0',
+            fontSize: 11,
+            color: 'var(--ink-4)',
+          }}
+        >
+          {study.uncertainty_values.map((value) => (
+            <div key={value.column} title={value.details ?? value.description ?? undefined}>
+              <dt style={{ display: 'inline' }}>{value.column}: </dt>
+              <dd style={{ display: 'inline', margin: 0, fontFamily: 'var(--mono)' }}>
+                {value.source_value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
       <div
         style={{
           marginTop: 10,
@@ -236,9 +284,95 @@ function MaveMeasurement({
         >
           {linkLabel}
         </a>
+        <IdentifierLinks
+          dois={study.linked_doi_identifiers}
+          publications={study.linked_publication_identifiers}
+        />
       </div>
+      {(study.assay_context || study.method_text) && (
+        <details style={{ marginTop: 10, fontSize: 11, color: 'var(--ink-4)' }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--teal-deep)' }}>
+            Assay context and methods
+          </summary>
+          {study.assay_context && <p style={{ margin: '8px 0 0' }}>{study.assay_context}</p>}
+          {study.method_text && (
+            <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{study.method_text}</p>
+          )}
+        </details>
+      )}
     </li>
   )
+}
+
+export function exactMaveStudies(studies: FunctionalStudy[]): FunctionalStudy[] {
+  return studies.filter(
+    (study) =>
+      study.source_tags.includes('mavedb') &&
+      EXACT_MATCH_LEVELS.has(study.match_level ?? '') &&
+      canonicalMaveScoreSetHref(study.score_set_urn) !== null,
+  )
+}
+
+export function canonicalMaveScoreSetHref(scoreSetUrn: string | null | undefined): string | null {
+  if (!scoreSetUrn || !SCORE_SET_URN_RE.test(scoreSetUrn)) return null
+  return `https://www.mavedb.org/score-sets/${scoreSetUrn}`
+}
+
+function ContextValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div className="eamos-kicker">{label}</div>
+      <div
+        style={{
+          marginTop: 2,
+          color: 'var(--ink-4)',
+          fontFamily: 'var(--mono)',
+          fontSize: 11,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function IdentifierLinks({ dois, publications }: { dois: string[]; publications: string[] }) {
+  const links = [
+    ...dois.map((identifier) => identifierLink(identifier, 'doi')),
+    ...publications.map((identifier) => identifierLink(identifier, 'publication')),
+  ].filter((value): value is { href: string; label: string } => value !== null)
+  if (links.length === 0) return null
+  return (
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 8 }}>
+      {links.map((link) => (
+        <a
+          key={`${link.href}:${link.label}`}
+          href={link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--teal-deep)', textDecoration: 'none' }}
+        >
+          {link.label} ↗
+        </a>
+      ))}
+    </span>
+  )
+}
+
+function identifierLink(
+  identifier: string,
+  kind: 'doi' | 'publication',
+): { href: string; label: string } | null {
+  const doi = identifier.replace(/^DOI:/i, '')
+  if (/^10\.\d{4,9}\/[A-Za-z0-9._;()/:+-]+$/.test(doi)) {
+    return { href: `https://doi.org/${doi}`, label: `DOI ${doi}` }
+  }
+  const pmid = identifier.match(/^PMID:(\d+)$/i)?.[1]
+  if (kind === 'publication' && pmid) {
+    return { href: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`, label: `PMID ${pmid}` }
+  }
+  return null
 }
 
 function rawScore(study: FunctionalStudy): string {

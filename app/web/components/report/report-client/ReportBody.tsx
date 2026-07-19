@@ -337,8 +337,8 @@ export function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = 
           {/* LOVD is neutral presence context only. It is deliberately outside
               every classification and call-card computation path. */}
           <LovdBasicRecordsBlock section={payload.report_profile?.lovd_basic_records ?? null} />
-          {/* Functional evidence (PS3/BS3) from MaveDB — wet-lab MAVE/DMS assays;
-              sits with the clinical evidence that drives the classification. */}
+          {/* Exact MaveDB raw measurements are neutral source context only.
+              They cannot activate PS3/BS3, points, or a call-card theme. */}
           <MaveFunctionalBlock
             gene={row0?.gene}
             query={query}

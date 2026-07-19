@@ -1,5 +1,46 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-19 07:05 +0000 - Codex - Phase 5 MaveDB archive importer repair
+
+Phase 5 replaces the underspecified JSONL scaffold with a bounded, no-network,
+no-extraction parser for an already-acquired documented MaveDB bulk ZIP. The
+schema-v2 materializer joins score CSVs to authoritative `main.json` metadata,
+stores official experiment/score-set/target/variant identities, preserves raw
+numeric source strings alongside parsed `Decimal` values and arbitrary declared
+uncertainty columns, records exact methods and linked identifiers, and pins the
+published archive DOI, filename, size, MD5, computed SHA-256, citation, metadata
+schema, per-member SHA-256 values, and local logical checksum. Published source
+version is forced to the immutable release DOI; synthetic fixtures remain
+explicitly nonpublic.
+
+Archive and policy admission now fail closed on unsafe or duplicate paths,
+symlinks, encrypted/unsupported members, unexpected files, duplicate JSON keys,
+invalid encoding/control characters, excessive member/byte/ratio/row/column/
+cell bounds, missing or conflicting metadata, counterfeit CSV license claims,
+unknown/non-CC0 licenses, restrictive or ambiguous usage policy, precision
+loss, duplicate variants, target/transcript/build/mapping drift, ambiguity,
+deprecation, stale schema signatures, and checksum failure. Errors and health
+notices expose fixed codes rather than hostile identifiers, source rows, local
+paths, or policy text. Materialization uses a temporary SQLite store and writes
+the manifest sidecar before replacing the destination database; request/startup
+download remains impossible.
+
+Exact lookup uses VRS, then genomic identity/build, then versioned target plus
+MAVE-HGVS, and returns all exact score-set measurements only when their target
+context is unambiguous. The report derives source URLs from validated URNs and
+fixed origins, ignores imported URLs, renders raw score/target/build/variant/
+uncertainty/method/DOI/PMID context separately for each match, and keeps the Lab
+surface neutral `Uncurated`. New engine and call-card ratchets prove these raw
+measurements cannot activate PS3/BS3, add points, or set classification color.
+
+The focused Phase-5 matrix passed 313 backend evidence, policy, boundary, and
+frontend-contract checks plus the web structural guard, targeted UI tests,
+Ruff, and ESLint. Full `npm run verify` passed in 224.9 seconds: 11 Node ratchets,
+25 Vitest files / 188 tests, the complete backend pytest suite, repository lint,
+431-file Black check, TypeScript, and the 17-route production Next build. No
+real MaveDB archive was downloaded or materialized; no live source, upload,
+provider, deployment, Render, Supabase, secret, or cleanup mutation occurred.
+
 ## 2026-07-19 06:13 +0000 - Codex - Phase 4 LOVD synthetic-fixture pilot
 
 Phase 4 now has one installation-scoped Global Variome shared LOVD identity
