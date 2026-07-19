@@ -25,7 +25,7 @@ explicitly merge-approved, merged, and verified may B/C launch. Delivery remains
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
-| A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1` | in_progress | — | 1 |
+| A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1` | review | — | 1 |
 | B workflow-backend | unassigned | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | pending | A merged | 2 |
 | Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending | B merged + fresh Steven approval | 3 |
 | C surface-flow | unassigned | `plan.md` Lane C web paths | `agent/product/surface-flow` | pending | A merged; merge after Task F | 4 |

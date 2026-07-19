@@ -3024,3 +3024,288 @@ export interface BatchJob {
   page: BatchPage
   warnings: string[]
 }
+
+// ---------------------------------------------------------------------------
+// Product Workflow V1 — frozen cross-surface contract.
+// Backend source: app/backend/app/schemas/workflow.py. These interfaces keep
+// nullable fields explicit; absence and null are not interchangeable here.
+// ---------------------------------------------------------------------------
+
+export type VariantResolutionStatusV1 = 'resolved' | 'ambiguous' | 'unresolved'
+export type WorkflowOriginSurfaceV1 =
+  | 'report'
+  | 'paper'
+  | 'batch'
+  | 'workbench'
+  | 'library'
+  | 'search'
+export type WorkflowActiveToolV1 = 'viewer' | 'primer' | 'crispr' | 'align'
+export type SelectionStrandV1 = '+' | '-'
+export type SelectionOrientationV1 = 'genomic_forward' | 'genomic_reverse' | 'transcript'
+export type SequenceBasisV1 = 'reference' | 'variant' | 'edited'
+export type SelectionOverlapV1 = 'utr5' | 'utr3' | 'cds' | 'exon' | 'intron'
+export type ProcessingExecutionV1 = 'browser' | 'eamos_backend' | 'external_provider'
+export type ProcessingInputClassV1 =
+  | 'variant_id'
+  | 'sequence'
+  | 'vcf'
+  | 'paper_text'
+  | 'pdf'
+  | 'trace'
+  | 'notes'
+export type ProcessingRetentionV1 = 'none' | 'request_lifetime' | 'ttl' | 'account_saved'
+export type WorkflowRunKindV1 = 'batch' | 'paper' | 'workbench'
+export type WorkflowRunStatusV1 =
+  | 'draft'
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'cancelled'
+  | 'expired'
+export type WorkflowOwnerScopeV1 = 'account' | 'anonymous_session'
+export type WorkflowArtifactKindV1 =
+  | 'report_tsv'
+  | 'report_html'
+  | 'batch_tsv'
+  | 'paper_tsv'
+  | 'fasta'
+  | 'primer_tsv'
+  | 'primer_fasta'
+  | 'guide_tsv'
+  | 'ssodn_txt'
+  | 'alignment_tsv'
+  | 'workspace_json'
+export type WorkflowArtifactDownloadStateV1 = 'client_generated' | 'ready' | 'expired'
+export type RelatedVariantRelationshipV1 =
+  | 'nearby'
+  | 'same_gene'
+  | 'same_class'
+  | 'same_condition'
+export type ConsequenceBucketV1 = 'lof' | 'missense' | 'noncoding' | 'synonymous'
+export type WorkbenchViewV1 = 'window' | 'locus'
+export type CompareViewV1 = 'cohort' | 'compare'
+export type WorkflowAsyncStateV1 =
+  | 'idle'
+  | 'validating'
+  | 'auth_required'
+  | 'consent_required'
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'partial'
+  | 'empty'
+  | 'failed'
+  | 'cancelled'
+  | 'expired'
+  | 'stale'
+
+export interface CanonicalVariantRefV1 {
+  schema_version: 'canonical_variant_ref.v1'
+  gene: string
+  cdna: string
+  transcript: string | null
+  protein_hgvs: string | null
+  genomic_hg38: string | null
+  variant_key: string
+  species: 'human'
+  genome_build: 'GRCh38'
+  resolution_status: VariantResolutionStatusV1
+  source_support: string[]
+  warnings: string[]
+}
+
+export interface SelectionRangeV1 {
+  schema_version: 'selection_range.v1'
+  variant_key: string
+  transcript: string
+  genome_build: 'GRCh38'
+  chrom: string
+  genomic_start: number
+  genomic_end: number
+  strand: SelectionStrandV1
+  orientation: SelectionOrientationV1
+  sequence_basis: SequenceBasisV1
+  edit_revision: number
+  sequence_sha256: string
+  cdna_start: number | null
+  cdna_end: number | null
+  cds_start: number | null
+  cds_end: number | null
+  protein_start: number | null
+  protein_end: number | null
+  overlaps: SelectionOverlapV1[]
+}
+
+export interface WorkflowContextV1 {
+  schema_version: 'workflow_context.v1'
+  context_id: string | null
+  variant: CanonicalVariantRefV1 | null
+  origin_surface: WorkflowOriginSurfaceV1
+  return_to: string | null
+  batch_run_id: string | null
+  paper_run_id: string | null
+  workspace_id: string | null
+  active_tool: WorkflowActiveToolV1 | null
+  selection: SelectionRangeV1 | null
+  created_at: string
+  expires_at: string | null
+}
+
+export interface ProcessingDisclosureV1 {
+  execution: ProcessingExecutionV1
+  provider_id: string
+  provider_label: string
+  input_classes: ProcessingInputClassV1[]
+  raw_input_persisted: boolean
+  retention: ProcessingRetentionV1
+  expires_at: string | null
+  user_deletable: boolean
+  consent_required: boolean
+  warnings: string[]
+}
+
+export interface WorkflowArtifactV1 {
+  artifact_id: string
+  kind: WorkflowArtifactKindV1
+  filename: string
+  media_type: string
+  generated_at: string
+  source_run_id: string | null
+  context_digest: string
+  sha256: string
+  download_state: WorkflowArtifactDownloadStateV1
+}
+
+export interface WorkflowRunV1 {
+  schema_version: 'workflow_run.v1'
+  run_id: string
+  kind: WorkflowRunKindV1
+  status: WorkflowRunStatusV1
+  owner_scope: WorkflowOwnerScopeV1
+  context: WorkflowContextV1
+  done: number
+  total: number
+  created_at: string
+  updated_at: string
+  expires_at: string | null
+  warnings: string[]
+  source_disclosures: SourceDisclosure[]
+  processing_disclosure: ProcessingDisclosureV1 | null
+  artifacts: WorkflowArtifactV1[]
+}
+
+export interface RelatedVariantItemV1 {
+  variant: CanonicalVariantRefV1
+  relationship: RelatedVariantRelationshipV1
+  distance_bp: number | null
+  classification: ClassificationTier | null
+  evidence_axis_summary: VariantReportCallCards | null
+  source_disclosure: SourceDisclosure
+  report_href: string
+}
+
+export interface RelatedVariantGroupV1 {
+  items: RelatedVariantItemV1[]
+  warnings: string[]
+}
+
+export interface CuratedVariantPageV1 {
+  gene: string
+  classification_filter: ClassificationTier | null
+  consequence_filter: ConsequenceBucketV1 | null
+  items: CanonicalVariantRefV1[]
+  next_cursor: string | null
+  total: number
+  source_disclosure: SourceDisclosure
+  warnings: string[]
+}
+
+const WORKFLOW_OPAQUE_ID_V1 = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/
+
+function assertWorkflowOpaqueIdV1(value: string, field: string): string {
+  if (!WORKFLOW_OPAQUE_ID_V1.test(value)) throw new Error(`${field} must be an opaque identifier`)
+  return value
+}
+
+function workflowHrefV1(path: string, entries: Array<[string, string]>): string {
+  const query = entries
+    .map(([key, value]) => `${workflowQueryPartV1(key)}=${workflowQueryPartV1(value)}`)
+    .join('&')
+  return `${path}?${query}`
+}
+
+function workflowQueryPartV1(value: string): string {
+  // Match Python urllib.parse.urlencode/quote_plus so backend- and browser-built
+  // canonical hrefs are byte-identical as well as semantically equivalent.
+  return encodeURIComponent(value)
+    .replace(/%20/g, '+')
+    .replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+}
+
+export function buildReportHrefV1(
+  variant: CanonicalVariantRefV1,
+  fromSurface?: WorkflowOriginSurfaceV1,
+): string {
+  const entries: Array<[string, string]> = [
+    ['gene', variant.gene],
+    ['cdna', variant.cdna],
+  ]
+  if (variant.transcript) entries.push(['transcript', variant.transcript])
+  if (fromSurface) entries.push(['from', fromSurface])
+  return workflowHrefV1('/report', entries)
+}
+
+export function buildWorkbenchHrefV1(
+  variant: CanonicalVariantRefV1,
+  options: {
+    tool?: WorkflowActiveToolV1
+    view?: WorkbenchViewV1
+    contextId?: string
+  } = {},
+): string {
+  if (
+    options.tool &&
+    ['primer', 'crispr', 'align'].includes(options.tool) &&
+    variant.resolution_status !== 'resolved'
+  ) {
+    throw new Error('molecular-design tools require a resolved canonical variant')
+  }
+  const entries: Array<[string, string]> = [
+    ['gene', variant.gene],
+    ['cdna', variant.cdna],
+  ]
+  if (variant.transcript) entries.push(['transcript', variant.transcript])
+  if (options.tool) entries.push(['tool', options.tool])
+  if (options.view) entries.push(['view', options.view])
+  if (options.contextId) {
+    entries.push(['context_id', assertWorkflowOpaqueIdV1(options.contextId, 'context_id')])
+  }
+  return workflowHrefV1('/workbench', entries)
+}
+
+export function buildCompareHrefV1(options: {
+  runId?: string
+  contextId?: string
+  view?: CompareViewV1
+}): string {
+  if (!options.runId && !options.contextId) throw new Error('runId or contextId is required')
+  const entries: Array<[string, string]> = []
+  if (options.runId) entries.push(['run_id', assertWorkflowOpaqueIdV1(options.runId, 'run_id')])
+  if (options.contextId) {
+    entries.push(['context_id', assertWorkflowOpaqueIdV1(options.contextId, 'context_id')])
+  }
+  if (options.view) entries.push(['view', options.view])
+  return workflowHrefV1('/compare', entries)
+}
+
+export function buildPaperHrefV1(options: { runId?: string; contextId?: string }): string {
+  if (!options.runId && !options.contextId) throw new Error('runId or contextId is required')
+  const entries: Array<[string, string]> = []
+  if (options.runId) entries.push(['run_id', assertWorkflowOpaqueIdV1(options.runId, 'run_id')])
+  if (options.contextId) {
+    entries.push(['context_id', assertWorkflowOpaqueIdV1(options.contextId, 'context_id')])
+  }
+  return workflowHrefV1('/paper', entries)
+}

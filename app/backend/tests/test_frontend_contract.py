@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import get_args
 
 import pytest
 from pydantic import BaseModel
@@ -201,6 +202,37 @@ from app.schemas.workbench import (
     ScreeningPrimer,
     SourceDisclosure,
     TraceChannel,
+)
+from app.schemas.workflow import (
+    CanonicalVariantRefV1,
+    CompareViewV1,
+    ConsequenceBucketV1,
+    CuratedVariantPageV1,
+    ProcessingDisclosureV1,
+    ProcessingExecutionV1,
+    ProcessingInputClassV1,
+    ProcessingRetentionV1,
+    RelatedVariantGroupV1,
+    RelatedVariantItemV1,
+    RelatedVariantRelationshipV1,
+    SelectionOrientationV1,
+    SelectionOverlapV1,
+    SelectionRangeV1,
+    SelectionStrandV1,
+    SequenceBasisV1,
+    VariantResolutionStatusV1,
+    WorkbenchViewV1,
+    WorkflowActiveToolV1,
+    WorkflowArtifactDownloadStateV1,
+    WorkflowArtifactKindV1,
+    WorkflowArtifactV1,
+    WorkflowAsyncStateV1,
+    WorkflowContextV1,
+    WorkflowOriginSurfaceV1,
+    WorkflowOwnerScopeV1,
+    WorkflowRunKindV1,
+    WorkflowRunStatusV1,
+    WorkflowRunV1,
 )
 from app.schemas.panels import (
     Panel,
@@ -405,6 +437,38 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     SearchCitation: "SearchCitation",
     SearchAnswerRequest: "SearchAnswerRequest",
     SearchAnswerResponse: "SearchAnswerResponse",
+    CanonicalVariantRefV1: "CanonicalVariantRefV1",
+    SelectionRangeV1: "SelectionRangeV1",
+    WorkflowContextV1: "WorkflowContextV1",
+    ProcessingDisclosureV1: "ProcessingDisclosureV1",
+    WorkflowArtifactV1: "WorkflowArtifactV1",
+    WorkflowRunV1: "WorkflowRunV1",
+    RelatedVariantItemV1: "RelatedVariantItemV1",
+    RelatedVariantGroupV1: "RelatedVariantGroupV1",
+    CuratedVariantPageV1: "CuratedVariantPageV1",
+}
+
+WORKFLOW_LITERAL_TO_TS_TYPE = {
+    VariantResolutionStatusV1: "VariantResolutionStatusV1",
+    WorkflowOriginSurfaceV1: "WorkflowOriginSurfaceV1",
+    WorkflowActiveToolV1: "WorkflowActiveToolV1",
+    SelectionStrandV1: "SelectionStrandV1",
+    SelectionOrientationV1: "SelectionOrientationV1",
+    SequenceBasisV1: "SequenceBasisV1",
+    SelectionOverlapV1: "SelectionOverlapV1",
+    ProcessingExecutionV1: "ProcessingExecutionV1",
+    ProcessingInputClassV1: "ProcessingInputClassV1",
+    ProcessingRetentionV1: "ProcessingRetentionV1",
+    WorkflowRunKindV1: "WorkflowRunKindV1",
+    WorkflowRunStatusV1: "WorkflowRunStatusV1",
+    WorkflowOwnerScopeV1: "WorkflowOwnerScopeV1",
+    WorkflowArtifactKindV1: "WorkflowArtifactKindV1",
+    WorkflowArtifactDownloadStateV1: "WorkflowArtifactDownloadStateV1",
+    RelatedVariantRelationshipV1: "RelatedVariantRelationshipV1",
+    ConsequenceBucketV1: "ConsequenceBucketV1",
+    WorkbenchViewV1: "WorkbenchViewV1",
+    CompareViewV1: "CompareViewV1",
+    WorkflowAsyncStateV1: "WorkflowAsyncStateV1",
 }
 
 
@@ -465,6 +529,18 @@ def _extract_ts_interface_body(source: str, name: str) -> str:
     return source[start : i - 1]
 
 
+def _extract_ts_literal_values(source: str, name: str) -> set[str]:
+    match = re.search(
+        rf"export\s+type\s+{re.escape(name)}\s*=\s*(.*?)"
+        r"(?=\nexport\s+(?:type|interface|function)|\nconst\s|\Z)",
+        source,
+        re.DOTALL,
+    )
+    if not match:
+        raise AssertionError(f"export type {name} not found in backend.ts")
+    return set(re.findall(r"'([^']+)'", match.group(1)))
+
+
 @pytest.mark.parametrize(
     "model,ts_name",
     list(MODEL_TO_TS_INTERFACE.items()),
@@ -489,6 +565,91 @@ def test_pydantic_field_names_present_in_typescript(model, ts_name, backend_ts_p
         f"{ts_name} in {_path_id(backend_ts_path)} is missing fields present "
         f"on {model.__name__} (Pydantic): {sorted(missing)}"
     )
+
+
+@pytest.mark.parametrize(
+    "literal_type,ts_name",
+    list(WORKFLOW_LITERAL_TO_TS_TYPE.items()),
+    ids=lambda value: value if isinstance(value, str) else str(value),
+)
+@pytest.mark.parametrize(
+    "backend_ts_path",
+    _frontend_backend_ts_paths(),
+    ids=_path_id,
+)
+def test_workflow_literal_values_match_typescript(literal_type, ts_name, backend_ts_path):
+    backend_ts = backend_ts_path.read_text(encoding="utf-8")
+    assert _extract_ts_literal_values(backend_ts, ts_name) == set(get_args(literal_type))
+
+
+@pytest.mark.parametrize(
+    "model,ts_name",
+    [
+        (CanonicalVariantRefV1, "CanonicalVariantRefV1"),
+        (SelectionRangeV1, "SelectionRangeV1"),
+        (WorkflowContextV1, "WorkflowContextV1"),
+        (ProcessingDisclosureV1, "ProcessingDisclosureV1"),
+        (WorkflowArtifactV1, "WorkflowArtifactV1"),
+        (WorkflowRunV1, "WorkflowRunV1"),
+        (RelatedVariantItemV1, "RelatedVariantItemV1"),
+        (RelatedVariantGroupV1, "RelatedVariantGroupV1"),
+        (CuratedVariantPageV1, "CuratedVariantPageV1"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else value.__name__,
+)
+@pytest.mark.parametrize(
+    "backend_ts_path",
+    _frontend_backend_ts_paths(),
+    ids=_path_id,
+)
+def test_workflow_required_and_nullable_fields_match_typescript(model, ts_name, backend_ts_path):
+    backend_ts = backend_ts_path.read_text(encoding="utf-8")
+    body = _extract_ts_interface_body(backend_ts, ts_name)
+
+    for field_name, field in model.model_fields.items():
+        declaration = re.search(
+            rf"^\s*{re.escape(field_name)}(?P<optional>\?)?\s*:\s*(?P<type>[^\n]+)",
+            body,
+            re.MULTILINE,
+        )
+        assert declaration, f"{ts_name}.{field_name} is missing from backend.ts"
+        assert (
+            bool(declaration.group("optional")) is not field.is_required()
+        ), f"{ts_name}.{field_name} requiredness differs from Pydantic"
+        python_nullable = type(None) in get_args(field.annotation)
+        typescript_nullable = bool(re.search(r"\bnull\b", declaration.group("type")))
+        assert (
+            typescript_nullable is python_nullable
+        ), f"{ts_name}.{field_name} null behavior differs from Pydantic"
+
+
+@pytest.mark.parametrize(
+    "backend_ts_path",
+    _frontend_backend_ts_paths(),
+    ids=_path_id,
+)
+def test_workflow_schema_versions_and_url_builders_are_mirrored(backend_ts_path):
+    backend_ts = backend_ts_path.read_text(encoding="utf-8")
+    expected_versions = {
+        "CanonicalVariantRefV1": "canonical_variant_ref.v1",
+        "SelectionRangeV1": "selection_range.v1",
+        "WorkflowContextV1": "workflow_context.v1",
+        "WorkflowRunV1": "workflow_run.v1",
+    }
+    for interface, version in expected_versions.items():
+        body = _extract_ts_interface_body(backend_ts, interface)
+        assert re.search(
+            rf"^\s*schema_version\s*:\s*'{re.escape(version)}'",
+            body,
+            re.MULTILINE,
+        )
+    for builder in (
+        "buildReportHrefV1",
+        "buildWorkbenchHrefV1",
+        "buildCompareHrefV1",
+        "buildPaperHrefV1",
+    ):
+        assert f"export function {builder}(" in backend_ts
 
 
 @pytest.mark.parametrize(
