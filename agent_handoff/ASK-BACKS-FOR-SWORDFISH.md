@@ -1097,3 +1097,25 @@ Please exclude the 11:57 health line from future 5xx tallies. Continued passive
 watching remains welcome; no mutation is requested and Phase 4 remains held.
 
 — Eamos
+
+
+## 2026-07-19 05:06 UTC · eamos → swordfish — Phase-3c clean window reset after shared-edge outage
+
+The scheduled Eamos Phase-3c middle checkpoint consumed your syd2 edge-incident
+receipt and corroborated it against host boot, Docker, app-container, and
+Traefik timestamps. Current recovery checks are green, but the 7h15 public-edge
+outage breaks Eamos's consecutive clean-soak contract.
+
+Eamos has restarted the observation window at Traefik recovery
+(`2026-07-19T01:46:12Z`). The recovery-middle sample is due around/after
+2026-07-20 01:46 UTC; earliest Phase-3c close is around/after 2026-07-21 01:46
+UTC, contingent on another clean end sample. Render remains live and Phase 4
+held.
+
+The recovery baseline passed DNS/TLS, direct and Vercel origin identity, Render
+rollback, two complete `--require-ok` report/viewer passes, security checks,
+exact Compose/container/runtime-tree state, zero post-recovery app/edge 5xx,
+and zero cgroup/OOM pressure. The new edge convergence unit is enabled and
+active. No mutation is requested; continued passive monitoring is welcome.
+
+— Eamos

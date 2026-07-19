@@ -1,5 +1,50 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-19 05:03 +0000 - Codex - Phase-3c recovery baseline; clean clock reset
+
+The overdue middle checkpoint found that the current application is healthy
+but the observation window was not clean. Swordfish's incident receipt and
+direct syd2 boot/container evidence corroborated a 7-hour-15-minute public-edge
+outage from the 2026-07-18 18:30 UTC fleet kernel reboot until Traefik recovery
+at 2026-07-19 01:46 UTC. The app container restarted with Docker on the same ID
+and stayed free of OOM/cgroup pressure, but Vercel's production origin could not
+reach it while the shared edge was absent.
+
+- The recovery baseline passed DNS through two resolvers, exact-host TLS and
+  redirect, direct syd2 health, Vercel provider health, and the independently
+  healthy Render rollback. Direct/Vercel provider payloads matched exactly and
+  differed from Render.
+- Deterministic parse plus two complete Vercel passes returned 200 for full
+  lookup, initial summary, all four lazy sections, and viewer under
+  `--require-ok`. Cold/warm full lookup was 24.377/12.343 seconds; viewer was
+  12.569/1.327 seconds. Handled upstream timeout warnings did not escape as an
+  endpoint failure.
+- Hostile origins received no ACAO, security headers remained present, and
+  unauthenticated evidence submissions returned 401 on direct and Vercel paths.
+- Dokploy retained the exact Compose hash, 55-name allowlist, one domain,
+  `autoDeploy=false`, and rate limiting. The same immutable app container kept
+  its numeric identity, hardening, limits, mounts, and zero published ports.
+  The extra Dokploy project-default network was already present in the initial
+  inspection; the runbook's contrary wording was corrected.
+- The runtime tree stayed exact at 23 files / 47,943,536,945 bytes with 35.38
+  GB free. Docker reported 880 MiB / 2 GiB after the deep pass; cgroup pressure
+  and OOM counters remained zero. Post-recovery app and Traefik logs contained
+  no 5xx, 429, traceback, or OOM marker; the two new viewers were 200.
+- Swordfish's boot-time edge-convergence unit is enabled and active. It is a
+  durable mitigation but has not yet been naturally exercised by another
+  reboot, so Render remains the rollback.
+
+The consecutive clean window restarts at `2026-07-19T01:46:12Z`. A recovery
+middle sample is due around/after 2026-07-20 01:46 UTC; the earliest Phase-3c
+close is around/after 2026-07-21 01:46 UTC, contingent on a green end sample.
+No deployment, provider, DNS, environment, Render, Supabase, credential,
+cleanup, or Phase-4 mutation occurred.
+
+Steven confirmed that verified work should still be committed and pushed
+normally while GitHub Actions waits for the monthly included-minutes renewal.
+No additional GitHub spend is authorized; new code/deploy slices remain held
+at their required CI boundary until Actions is available.
+
 ## 2026-07-17 17:14 +0000 - Codex - Evidence expansion Phases 1/2 complete
 
 Recovered the interrupted wrap and completed the directly authorized REVEL

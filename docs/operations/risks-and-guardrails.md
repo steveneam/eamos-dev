@@ -188,6 +188,33 @@ the local backend tree:
 - **Resolved - live env visibility.** Render `DEBUG=false` was reported set by
   Claude/Steven and is now directly verified by Codex through the Render API.
 
+## syd2 Shared-Edge Reboot Recovery
+
+Section added: 2026-07-19 05:03 +0000 - Codex.
+
+The Phase-3c production origin depends on syd2's shared Traefik edge. A fleet
+kernel-patch reboot at 2026-07-18 18:30 UTC raced Traefik against swarm-overlay
+initialization; the app container recovered internally, but the public edge was
+down until 01:46 UTC. This was a real production-origin outage even though the
+app container kept `RestartCount=0`, had no OOM/cgroup pressure, and remained
+healthy after Docker returned.
+
+Guardrails:
+
+- Never use Docker `RestartCount=0` alone as uptime proof. Compare container
+  `Created`/`StartedAt`, host boot time, Docker activation, and external-origin
+  observations.
+- After any syd2 host or Docker restart, probe the public hostname from another
+  box and re-prove direct health, Vercel-origin identity, security headers,
+  functional routes, and the retained Render rollback.
+- Keep Render live while Phase 3c is open. Any public-edge outage resets the
+  consecutive clean-soak clock; a green point-in-time recovery sample cannot
+  erase the failed interval.
+- Swordfish owns the new enabled `swordfish-edge-up.service`, which waits for
+  the overlay and reconverges the edge. Eamos verifies its status read-only but
+  does not mutate the shared edge. Treat it as a mitigation, not as reboot proof,
+  until a later natural restart exercises it end to end.
+
 ## Gene Viewer Dynamic Product Risks
 
 Section edited: 2026-05-26 04:12 +1000 - Codex.

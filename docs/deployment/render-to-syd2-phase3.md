@@ -2,10 +2,10 @@
 
 Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof and
 two-party tenant-grant verification green; Phase 3c public endpoint and Vercel
-traffic cutover live; evidence-based soak active; Render rollback live; Phase 4
-held
+traffic cutover live; recovery soak restarted after a shared-edge outage;
+Render rollback live; Phase 4 held
 
-Last verified: 2026-07-17 12:20 +0000 - Codex
+Last verified: 2026-07-19 05:03 +0000 - Codex
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -179,8 +179,9 @@ proved:
   `no-new-privileges`, non-privileged execution, and no published ports;
 - 2-GiB memory limit, 512-MiB reservation, 2 CPUs, 256 PIDs, and a
   512-MiB mode-`1777` `/tmp` tmpfs;
-- both corpus binds read-only, private state read-write, and only the external
-  `dokploy-network` attached; and
+- both corpus binds read-only, private state read-write, the Dokploy project
+  network plus external `dokploy-network` attached, and Traefik explicitly
+  pinned to `dokploy-network`; and
 - exactly 23 corpus files / 47,943,536,945 bytes, with no symlinks or temporary
   residue and no ownership or mode violations.
 
@@ -343,6 +344,66 @@ viewer requests from 11:59:38 through 12:10:44 produced 16 200s, two expected
   `autoDeploy=false`, the single approved domain, and rate limiting remained
   exact. Render stayed HTTP 200 and untouched.
 
+#### Interrupted middle checkpoint and recovery baseline - 2026-07-19 05:03 +0000
+
+The scheduled middle checkpoint is **not green**. A separate Swordfish incident
+receipt and direct host evidence agree that the syd2 fleet kernel-patch reboot
+at `2026-07-18T18:30:21Z` raced Traefik against swarm-overlay initialization.
+The public edge remained unavailable until a replacement Traefik container
+started at `2026-07-19T01:46:12Z`, an outage of approximately 7 hours 15
+minutes. The Eamos container stayed on the same immutable container ID and
+restarted with Docker at `18:30:27Z`; `RestartCount=0` therefore does not prove
+uninterrupted service across a daemon or host reboot. Dokploy cleanup later
+pruned the stopped edge container, while the application workload itself
+remained healthy. The public-origin outage still breaks the consecutive clean
+soak required by this runbook.
+
+Swordfish restored the edge and installed an enabled boot-time
+`swordfish-edge-up.service` that waits for the overlay before converging the
+edge Compose service. The unit is enabled, active, and asserted in Swordfish's
+hardening checks. It has not yet been naturally exercised by another host
+reboot, so the retained Render origin remains the rollback.
+
+The bounded recovery baseline passed without mutation:
+
+- Cloudflare and Google DNS returned `103.249.236.41` at TTL 600; HTTP
+  redirected to HTTPS; the exact-host certificate remains valid through
+  2026-10-15. Direct syd2 and Render health returned application/database
+  `ok`.
+- Direct and Vercel provider-health payloads matched byte-for-byte at SHA-256
+  `37b01faf906ec1c69fb5ddbc7166e617b03bed8854a03430397c3a3b1ed27ab3`.
+  Render returned a distinct healthy payload. Mounted hg38, compact
+  coordinates, ClinGen, gene distribution, local evidence, AlphaMissense,
+  Pfam/HMMER, CRISPR, and PVS1/NMD retained their expected states.
+- Deterministic parse plus two Vercel passes of full lookup, initial summary,
+  all four lazy sections, and viewer returned 200 under `--require-ok`. Full
+  lookup took 24.377/12.343 seconds and viewer 12.569/1.327 seconds. Handled
+  upstream `TimeoutError`/`ReadTimeout` warnings did not become endpoint
+  failures.
+- Direct and Vercel hostile-Origin probes received no ACAO; HSTS, `nosniff`,
+  and `SAMEORIGIN` remained present; unauthenticated evidence submissions
+  stayed 401.
+- Dokploy retained the exact Compose SHA, 55-name environment allowlist,
+  `autoDeploy=false`, rate limiting, and one approved domain. The same app
+  container retained its exact digest, numeric identity, read-only root,
+  capability drop, resource/PID limits, read-only corpus mounts, private
+  writable state, and zero published ports. The two-network runtime shape was
+  already present in the beginning inspection and is not new drift.
+- The runtime tree remained exactly 23 files / 47,943,536,945 bytes with
+  correct ownership/modes and no symlinks. Disk headroom was 35,376,615,424
+  bytes. After the deep sample Docker reported 880 MiB / 2 GiB; cgroup
+  `low/high/max/oom/oom_kill` remained zero.
+- Since the original beginning sample, the app log records the one host-reboot
+  server start, three viewer 200s, zero 5xx, zero 429s, and no traceback/OOM
+  marker. Since edge recovery it records two viewer 200s and no 5xx; the new
+  Traefik log also contains no `preview-api` 5xx.
+
+The consecutive observation clock restarts at edge recovery. A recovery-middle
+sample is due around/after `2026-07-20T01:46:12Z`; Phase 3c cannot close before
+an end sample around/after `2026-07-21T01:46:12Z`, and only if every evidence
+gate below remains green. This timing supersedes the original cutover-based
+floor; it does not authorize a provider, deployment, Render, or Phase-4 change.
+
 One separate hardening item was discovered but was not mutated during the
 frozen soak: with forwarded-header trust disabled, Traefik collapses app-level
 IP buckets to its `10.0.1.41` source address. This did not cause the 503s—the
@@ -350,9 +411,9 @@ limiter returns 429, the live tally has zero 429s, and scanner 404/405/422
 requests do not enter the viewer handler—but correct per-client limiting needs
 a reviewed trusted-proxy boundary rather than an ad-hoc boolean flip.
 
-Phase 3c cannot close earlier than the controlling plan's 48-hour observation
-floor (approximately 2026-07-19 11:31 UTC), and elapsed time alone is
-insufficient. All of these evidence gates must also pass:
+Phase 3c cannot close earlier than the restarted 48-hour recovery floor above,
+and elapsed time alone is insufficient. All of these evidence gates must also
+pass:
 
 1. spaced beginning/middle/end samples keep DNS, TLS, direct health, Vercel
    proxy health, and Render rollback health green;
