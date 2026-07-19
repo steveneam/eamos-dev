@@ -25,7 +25,7 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** DONE @ 2026-07-19 09:48 +0000 — recorded Steven's Product Workflow
+- **Codex:** DONE @ 2026-07-19 09:49 +0000 — recorded Steven's Product Workflow
   V1/five-lane approval and reconciled Supabase with the established serialized
   lane-author/lead-apply convention. No implementation or cloud mutation ran.
 - **Product-workflow sprint:** APPROVED. Next `gogogo` launches Lane A only,
@@ -36,9 +36,9 @@
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
   live as rollback; do not close/cancel it.
-- **GitHub Actions:** clarification run `29681846578` for `b9af5a8` failed; all seven
-  failed jobs had zero steps, consistent with the known minute lock. Steven
-  ruled no additional spend; required CI waits for monthly renewal.
+- **GitHub Actions:** plan run `29682238832` for `5bd4d28` failed with seven
+  zero-step jobs and two skips, matching the known minute lock. Steven ruled no
+  additional spend; required CI waits for monthly renewal.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
@@ -47,7 +47,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 09:48 +0000 · Codex
+UNLOCKED · 2026-07-19 09:49 +0000 · Codex
 
 ## Shared File Locks
 
@@ -56,7 +56,7 @@ UNLOCKED · 2026-07-19 09:48 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 09:48 +0000 · Codex launch Product Workflow Lane A
+# Resume prompt · 2026-07-19 09:49 +0000 · Codex launch Product Workflow Lane A
 Read CURRENT.md, peer mail, and plans/product-workflow-integration/{research,spec,plan}.md first.
 If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it before sprint work.
 Delta: Steven approved Product Workflow V1, all five lanes, and Lane B migration authoring; Supabase follows the existing lane-author/lead-apply Task F convention.
@@ -82,7 +82,7 @@ Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollba
   includes all exons/introns/UTRs and a distant selection must feed Primer.
 - Baseline: web 193/193; focused backend 398 collected and green with expected
   skips; coordination 9/9; frontend boundary 275 tracked files and green.
-- Whole-gene clarification `b9af5a8`; CI `29681846578` (zero-step minute lock).
+- Approved plan/Supabase rollout `5bd4d28`; CI `29682238832` (zero-step lock).
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
