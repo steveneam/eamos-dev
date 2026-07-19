@@ -1,7 +1,7 @@
 # Integrated Product Workflow Delivery Plan
 
-Status: approved by Steven on 2026-07-19; Lane A launch is queued for the next
-`gogogo` after any due recovery check.
+Status: approved by Steven on 2026-07-19; Lane A is in its one-time manual
+CI-substitute integration window approved at 2026-07-19 10:51 +0000.
 
 Plan stamped: 2026-07-19 09:48 +0000 · Codex lead.
 
@@ -485,6 +485,21 @@ The exact new root script name is `verify:product-workflow`; the implementation
 may split internal scripts, but that public gate is frozen for this sprint.
 
 ## Merge Protocol
+
+### Lane A one-time manual gate exception
+
+Added: 2026-07-19 10:51 +0000 · Codex.
+
+Steven explicitly approved manual verification and direct commit/push for Lane
+A after GitHub-hosted jobs failed without executing any steps. For Lane A only,
+the lead may replace required hosted CI with the complete local-equivalent gate,
+push the exact verified commit to a no-PR branch for a fresh Vercel preview, and
+then promote that commit to current `main` with CI skipped. The receipt records
+any unavailable local environment check rather than claiming it passed.
+
+All downstream dependency order, Task F, cloud/deploy/provider/source holds, and
+later-lane gates remain unchanged. The zero-step Actions run remains failed; it
+is not converted into success evidence.
 
 For every lane, the lane agent:
 

@@ -25,20 +25,19 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** DONE/HELD @ 2026-07-19 10:23 +0000 — Product Workflow Lane A is
-  committed/pushed as `bf589e8` on `agent/product/contract-v1`; PR #15 is open
-  in review. Local gates and the Vercel preview passed. No merge occurred.
-- **Product-workflow sprint:** Lane A is REVIEW, required-CI blocked by the
-  known GitHub Actions minute lock. B/C remain dependency-held until A is
-  required-CI green, explicitly merge-approved, merged, and verified on main.
-  Every later merge and Task F remote mutation retains its separate gate.
+- **Codex:** IN PROGRESS @ 2026-07-19 10:52 +0000 — Lane A is rebuilt unchanged
+  on current `main` as `agent/product/contract-v1-manual`; Steven approved its
+  one-time manual CI substitute. Local gates are green; fresh Vercel is pending.
+- **Product-workflow sprint:** B/C remain dependency-held until the verified
+  Lane A commit reaches and passes on `main`. Every later lane and Task F remote
+  mutation retains its separate gate.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
   live as rollback; do not close/cancel it.
-- **GitHub Actions:** PR run `29683028720` for `bf589e8` failed seven jobs with
-  `steps: []` and skipped two, matching the known minute lock. Steven ruled no
-  additional spend; required CI is not green and waits for monthly renewal.
+- **GitHub Actions:** run `29683028720` remains failed with seven zero-step jobs.
+  It is not green; Steven approved a Lane-A-only local substitute, not spend or
+  a blanket bypass.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
@@ -47,7 +46,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 10:23 +0000 · Codex
+UNLOCKED · 2026-07-19 10:52 +0000 · Codex
 
 ## Shared File Locks
 
@@ -56,21 +55,21 @@ UNLOCKED · 2026-07-19 10:23 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 10:23 +0000 · Codex Product Workflow Lane A CI gate
-Read CURRENT.md, PR #15, Actions run 29683028720, and plans/product-workflow-integration/plan.md first.
+# Resume prompt · 2026-07-19 10:52 +0000 · Codex Lane A manual integration
+Read CURRENT.md, the manual worktree, and plans/product-workflow-integration/plan.md first.
 If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
-Delta: Lane A bf589e8 is pushed/review; local gates + Vercel passed, but seven required CI jobs had zero steps under the known minute lock.
-Do not merge or launch B/C while required CI is red, and do not spend to bypass the monthly lock.
-When Actions renew, rebase without force-push using the plan's fresh review-branch procedure, rerun CI, review scope, then present Steven the merge card.
-The 895 MB npm recovery copy in /tmp requires explicit cleanup authority; the lane uses the shared node_modules link.
+Delta: Steven approved a Lane-A-only manual substitute; current-main code and all runnable local gates are green.
+Commit/push the exact staged slice to the no-PR manual branch, require fresh Vercel green, then promote it to main with CI skipped.
+Docker is unavailable locally and Google Fonts blocked local build; do not describe either as passed.
+After main verification, close stale PR #15 and release the next plan step; do not launch a new parallel lane without the approved workflow.
 Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F gate, and the watcher-owned dirty inbox.
 ```
 
 ## Pointer
 
 - Audit/contract/launch package: `plans/product-workflow-integration/`.
-- Lane: `.claude/worktrees/product-contract-v1`; `agent/product/contract-v1`;
-  `bf589e8`; PR #15; board: `COORDINATION.md`.
+- Lane: `.claude/worktrees/product-contract-v1`;
+  `agent/product/contract-v1-manual`; source `bf589e8`; stale PR #15.
 - Approval receipt: `docs/governance/decisions.md` (2026-07-19 decision).
 - Supabase convention:
   `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`;
@@ -79,8 +78,8 @@ Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F
   snapshots; Workbench overflows/clips at 390px.
 - Whole-gene acceptance: variant is initial focus only; the continuous locus
   includes all exons/introns/UTRs and a distant selection must feed Primer.
-- Approved plan/Supabase rollout `5bd4d28`; Lane A PR CI `29683028720`
-  (seven zero-step failures; required CI not green).
+- Approved plan/Supabase rollout `5bd4d28`; Lane A manual exception is recorded
+  in `docs/governance/decisions.md`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
@@ -94,12 +93,13 @@ Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F
   unsafe/sensitive return paths, decoded controls, mismatched variant/selection/
   report targets, unsafe filenames/digests, and cross-run artifacts. No confirmed
   vulnerability remains in the inspected Lane A contract scope.
-- Full local gate passed: focused + adjacent backend contract/boundary/Workbench
-  tests (expected skips only), web 193/193, TypeScript, ESLint, Black, Ruff,
-  frontend boundary 275 files, coordination 9/9, strict handoff lint, diff-check.
-- Commit `bf589e8` is pushed and PR #15 is open. A 10:23 UTC live recheck kept
-  the same seven zero-step Actions failures; Vercel remains green, so no CI
-  rerun, rebase, merge, or downstream lane launch ran.
+- Manual substitute passed focused and both full backend shards, web 193/193,
+  TypeScript, ESLint, Black, Ruff, pip audit, the configured high-severity npm
+  audit gate, frontend boundary 275 files, coordination 9/9, and diff-check.
+- This host has no Docker executable. Local Next compilation was blocked only by
+  Google Fonts timeouts; the same commit still requires a fresh Vercel build.
+- Steven's one-time Lane A override is recorded in the decision ledger, plan,
+  and board. It does not relabel the zero-step Actions run as green.
 - No later lane, cloud, deploy, Supabase, provider, source, or Phase-7 mutation ran.
 - The repository's worktree install ratchet rejected the plan's stale lane-local
   `npm ci`; Codex restored the intended shared dependency link without deleting
@@ -115,6 +115,6 @@ Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F
 
 ## Next Action
 
-- Run the Phase-3c recovery-middle sample first if its floor has passed. Otherwise
-  hold PR #15 until Actions minutes renew; then obtain a real green required-CI
-  run and Steven's explicit merge approval before merging or releasing B/C.
+- Run the recovery-middle sample first if due. Otherwise push the exact manual
+  Lane A commit without a PR, require Vercel green, promote it to current `main`
+  with CI skipped, verify, and retire PR #15 before releasing the next step.

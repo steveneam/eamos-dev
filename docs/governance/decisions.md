@@ -3,6 +3,30 @@
 Relocated from `agent_handoff/DECISIONS.md`: 2026-07-15 21:39 +1000 by Codex
 to keep durable reference material outside the live session handoff.
 
+## 2026-07-19: Lane A Manual CI Substitute Approved
+
+Section added: 2026-07-19 10:51 +0000 · Codex.
+
+Decision (Steven, 2026-07-19): GitHub Actions is automation rather than the
+substance of the gate. For Product Workflow Lane A only, replace the unavailable
+hosted run with a complete local-equivalent verification, then commit and push
+the verified contract to current `main` with CI skipped. This is the explicit
+per-instance exception to Lane A's green-required-CI rule and the approval to
+integrate Lane A after that substitute gate passes.
+
+The substitute receipt must retain the exact changed paths, focused and full
+backend tests, web tests/typecheck/lint, structural and coordination ratchets,
+dependency audits, formatting/static checks, and a real Vercel build. Known
+environment limits must remain visible rather than being reported green: this
+Linux host has no Docker executable, and its local Next build cannot reach
+Google Fonts. Lane A changes no container/build files, and main promotion waits
+for the same commit's fresh Vercel preview.
+
+This exception does not waive Task F, any Supabase mutation, later-lane gates,
+production backend deployment, providers, sources, Phase 7, cleanup, or any
+other cloud action. It does not manufacture or relabel the failed zero-step
+Actions run as green.
+
 ## 2026-07-19: Product Workflow V1 And Five-Lane Sprint Approved
 
 Section added: 2026-07-19 09:43 +0000 · Codex.
