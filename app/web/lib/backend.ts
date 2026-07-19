@@ -908,6 +908,14 @@ export interface FunctionalEvidenceDisplayMetrics {
   ui_color_theme: string
 }
 
+export interface FunctionalMeasurementValue {
+  column: string
+  source_value: string
+  parsed_value: string
+  description?: string | null
+  details?: string | null
+}
+
 export interface FunctionalStudy {
   source_id?: string | null
   source_record_id?: string | null
@@ -944,8 +952,23 @@ export interface FunctionalStudy {
   score_direction?: string | null
   score_set_urn?: string | null
   variant_urn?: string | null
+  experiment_urn?: string | null
+  experiment_set_urn?: string | null
   target_accession?: string | null
+  target_kind?: string | null
+  target_assembly?: string | null
+  target_sequence_checksum?: string | null
   target_identity?: string | null
+  mave_hgvs_nt?: string | null
+  mave_hgvs_splice?: string | null
+  mave_hgvs_pro?: string | null
+  score_column_description?: string | null
+  score_column_details?: string | null
+  uncertainty_values: FunctionalMeasurementValue[]
+  assay_context?: string | null
+  method_text?: string | null
+  linked_doi_identifiers: string[]
+  linked_publication_identifiers: string[]
   archive_release_doi?: string | null
   archive_sha256?: string | null
   archive_checksum_algorithm?: string | null

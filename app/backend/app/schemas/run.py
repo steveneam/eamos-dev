@@ -646,6 +646,14 @@ class FunctionalEvidenceDisplayMetrics(BaseModel):
     ui_color_theme: str = "neutral_slate_state"
 
 
+class FunctionalMeasurementValue(BaseModel):
+    column: str
+    source_value: str
+    parsed_value: Decimal
+    description: str | None = None
+    details: str | None = None
+
+
 class FunctionalStudy(SourceFactPolicyEnvelope):
     id: str
     pmid: str | None = None
@@ -663,8 +671,23 @@ class FunctionalStudy(SourceFactPolicyEnvelope):
     score_direction: str | None = None
     score_set_urn: str | None = None
     variant_urn: str | None = None
+    experiment_urn: str | None = None
+    experiment_set_urn: str | None = None
     target_accession: str | None = None
+    target_kind: str | None = None
+    target_assembly: str | None = None
+    target_sequence_checksum: str | None = None
     target_identity: str | None = None
+    mave_hgvs_nt: str | None = None
+    mave_hgvs_splice: str | None = None
+    mave_hgvs_pro: str | None = None
+    score_column_description: str | None = None
+    score_column_details: str | None = None
+    uncertainty_values: list[FunctionalMeasurementValue] = Field(default_factory=list)
+    assay_context: str | None = None
+    method_text: str | None = None
+    linked_doi_identifiers: list[str] = Field(default_factory=list)
+    linked_publication_identifiers: list[str] = Field(default_factory=list)
     archive_release_doi: str | None = None
     archive_sha256: str | None = None
     archive_checksum_algorithm: str | None = None
