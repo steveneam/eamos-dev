@@ -4,6 +4,11 @@ from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 
+from app.repos.variant_library_repo import (
+    LIBRARY_SCHEMA_MARKER_ID,
+    make_library_tombstone,
+)
+
 
 def _saved_variant_payload(**overrides) -> dict:
     payload = {
@@ -49,6 +54,88 @@ def test_variant_library_whole_document_sync_round_trip(auth_client: TestClient)
     assert replaced.json()["folders"] == payload["folders"]
     assert isinstance(replaced.json()["updated_at"], str)
     assert fetched.json() == replaced.json()
+
+
+def test_variant_library_v2_tombstone_prevents_stale_resurrection(
+    auth_client: TestClient,
+) -> None:
+    variant_id = "ush2a:c.2276g>t"
+    active = _saved_variant_payload(id=variant_id, savedAt=100)
+    marker = {
+        "id": LIBRARY_SCHEMA_MARKER_ID,
+        "query": "library.v2",
+        "raw": "",
+        "savedAt": 1,
+    }
+    tombstone = make_library_tombstone(variant_id, saved_at=200)
+
+    assert auth_client.put(
+        "/api/v1/library",
+        json={"variants": [active, marker], "folders": []},
+    ).status_code == 200
+    deleted = auth_client.put(
+        "/api/v1/library",
+        json={"variants": [tombstone, marker], "folders": []},
+    )
+    stale = auth_client.put(
+        "/api/v1/library",
+        json={"variants": [active, marker], "folders": []},
+    )
+
+    assert deleted.status_code == 200
+    assert stale.status_code == 200
+    stale_variants = stale.json()["variants"]
+    assert [item["id"] for item in stale_variants] == [
+        LIBRARY_SCHEMA_MARKER_ID,
+        tombstone["id"],
+    ]
+    assert all(item["id"] != variant_id for item in stale_variants)
+
+    resaved = auth_client.put(
+        "/api/v1/library",
+        json={
+            "variants": [
+                _saved_variant_payload(id=variant_id, savedAt=201),
+                marker,
+            ],
+            "folders": [],
+        },
+    )
+    assert resaved.status_code == 200
+    assert [item["id"] for item in resaved.json()["variants"]] == [
+        LIBRARY_SCHEMA_MARKER_ID,
+        variant_id,
+    ]
+
+
+def test_variant_library_v2_tombstone_wins_equal_timestamp_tie(
+    auth_client: TestClient,
+) -> None:
+    variant_id = "rpe65:c.260a>g"
+    active = _saved_variant_payload(
+        id=variant_id,
+        gene="RPE65",
+        variant="c.260A>G",
+        query="RPE65 c.260A>G",
+        raw="RPE65 c.260A>G",
+        savedAt=300,
+        classification=None,
+        hgvs_full=None,
+    )
+    tombstone = make_library_tombstone(variant_id, saved_at=300)
+
+    first = auth_client.put(
+        "/api/v1/library",
+        json={"variants": [active], "folders": []},
+    )
+    tied = auth_client.put(
+        "/api/v1/library",
+        json={"variants": [tombstone], "folders": []},
+    )
+
+    assert first.status_code == 200
+    assert tied.status_code == 200
+    assert tied.json()["variants"] == [tombstone]
 
 
 def test_variant_library_whole_document_is_account_scoped(client: TestClient) -> None:

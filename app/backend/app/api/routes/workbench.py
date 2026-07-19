@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import NoReturn, Protocol
 
-from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
+from starlette.datastructures import UploadFile as StarletteUploadFile
 
+from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
 from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
+from app.schemas.workflow import ProcessingDisclosureV1, WorkflowContextV1, WorkflowRunV1
 from app.schemas.workbench import (
     AlignReferenceRequest,
     AlignReferenceResponse,
@@ -25,6 +28,7 @@ from app.schemas.workbench import (
     PrimerResponse,
 )
 from app.services.trace_parser import TRACE_MAX_DECODED_BYTES
+from app.services.workflow import ProductWorkflowService
 from app.services.workbench_design import (
     WORKBENCH_SERVICE_UNAVAILABLE,
     WorkbenchDesignError,
@@ -115,6 +119,74 @@ def enumerate_crispr_offtargets(
         _raise_workbench_error(exc)
 
 
+@router.get("/workbench/trace-disclosure", response_model=ProcessingDisclosureV1)
+def trace_processing_disclosure(
+    _principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> ProcessingDisclosureV1:
+    return _trace_processing_disclosure()
+
+
+@router.post("/workbench/workspaces", response_model=WorkflowRunV1)
+def create_workbench_workspace(
+    payload: WorkflowContextV1,
+    request: Request,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> WorkflowRunV1:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH, subject=principal.user_id)
+    return _workflow_service(request).create_run(
+        kind="workbench",
+        user_id=principal.user_id,
+        owner_provider=principal.provider,
+        status="draft",
+        context=payload,
+        done=0,
+        total=0,
+    )
+
+
+@router.get("/workbench/workspaces/{workspace_id}", response_model=WorkflowRunV1)
+def get_workbench_workspace(
+    workspace_id: str,
+    request: Request,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> WorkflowRunV1:
+    run = _workflow_service(request).get_run(
+        run_id=workspace_id,
+        user_id=principal.user_id,
+        owner_provider=principal.provider,
+    )
+    if run is None or run.kind != "workbench":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workbench workspace not found.",
+        )
+    return run
+
+
+@router.delete("/workbench/workspaces/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_workbench_workspace(
+    workspace_id: str,
+    request: Request,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> Response:
+    workflow = _workflow_service(request)
+    record = workflow.get_record(
+        run_id=workspace_id,
+        user_id=principal.user_id,
+        owner_provider=principal.provider,
+    )
+    if record is None or record.kind != "workbench" or not workflow.delete_run(
+        run_id=workspace_id,
+        user_id=principal.user_id,
+        owner_provider=principal.provider,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workbench workspace not found.",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/crispr/screening-primers", response_model=CrisprScreeningPrimerResponse)
 def design_crispr_screening_primers(
     payload: CrisprScreeningPrimerRequest,
@@ -161,8 +233,12 @@ def resolve_align_reference(
 
 
 @router.post("/align/trace", response_model=AlignTraceResponse)
-def analyze_trace(payload: AlignTraceRequest, request: Request) -> AlignTraceResponse:
-    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
+def analyze_trace(
+    payload: AlignTraceRequest,
+    request: Request,
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
+) -> AlignTraceResponse:
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH, subject=principal.user_id)
     try:
         return _workbench_service(request).analyze_trace(payload)
     except WorkbenchDesignError as exc:
@@ -173,12 +249,25 @@ def analyze_trace(payload: AlignTraceRequest, request: Request) -> AlignTraceRes
 async def analyze_crispr_tide(
     request: Request,
     cut_site_index: int = Query(..., ge=1),
-    control_file: UploadFile = File(...),
-    edited_file: UploadFile = File(...),
+    principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> CrisprTideResponse:
-    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH)
-    control_bytes = await _read_trace_upload(control_file)
-    edited_bytes = await _read_trace_upload(edited_file)
+    enforce_rate_limit(request, RATE_LIMIT_WORKBENCH, subject=principal.user_id)
+    form = await request.form()
+    control_file = form.get("control_file")
+    edited_file = form.get("edited_file")
+    if not isinstance(control_file, StarletteUploadFile) or not isinstance(
+        edited_file, StarletteUploadFile
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Multipart upload requires control_file and edited_file trace files.",
+        )
+    try:
+        control_bytes = await _read_trace_upload(control_file)
+        edited_bytes = await _read_trace_upload(edited_file)
+    finally:
+        await control_file.close()
+        await edited_file.close()
     try:
         return _workbench_service(request).analyze_crispr_tide(
             control_bytes=control_bytes,
@@ -187,3 +276,28 @@ async def analyze_crispr_tide(
         )
     except WorkbenchDesignError as exc:
         _raise_workbench_error(exc)
+
+
+def _workflow_service(request: Request) -> ProductWorkflowService:
+    service = getattr(request.app.state, "product_workflow_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Workflow persistence is unavailable.",
+        )
+    return service
+
+
+def _trace_processing_disclosure() -> ProcessingDisclosureV1:
+    return ProcessingDisclosureV1(
+        execution="eamos_backend",
+        provider_id="eamos_trace_processor",
+        provider_label="Eamos trace processor",
+        input_classes=["trace"],
+        raw_input_persisted=False,
+        retention="request_lifetime",
+        expires_at=None,
+        user_deletable=True,
+        consent_required=False,
+        warnings=[],
+    )

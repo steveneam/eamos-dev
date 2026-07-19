@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import RLock, Thread
 from time import monotonic
 from typing import Any, Iterable, Protocol
-from urllib.parse import quote_plus, unquote
+from urllib.parse import unquote, urlencode
 from uuid import uuid4
 
 from app.schemas.lookup import LookupRequest
@@ -101,9 +101,9 @@ class BatchService:
         max_lookup_workers: int = BATCH_DEFAULT_LOOKUP_WORKERS,
         panel_splice_flank_bp: int = BATCH_PANEL_SPLICE_FLANK_BP,
         clock: Callable[[], float] | None = None,
+        workflow_service: Any | None = None,
     ) -> None:
         self.upload_dir = upload_dir / "batch"
-        self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.panel_service = panel_service
         self.coordinate_resolver = coordinate_resolver
         self.lookup_service = lookup_service
@@ -127,6 +127,7 @@ class BatchService:
         )
         self._panel_splice_flank_bp = max(0, int(panel_splice_flank_bp))
         self._clock = clock or monotonic
+        self.workflow_service = workflow_service
         self._uploads: OrderedDict[str, StoredUpload] = OrderedDict()
         self._jobs: OrderedDict[str, StoredBatchJob] = OrderedDict()
         self._lookup_cache: OrderedDict[str, BatchResult] = OrderedDict()
@@ -171,7 +172,6 @@ class BatchService:
         with self._lock:
             self._uploads[upload_ref] = stored
             self._trim_registry(self._uploads, max_entries=self._max_upload_entries)
-        self._write_upload_snapshot(stored)
         return upload_ref
 
     def create_job(
@@ -224,6 +224,12 @@ class BatchService:
         with self._lock:
             self._jobs[job_id] = job
             self._trim_registry(self._jobs, max_entries=self._max_job_entries)
+        try:
+            self._create_durable_job(job)
+        except Exception:
+            with self._lock:
+                self._jobs.pop(job_id, None)
+            raise
         if self.lookup_service is not None and deduped:
             self._start_background_job(job_id, tuple(deduped))
         return BatchCreateResponse(
@@ -242,11 +248,29 @@ class BatchService:
         owner_user_id: str | None = None,
         owner_provider: str | None = None,
     ) -> BatchJob | None:
+        if (
+            self.workflow_service is not None
+            and owner_user_id is not None
+            and owner_provider is not None
+        ):
+            return self._durable_job(
+                job_id,
+                limit=limit,
+                cursor=cursor,
+                owner_user_id=owner_user_id,
+                owner_provider=owner_provider,
+            )
         with self._lock:
             self._prune_registries()
             job = self._jobs.get(job_id)
             if job is None:
-                return None
+                return self._durable_job(
+                    job_id,
+                    limit=limit,
+                    cursor=cursor,
+                    owner_user_id=owner_user_id,
+                    owner_provider=owner_provider,
+                )
             if not _owner_matches(
                 job,
                 owner_user_id=owner_user_id,
@@ -288,7 +312,7 @@ class BatchService:
             owner_provider=owner_provider,
         ):
             raise KeyError(request.upload_ref or "")
-        self._uploads.move_to_end(request.upload_ref or "")
+        self._uploads.pop(request.upload_ref or "", None)
         warnings = list(upload.warnings)
         if upload.skipped_rows:
             warnings.append(f"upload_skipped_rows:{upload.skipped_rows}")
@@ -386,13 +410,6 @@ class BatchService:
             warnings.append(f"panel_filter_interval_genes_missing:{missing_genes}")
         return tuple(intervals), warnings
 
-    def _write_upload_snapshot(self, upload: StoredUpload) -> None:
-        snapshot = self.upload_dir / f"{upload.upload_ref}.json"
-        with snapshot.open("w", encoding="utf-8") as handle:
-            for variant in upload.variants:
-                handle.write(variant.model_dump_json())
-                handle.write("\n")
-
     def _prune_registries(self) -> None:
         if self._entry_ttl_seconds <= 0:
             return
@@ -436,7 +453,7 @@ class BatchService:
             gnomad_af=variant.info_af,
             predictor_ensemble={},
             acmg_classification=None,
-            report_href=f"/lookup?query={variant.query}",
+            report_href=_report_href(variant.gene, hgvs_c),
             warnings=list(dict.fromkeys(identity.warnings)),
         )
 
@@ -452,7 +469,10 @@ class BatchService:
             gnomad_af=variant.info_af,
             predictor_ensemble={},
             acmg_classification=None,
-            report_href=f"/lookup?query={quote_plus(variant.query)}",
+            report_href=_report_href(
+                variant.gene,
+                variant.variant if (variant.variant or "").startswith("c.") else None,
+            ),
             warnings=list(dict.fromkeys(identity.warnings)),
         )
 
@@ -506,23 +526,41 @@ class BatchService:
             if job is None:
                 return
             job.status = "running"
+            self._persist_job(job)
 
         try:
-            with ThreadPoolExecutor(max_workers=self._max_lookup_workers) as executor:
-                futures = {
+            executor = ThreadPoolExecutor(max_workers=self._max_lookup_workers)
+            cancelled = False
+            try:
+                pending = {
                     executor.submit(self._lookup_result_for_variant, variant): index
                     for index, variant in enumerate(variants)
                 }
-                for future in as_completed(futures):
-                    index = futures[future]
-                    try:
-                        result = future.result()
-                    except Exception as exc:
-                        result = self._failed_result_from_variant(
-                            variants[index],
-                            f"batch_lookup_failed:{type(exc).__name__}",
-                        )
-                    self._record_lookup_result(job_id, index, result)
+                while pending:
+                    if self._job_is_cancelled(job_id):
+                        cancelled = True
+                        for future in pending:
+                            future.cancel()
+                        break
+                    completed, _waiting = wait(
+                        tuple(pending),
+                        timeout=0.05,
+                        return_when=FIRST_COMPLETED,
+                    )
+                    for future in completed:
+                        index = pending.pop(future)
+                        try:
+                            result = future.result()
+                        except Exception as exc:
+                            result = self._failed_result_from_variant(
+                                variants[index],
+                                f"batch_lookup_failed:{type(exc).__name__}",
+                            )
+                        self._record_lookup_result(job_id, index, result)
+            finally:
+                executor.shutdown(wait=not cancelled, cancel_futures=cancelled)
+            if cancelled:
+                return
             self._finish_lookup_job(job_id)
         except Exception as exc:
             with self._lock:
@@ -530,6 +568,12 @@ class BatchService:
                 if job is not None:
                     job.status = "failed"
                     job.warnings.append(f"batch_job_failed:{type(exc).__name__}")
+                    self._persist_job(job)
+
+    def _job_is_cancelled(self, job_id: str) -> bool:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            return job is None or job.status == "cancelled"
 
     def _lookup_result_for_variant(self, variant: ParsedVariant) -> BatchResult:
         identity = self._variant_identity(variant)
@@ -581,25 +625,182 @@ class BatchService:
             gnomad_af=variant.info_af,
             predictor_ensemble={},
             acmg_classification=None,
-            report_href=f"/lookup?query={quote_plus(variant.query)}",
+            report_href=_report_href(
+                variant.gene,
+                variant.variant if (variant.variant or "").startswith("c.") else None,
+            ),
             warnings=list(dict.fromkeys([*identity.warnings, warning])),
         )
 
     def _record_lookup_result(self, job_id: str, index: int, result: BatchResult) -> None:
         with self._lock:
             job = self._jobs.get(job_id)
-            if job is None or index >= len(job.results):
+            if job is None or job.status == "cancelled" or index >= len(job.results):
                 return
             job.results[index] = result
             job.done = min(job.total, job.done + 1)
+            self._persist_job(job)
 
     def _finish_lookup_job(self, job_id: str) -> None:
         with self._lock:
             job = self._jobs.get(job_id)
             if job is None:
                 return
+            if job.status == "cancelled":
+                self._persist_job(job)
+                return
             any_completed = any(result.state == "completed" for result in job.results)
             job.status = "completed" if any_completed or job.total == 0 else "failed"
+            self._persist_job(job)
+
+    def cancel_job(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+        owner_provider: str,
+    ):
+        workflow = self.workflow_service
+        if workflow is None:
+            return None
+        record = workflow.get_record(
+            run_id=job_id,
+            user_id=owner_user_id,
+            owner_provider=owner_provider,
+        )
+        if record is None or record.kind != "batch":
+            return None
+        run = workflow.cancel_run(
+            run_id=job_id,
+            user_id=owner_user_id,
+            owner_provider=owner_provider,
+        )
+        if run is None:
+            return None
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is not None and _owner_matches(
+                job,
+                owner_user_id=owner_user_id,
+                owner_provider=owner_provider,
+            ):
+                job.status = "cancelled"
+        return run
+
+    def delete_job(
+        self,
+        job_id: str,
+        *,
+        owner_user_id: str,
+        owner_provider: str,
+    ) -> bool:
+        workflow = self.workflow_service
+        if workflow is None:
+            return False
+        record = workflow.get_record(
+            run_id=job_id,
+            user_id=owner_user_id,
+            owner_provider=owner_provider,
+        )
+        if record is None or record.kind != "batch":
+            return False
+        deleted = workflow.delete_run(
+            run_id=job_id,
+            user_id=owner_user_id,
+            owner_provider=owner_provider,
+        )
+        if deleted:
+            with self._lock:
+                self._jobs.pop(job_id, None)
+        return deleted
+
+    def _create_durable_job(self, job: StoredBatchJob) -> None:
+        if self.workflow_service is None or job.owner_user_id is None or job.owner_provider is None:
+            return
+        self.workflow_service.create_run(
+            kind="batch",
+            run_id=job.job_id,
+            user_id=job.owner_user_id,
+            owner_provider=job.owner_provider,
+            status=job.status,
+            done=job.done,
+            total=job.total,
+            warnings=job.warnings,
+            processing_disclosure={
+                "execution": "eamos_backend",
+                "provider_id": "eamos_batch",
+                "provider_label": "Eamos batch processor",
+                "input_classes": ["vcf"],
+                "raw_input_persisted": False,
+                "retention": "request_lifetime",
+                "expires_at": None,
+                "user_deletable": True,
+                "consent_required": False,
+                "warnings": [],
+            },
+            items=[result.model_dump(mode="json") for result in job.results],
+            n_input=job.n_input,
+            n_to_lookup=job.n_to_lookup,
+            n_after_filters=job.n_after_filters,
+            est_seconds=job.est_seconds,
+        )
+
+    def _persist_job(self, job: StoredBatchJob) -> None:
+        if self.workflow_service is None or job.owner_user_id is None or job.owner_provider is None:
+            return
+        self.workflow_service.update_batch_run(
+            run_id=job.job_id,
+            user_id=job.owner_user_id,
+            owner_provider=job.owner_provider,
+            status=job.status,
+            done=job.done,
+            total=job.total,
+            warnings=list(job.warnings),
+            items=[result.model_dump(mode="json") for result in job.results],
+        )
+
+    def _durable_job(
+        self,
+        job_id: str,
+        *,
+        limit: int,
+        cursor: str | None,
+        owner_user_id: str | None,
+        owner_provider: str | None,
+    ) -> BatchJob | None:
+        workflow = self.workflow_service
+        if workflow is None or owner_user_id is None or owner_provider is None:
+            return None
+        record = workflow.get_record(
+            run_id=job_id,
+            user_id=owner_user_id,
+            owner_provider=owner_provider,
+        )
+        if record is None or record.kind != "batch":
+            return None
+        page = workflow.page_items(
+            run_id=job_id,
+            user_id=owner_user_id,
+            owner_provider=owner_provider,
+            limit=limit,
+            cursor=cursor,
+        )
+        if page is None:
+            return None
+        items, next_cursor, total = page
+        return BatchJob(
+            job_id=record.run_id,
+            status=record.status,
+            n_input=record.n_input or 0,
+            n_to_lookup=record.n_to_lookup or record.total,
+            n_after_filters=record.n_after_filters,
+            est_seconds=record.est_seconds or 0.0,
+            done=record.done,
+            total=record.total,
+            results=[BatchResult.model_validate(item) for item in items],
+            page=BatchPage(limit=limit, next_cursor=next_cursor, total=total),
+            warnings=record.warnings,
+        )
 
 
 def _dedupe_variants(
@@ -718,7 +919,6 @@ def _batch_result_from_lookup_response(
         acmg_worksheet, "classification", None
     )
     genomic_hg38 = getattr(header, "genomic_hg38", None) or getattr(row, "genomic_hg38", None)
-    query = str(getattr(response, "query", None) or variant.query)
     warnings = list(identity.warnings)
     warnings.extend(getattr(response, "warnings", []) or [])
     return BatchResult(
@@ -731,7 +931,11 @@ def _batch_result_from_lookup_response(
         gnomad_af=gnomad_af,
         predictor_ensemble=_predictor_ensemble(payload),
         acmg_classification=acmg_classification,
-        report_href=f"/lookup?query={quote_plus(query)}",
+        report_href=_report_href(
+            gene,
+            hgvs_c,
+            transcript=getattr(header, "transcript", None),
+        ),
         warnings=list(dict.fromkeys(warnings)),
     )
 
@@ -756,7 +960,7 @@ def _enrich_batch_result_from_variant(result: BatchResult, variant: ParsedVarian
     if result.gnomad_af is None and variant.info_af is not None:
         updates["gnomad_af"] = variant.info_af
     if updates and gene and hgvs_c:
-        updates["report_href"] = f"/lookup?query={quote_plus(f'{gene}:{hgvs_c}')}"
+        updates["report_href"] = _report_href(gene, hgvs_c)
     if not updates:
         return result.model_copy(deep=True)
     return result.model_copy(update=updates, deep=True)
@@ -764,6 +968,21 @@ def _enrich_batch_result_from_variant(result: BatchResult, variant: ParsedVarian
 
 def _is_cdna_hgvs(value: str | None) -> bool:
     return bool(value and value.startswith("c."))
+
+
+def _report_href(
+    gene: str | None,
+    cdna: str | None,
+    *,
+    transcript: str | None = None,
+) -> str | None:
+    if not gene or not _is_cdna_hgvs(cdna):
+        return None
+    params: list[tuple[str, str]] = [("gene", gene.upper()), ("cdna", cdna)]
+    if transcript:
+        params.append(("transcript", transcript))
+    params.append(("from", "batch"))
+    return f"/report?{urlencode(params)}"
 
 
 def _predictor_ensemble(payload) -> dict[str, Any]:

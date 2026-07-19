@@ -2,18 +2,30 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from datetime import UTC, datetime
 import re
+from threading import Lock
+from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, status
 
 from app.core.logging import get_logger
 from app.core.ownership import OwnerIdentity
+from app.repos.product_workflow_repo import (
+    ProductWorkflowRepository,
+    ProductWorkflowRunRecord,
+)
 from app.rules.base import DecisionInput
 from app.services.lookup_service import GENE_THERAPY_MAP
 from app.services.variant_decoder import decode_variant
 from app.tools.base import ToolResult
 from app.schemas.report import ExtractedCase, ExtractedVariant
+from app.schemas.workflow import (
+    ProcessingDisclosureV1,
+    WorkflowContextV1,
+    WorkflowRunV1,
+)
 from app.schemas.run import (
     EvidenceSourceSummary,
     PubMedArticle,
@@ -25,6 +37,375 @@ from app.schemas.run import (
 )
 
 logger = get_logger(__name__)
+
+
+class ProductWorkflowStateError(RuntimeError):
+    pass
+
+
+class ProductWorkflowService:
+    """Durable, owner-scoped lifecycle for product workflow surfaces."""
+
+    def __init__(self, repo: ProductWorkflowRepository) -> None:
+        self.repo = repo
+        self._expiry_sweep_lock = Lock()
+        self._last_expiry_sweep = 0.0
+
+    def create_run(
+        self,
+        *,
+        kind: str,
+        user_id: str,
+        owner_provider: str,
+        status: str = "draft",
+        done: int = 0,
+        total: int = 0,
+        warnings: list[str] | None = None,
+        source_disclosures: list[dict[str, Any]] | None = None,
+        processing_disclosure: ProcessingDisclosureV1 | dict[str, Any] | None = None,
+        context: WorkflowContextV1 | dict[str, Any] | None = None,
+        result_payload: dict[str, Any] | None = None,
+        items: list[dict[str, Any]] | None = None,
+        run_id: str | None = None,
+        n_input: int | None = None,
+        n_to_lookup: int | None = None,
+        n_after_filters: int | None = None,
+        est_seconds: float | None = None,
+    ) -> WorkflowRunV1:
+        self._purge_expired()
+        if kind not in {"batch", "paper", "workbench"}:
+            raise ValueError("Unsupported workflow kind.")
+        now = datetime.now(UTC)
+        resolved_run_id = run_id or f"{kind}-{uuid4().hex[:16]}"
+        resolved_context = self._context(
+            kind=kind,
+            run_id=resolved_run_id,
+            now=now,
+            context=context,
+        )
+        processing_model = (
+            processing_disclosure
+            if isinstance(processing_disclosure, ProcessingDisclosureV1)
+            else (
+                ProcessingDisclosureV1.model_validate(processing_disclosure)
+                if processing_disclosure is not None
+                else None
+            )
+        )
+        processing_payload = _model_json(processing_model)
+        expiry_candidates = [
+            value
+            for value in (
+                resolved_context.expires_at,
+                processing_model.expires_at if processing_model is not None else None,
+            )
+            if value is not None
+        ]
+        record = ProductWorkflowRunRecord(
+            run_id=resolved_run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+            kind=kind,
+            status=status,
+            owner_scope="account",
+            context=resolved_context.model_dump(mode="json"),
+            done=done,
+            total=total,
+            warnings=list(dict.fromkeys(warnings or [])),
+            source_disclosures=list(source_disclosures or []),
+            processing_disclosure=processing_payload,
+            artifacts=[],
+            result_payload=result_payload,
+            created_at=now,
+            updated_at=now,
+            expires_at=min(expiry_candidates) if expiry_candidates else None,
+            n_input=n_input,
+            n_to_lookup=n_to_lookup,
+            n_after_filters=n_after_filters,
+            est_seconds=est_seconds,
+        )
+        contract = self._as_contract(record)
+        self.repo.create_run(record)
+        try:
+            if items is not None:
+                self.repo.replace_items(
+                    run_id=resolved_run_id,
+                    user_id=user_id,
+                    owner_provider=owner_provider,
+                    items=items,
+                )
+        except Exception:
+            self.repo.delete_run(
+                run_id=resolved_run_id,
+                user_id=user_id,
+                owner_provider=owner_provider,
+            )
+            raise
+        return contract
+
+    def get_run(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+    ) -> WorkflowRunV1 | None:
+        record = self.get_record(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+        )
+        return self._as_contract(record) if record is not None else None
+
+    def get_record(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+    ) -> ProductWorkflowRunRecord | None:
+        self._purge_expired()
+        return self.repo.get_run(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+        )
+
+    def list_runs(
+        self,
+        *,
+        user_id: str,
+        owner_provider: str,
+        kind: str | None,
+        limit: int,
+        cursor: str | None,
+    ) -> tuple[list[WorkflowRunV1], str | None, int]:
+        self._purge_expired()
+        records, next_cursor, total = self.repo.list_runs(
+            user_id=user_id,
+            owner_provider=owner_provider,
+            kind=kind,
+            limit=limit,
+            cursor=cursor,
+        )
+        return [self._as_contract(record) for record in records], next_cursor, total
+
+    def update_run(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+        status: str | None = None,
+        done: int | None = None,
+        total: int | None = None,
+        warnings: list[str] | None = None,
+        source_disclosures: list[dict[str, Any]] | None = None,
+        processing_disclosure: ProcessingDisclosureV1 | dict[str, Any] | None = None,
+        result_payload: dict[str, Any] | None = None,
+        items: list[dict[str, Any]] | None = None,
+    ) -> WorkflowRunV1 | None:
+        changes: dict[str, Any] = {"updated_at": datetime.now(UTC)}
+        for key, value in (
+            ("status", status),
+            ("done", done),
+            ("total", total),
+            ("warnings", warnings),
+            ("source_disclosures", source_disclosures),
+            ("result_payload", result_payload),
+        ):
+            if value is not None:
+                changes[key] = value
+        if processing_disclosure is not None:
+            changes["processing_disclosure"] = _model_json(processing_disclosure)
+        record = self.repo.update_run(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+            changes=changes,
+        )
+        if record is None:
+            return None
+        if items is not None:
+            self.repo.replace_items(
+                run_id=run_id,
+                user_id=user_id,
+                owner_provider=owner_provider,
+                items=items,
+            )
+        return self._as_contract(record)
+
+    def update_batch_run(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+        status: str,
+        done: int,
+        total: int,
+        warnings: list[str],
+        items: list[dict[str, Any]],
+    ) -> WorkflowRunV1 | None:
+        return self.update_run(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+            status=status,
+            done=done,
+            total=total,
+            warnings=warnings,
+            items=items,
+        )
+
+    def cancel_run(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+    ) -> WorkflowRunV1 | None:
+        record = self.get_record(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+        )
+        if record is None:
+            return None
+        if record.status in {"completed", "failed", "cancelled", "expired"}:
+            if record.status == "cancelled":
+                return self._as_contract(record)
+            raise ProductWorkflowStateError(
+                f"A {record.status} workflow run cannot be cancelled."
+            )
+        updated = self.repo.update_run(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+            changes={"status": "cancelled", "updated_at": datetime.now(UTC)},
+        )
+        return self._as_contract(updated) if updated is not None else None
+
+    def delete_run(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+    ) -> bool:
+        return self.repo.delete_run(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+        )
+
+    def page_items(
+        self,
+        *,
+        run_id: str,
+        user_id: str,
+        owner_provider: str,
+        limit: int,
+        cursor: str | None,
+    ) -> tuple[list[dict[str, Any]], str | None, int] | None:
+        if self.get_record(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+        ) is None:
+            return None
+        return self.repo.page_items(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider=owner_provider,
+            limit=limit,
+            cursor=cursor,
+        )
+
+    @staticmethod
+    def _as_contract(record: ProductWorkflowRunRecord) -> WorkflowRunV1:
+        return WorkflowRunV1.model_validate(
+            {
+                "schema_version": "workflow_run.v1",
+                "run_id": record.run_id,
+                "kind": record.kind,
+                "status": record.status,
+                "owner_scope": record.owner_scope,
+                "context": record.context,
+                "done": record.done,
+                "total": record.total,
+                "created_at": record.created_at,
+                "updated_at": record.updated_at,
+                "expires_at": record.expires_at,
+                "warnings": record.warnings,
+                "source_disclosures": record.source_disclosures,
+                "processing_disclosure": record.processing_disclosure,
+                "artifacts": record.artifacts,
+            }
+        )
+
+    @staticmethod
+    def _context(
+        *,
+        kind: str,
+        run_id: str,
+        now: datetime,
+        context: WorkflowContextV1 | dict[str, Any] | None,
+    ) -> WorkflowContextV1:
+        if context is not None:
+            validated = (
+                context
+                if isinstance(context, WorkflowContextV1)
+                else WorkflowContextV1.model_validate(context)
+            )
+            updates: dict[str, Any] = {}
+            if validated.context_id is None:
+                updates["context_id"] = run_id
+            if kind == "workbench" and validated.workspace_id is None:
+                updates["workspace_id"] = run_id
+            return validated.model_copy(update=updates)
+        if kind == "batch":
+            return_to = f"/compare?run_id={run_id}&view=cohort"
+            origin_surface = "batch"
+        elif kind == "paper":
+            return_to = f"/paper?run_id={run_id}"
+            origin_surface = "paper"
+        else:
+            return_to = f"/workbench?context_id={run_id}"
+            origin_surface = "workbench"
+        return WorkflowContextV1(
+            schema_version="workflow_context.v1",
+            context_id=run_id,
+            variant=None,
+            origin_surface=origin_surface,
+            return_to=return_to,
+            batch_run_id=run_id if kind == "batch" else None,
+            paper_run_id=run_id if kind == "paper" else None,
+            workspace_id=run_id if kind == "workbench" else None,
+            active_tool=None,
+            selection=None,
+            created_at=now,
+            expires_at=None,
+        )
+
+    def _purge_expired(self) -> None:
+        now_monotonic = time.monotonic()
+        if now_monotonic - self._last_expiry_sweep < 60.0:
+            return
+        with self._expiry_sweep_lock:
+            now_monotonic = time.monotonic()
+            if now_monotonic - self._last_expiry_sweep < 60.0:
+                return
+            self.repo.delete_expired(now=datetime.now(UTC))
+            self._last_expiry_sweep = now_monotonic
+
+
+def _model_json(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    return dict(value)
 
 
 class WorkflowService:

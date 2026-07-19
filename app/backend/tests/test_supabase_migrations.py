@@ -327,3 +327,87 @@ def test_user_library_document_migration_uses_owner_rls_and_jsonb_store() -> Non
     assert "using ((select auth.uid()) = user_id)" in normalized
     assert "with check ((select auth.uid()) = user_id)" in normalized
     assert "to anon" not in normalized
+
+
+def test_product_workflow_migration_is_owner_scoped_and_backend_written() -> None:
+    sql = _migration_sql("20260719113620_product_workflow_runs.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "create table if not exists public.product_workflow_run" in normalized
+    assert "create table if not exists public.product_workflow_item" in normalized
+    assert "user_id uuid not null references auth.users(id) on delete cascade" in normalized
+    assert "primary key (run_id, user_id, owner_provider)" in normalized
+    assert (
+        "foreign key (run_id, user_id, owner_provider) references "
+        "public.product_workflow_run(run_id, user_id, owner_provider) on delete cascade"
+    ) in normalized
+
+    for table in ("product_workflow_run", "product_workflow_item"):
+        assert f"alter table public.{table} enable row level security" in normalized
+        assert f"alter table public.{table} force row level security" in normalized
+        assert f"revoke all on public.{table} from public, anon, authenticated" in normalized
+
+    policies = _created_policies(sql)
+    assert set(policies) == {
+        "Allow users to read their own product workflow runs",
+        "Allow users to delete their own product workflow runs",
+        "Allow users to read their own product workflow items",
+    }
+    for policy in policies.values():
+        assert WRAPPED_AUTH_UID_RE.search(policy.body), policy.name
+        assert "user_id" in policy.body.lower(), policy.name
+        assert not AUTH_UID_RE.search(WRAPPED_AUTH_UID_RE.sub("", policy.body)), policy.name
+
+    assert "grant select, delete on public.product_workflow_run to authenticated" in normalized
+    assert "grant select on public.product_workflow_item to authenticated" in normalized
+    assert "grant insert on public.product_workflow_run to authenticated" not in normalized
+    assert "grant update on public.product_workflow_run to authenticated" not in normalized
+    assert (
+        "grant select, insert, update, delete on public.product_workflow_run to service_role"
+        in normalized
+    )
+    assert (
+        "grant select, insert, update, delete on public.product_workflow_item to service_role"
+        in normalized
+    )
+    assert "to anon" not in normalized
+
+
+def test_product_workflow_migration_has_bounded_shapes_indexes_and_no_raw_columns() -> None:
+    sql = _migration_sql("20260719113620_product_workflow_runs.sql")
+    normalized = re.sub(r"\s+", " ", sql.lower())
+
+    assert "product_workflow_progress_nonnegative" in normalized
+    assert "product_workflow_metrics_nonnegative" in normalized
+    assert "jsonb_typeof(context) = 'object'" in normalized
+    assert "jsonb_typeof(payload) = 'object'" in normalized
+    assert "jsonb_typeof(artifacts) = 'array'" in normalized
+    assert "idx_product_workflow_run_owner_kind_updated" in normalized
+    assert "idx_product_workflow_run_owner_updated" in normalized
+    assert "idx_product_workflow_run_expires" in normalized
+    assert "where expires_at is not null" in normalized
+    assert "idx_product_workflow_item_owner_run_position" in normalized
+
+    table_columns = re.findall(
+        r"create table if not exists public\.product_workflow_(?:run|item) \((.*?)\);",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    assert len(table_columns) == 2
+    forbidden_column_names = (
+        "access_token",
+        "authorization",
+        "edited_sequence",
+        "evidence_quote",
+        "notes",
+        "paper_text",
+        "pdf_bytes",
+        "raw_input",
+        "raw_text",
+        "sequence",
+        "token",
+        "vcf",
+    )
+    for definition in table_columns:
+        for column_name in forbidden_column_names:
+            assert not re.search(rf"^\s*{column_name}\s+", definition, flags=re.MULTILINE)

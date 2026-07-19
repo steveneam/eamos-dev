@@ -114,12 +114,23 @@ def _supabase_principal(request: Request, token: str) -> AuthenticatedPrincipal 
     key = _supabase_verification_key(settings, token, algorithm)
     if key is None:
         return None
+    issuer = _configured_supabase_issuer(settings)
+    decode_kwargs = {
+        "algorithms": [algorithm],
+        "audience": "authenticated",
+    }
+    if issuer is not None:
+        decode_kwargs.update(
+            {
+                "issuer": issuer,
+                "options": {"require": ["iss", "aud", "exp", "sub", "role"]},
+            }
+        )
     try:
         claims = jwt.decode(
             token,
             key,
-            algorithms=[algorithm],
-            audience="authenticated",
+            **decode_kwargs,
         )
     except InvalidTokenError:
         return None
@@ -129,7 +140,7 @@ def _supabase_principal(request: Request, token: str) -> AuthenticatedPrincipal 
     if not isinstance(user_id, str) or not user_id:
         return None
     role = claims.get("role")
-    if role not in (None, "authenticated"):
+    if role not in ({"authenticated"} if issuer is not None else {None, "authenticated"}):
         return None
     email = claims.get("email") if isinstance(claims.get("email"), str) else None
     return AuthenticatedPrincipal(
@@ -172,6 +183,11 @@ def _default_supabase_jwks_url(supabase_url: str | None) -> str | None:
     if not supabase_url:
         return None
     return f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+
+
+def _configured_supabase_issuer(settings) -> str | None:
+    value = str(getattr(settings, "supabase_jwt_issuer", "") or "").strip()
+    return value.rstrip("/") if value else None
 
 
 def _normalized_pem(value: str) -> str:

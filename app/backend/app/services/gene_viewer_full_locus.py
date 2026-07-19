@@ -134,6 +134,9 @@ def _full_gene_response_from_record(
     payload: GeneViewerRequest,
     record: dict[str, Any],
     fixture_version: str,
+    provenance_sources: list[ViewerProvenanceSource] | None = None,
+    provenance_warnings: list[str] | None = None,
+    source_label: str = "full_gene_fixture",
 ) -> GeneViewerResponse:
     variant = variant_from_curated_fixture(record)
     _validate_full_gene_variant_reference(record=record, variant=variant)
@@ -229,18 +232,24 @@ def _full_gene_response_from_record(
             applied_variant=None,
         ),
         tracks=ViewerTracks(
-            clinvar_variants=[
-                ClinvarVariant(
-                    cds_pos=variant.cds_pos,
-                    hgvs_c=variant.hgvs_c,
-                    hgvs_p=variant.hgvs_p,
-                    classification=variant.classification,
-                    clinvar_id=str(
-                        record.get("accession") or record.get("clinvar_variation_id") or ""
-                    ),
-                    queried=True,
-                )
-            ],
+            clinvar_variants=(
+                [
+                    ClinvarVariant(
+                        cds_pos=variant.cds_pos,
+                        hgvs_c=variant.hgvs_c,
+                        hgvs_p=variant.hgvs_p,
+                        classification=variant.classification,
+                        clinvar_id=str(
+                            record.get("accession")
+                            or record.get("clinvar_variation_id")
+                            or ""
+                        ),
+                        queried=True,
+                    )
+                ]
+                if record.get("accession") or record.get("clinvar_variation_id")
+                else []
+            ),
             exon_density=(
                 [ExonVariantDensity(exon_number=exon_number, variant_count=1)]
                 if exon_number is not None
@@ -270,6 +279,7 @@ def _full_gene_response_from_record(
                 gene_start=gene_start,
                 gene_end=gene_end,
                 variant_position=variant_position,
+                source_label=source_label,
             ),
             rendering_hints=ViewerRenderingHints(
                 orientation=(
@@ -284,19 +294,25 @@ def _full_gene_response_from_record(
             ),
         ),
         provenance=ViewerProvenance(
-            sources=[
-                *curated_fixture_provenance_sources(
-                    record=record,
-                    fixture_version=fixture_version,
-                ),
-                ViewerProvenanceSource(
-                    name="eamos_full_gene_fixture",
-                    identifier=source.transcript,
-                    version=FULL_GENE_FIXTURE_VERSION,
-                ),
-            ],
+            sources=(
+                provenance_sources
+                if provenance_sources is not None
+                else [
+                    *curated_fixture_provenance_sources(
+                        record=record,
+                        fixture_version=fixture_version,
+                    ),
+                    ViewerProvenanceSource(
+                        name="eamos_full_gene_fixture",
+                        identifier=source.transcript,
+                        version=FULL_GENE_FIXTURE_VERSION,
+                    ),
+                ]
+            ),
             warnings=_dedupe_warnings(
-                [
+                provenance_warnings
+                if provenance_warnings is not None
+                else [
                     *[str(warning) for warning in record.get("warnings") or []],
                     "full_gene_fixture_hydrated",
                     "full_gene_intronic_sequence_is_deterministic_fixture",
@@ -596,6 +612,7 @@ def _full_locus_feature_intervals(
     gene_start: int,
     gene_end: int,
     variant_position: int | None,
+    source_label: str = "full_gene_fixture",
 ) -> list[ViewerFeatureInterval]:
     strand = _schema_strand(str(record.get("strand") or "unknown"))
     gene = str(record["gene"])
@@ -608,7 +625,7 @@ def _full_locus_feature_intervals(
             start=gene_start,
             end=gene_end,
             strand=strand,
-            source="full_gene_fixture",
+            source=source_label,
         ),
         ViewerFeatureInterval(
             id=f"{gene.lower()}-transcript",
@@ -618,7 +635,7 @@ def _full_locus_feature_intervals(
             start=gene_start,
             end=gene_end,
             strand=strand,
-            source="full_gene_fixture",
+            source=source_label,
         ),
     ]
     if variant_position is not None:
@@ -631,7 +648,7 @@ def _full_locus_feature_intervals(
                 start=variant_position,
                 end=variant_position,
                 strand=strand,
-                source="clinvar_fixture",
+                source=source_label,
                 classification=variant.classification,
                 metadata={
                     "hgvs_c": variant.hgvs_c,
@@ -640,20 +657,22 @@ def _full_locus_feature_intervals(
                 },
             )
         )
-        features.append(
-            ViewerFeatureInterval(
-                id=f"{gene.lower()}-clinvar-queried",
-                kind="clinvar",
-                label=str(record.get("accession") or record.get("clinvar_variation_id") or ""),
-                coordinate_system="genomic",
-                start=variant_position,
-                end=variant_position,
-                strand=strand,
-                source="clinvar_gene_agnostic_stack",
-                classification=variant.classification,
-                metadata={"queried": True},
+        clinvar_identifier = record.get("accession") or record.get("clinvar_variation_id")
+        if clinvar_identifier:
+            features.append(
+                ViewerFeatureInterval(
+                    id=f"{gene.lower()}-clinvar-queried",
+                    kind="clinvar",
+                    label=str(clinvar_identifier),
+                    coordinate_system="genomic",
+                    start=variant_position,
+                    end=variant_position,
+                    strand=strand,
+                    source=source_label,
+                    classification=variant.classification,
+                    metadata={"queried": True},
+                )
             )
-        )
     return features
 
 
@@ -666,6 +685,35 @@ def _build_full_locus_sequence(
     chrom = str(record["chrom"]).removeprefix("chr")
     gene_start = int(record["gene_start"])
     gene_end = int(record["gene_end"])
+    source_sequence = str(record.get("locus_sequence") or "").upper()
+    if source_sequence:
+        expected_length = gene_end - gene_start + 1
+        if len(source_sequence) != expected_length or any(
+            base not in {"A", "C", "G", "T", "N"} for base in source_sequence
+        ):
+            raise GeneViewerError(
+                code=GENE_VIEWER_PROVIDER_MALFORMED,
+                message="Source-backed full-gene sequence did not match the declared locus.",
+                status_code=status.HTTP_502_BAD_GATEWAY,
+            )
+        genomic_variant = _genomic_variant_parts(variant.genomic_hg38)
+        if genomic_variant is not None and variant.ref:
+            variant_chrom, variant_pos, genomic_ref, _genomic_alt = genomic_variant
+            observed = source_sequence[
+                variant_pos - gene_start : variant_pos - gene_start + len(genomic_ref)
+            ]
+            if (
+                variant_chrom != chrom
+                or variant_pos < gene_start
+                or variant_pos > gene_end
+                or observed != genomic_ref
+            ):
+                raise GeneViewerError(
+                    code=GENE_VIEWER_PROVIDER_MALFORMED,
+                    message="Source-backed variant reference did not match the full-gene locus.",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                )
+        return source_sequence
     bases = [
         _deterministic_genomic_base(gene=gene, chrom=chrom, position=position)
         for position in range(gene_start, gene_end + 1)

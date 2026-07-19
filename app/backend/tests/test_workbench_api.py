@@ -486,7 +486,12 @@ def test_crispr_offtargets_forced_index_missing_maps_to_503(tmp_path: Path) -> N
     )
 
     with pytest.raises(WorkbenchDesignError) as exc_info:
-        service.enumerate_crispr_offtargets(CrisprOffTargetRequest(guide="GAGTCCGAGCAGAAGAAGAT"))
+        service.enumerate_crispr_offtargets(
+            CrisprOffTargetRequest(
+                guide="GAGTCCGAGCAGAAGAAGAT",
+                on_target_locus={"chromosome": "7", "position": 117509080, "strand": "+"},
+            )
+        )
 
     assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
     assert exc_info.value.code == "crispr_offtarget_index_unavailable"
@@ -509,7 +514,14 @@ def test_crispr_offtargets_route_forced_index_missing_fails_closed(
     with TestClient(create_app(settings)) as test_client:
         response = test_client.post(
             "/api/v1/crispr/offtargets",
-            json={"guide": "GAGTCCGAGCAGAAGAAGAT"},
+            json={
+                "guide": "GAGTCCGAGCAGAAGAAGAT",
+                "on_target_locus": {
+                    "chromosome": "7",
+                    "position": 117509080,
+                    "strand": "+",
+                },
+            },
         )
 
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
@@ -671,6 +683,11 @@ def test_crispr_offtargets_unsupported_enzyme_maps_to_422(client) -> None:
         json={
             "guide": "GAGTCCGAGCAGAAGAAGAT",
             "enzyme": "SaCas9",
+            "on_target_locus": {
+                "chromosome": "7",
+                "position": 117509080,
+                "strand": "+",
+            },
         },
     )
 
@@ -908,8 +925,10 @@ def test_workbench_service_failures_map_to_structured_http_errors(
     }
 
 
-def test_align_trace_endpoint_analyzes_rpe65_vus1_ab1_in_fixture_mode(client) -> None:
-    response = client.post(
+def test_align_trace_endpoint_analyzes_rpe65_vus1_ab1_in_fixture_mode(
+    auth_client,
+) -> None:
+    response = auth_client.post(
         "/api/v1/align/trace",
         json={"ab1_blob_base64": _rpe65_vus1_ab1_blob()},
     )
@@ -936,10 +955,12 @@ def test_align_trace_endpoint_analyzes_rpe65_vus1_ab1_in_fixture_mode(client) ->
     assert all(call["main_ratio"] >= 0.5 for call in body["het"])
 
 
-def test_crispr_tide_endpoint_returns_observed_only_source_backed_spectrum(client) -> None:
+def test_crispr_tide_endpoint_returns_observed_only_source_backed_spectrum(
+    auth_client,
+) -> None:
     trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
 
-    response = client.post(
+    response = auth_client.post(
         "/api/v1/crispr/tide?cut_site_index=100",
         files={
             "control_file": ("control.ab1", trace_bytes, "application/octet-stream"),
@@ -979,10 +1000,10 @@ def test_workbench_service_crispr_tide_is_always_on_without_real_apis() -> None:
     assert response.spectrum[0].observed == 1.0
 
 
-def test_crispr_tide_unsupported_trace_upload_maps_to_422(client) -> None:
+def test_crispr_tide_unsupported_trace_upload_maps_to_422(auth_client) -> None:
     trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
 
-    response = client.post(
+    response = auth_client.post(
         "/api/v1/crispr/tide?cut_site_index=100",
         files={
             "control_file": ("control.ab1", b"not-an-ab1", "application/octet-stream"),
@@ -999,7 +1020,7 @@ def test_crispr_tide_unsupported_trace_upload_maps_to_422(client) -> None:
     }
 
 
-def test_crispr_tide_parser_unavailable_maps_to_503(client, monkeypatch) -> None:
+def test_crispr_tide_parser_unavailable_maps_to_503(auth_client, monkeypatch) -> None:
     def missing_parser(_data):
         raise TraceParseError(
             code=TRACE_PARSER_UNAVAILABLE,
@@ -1011,7 +1032,7 @@ def test_crispr_tide_parser_unavailable_maps_to_503(client, monkeypatch) -> None
         missing_parser,
     )
 
-    response = client.post(
+    response = auth_client.post(
         "/api/v1/crispr/tide?cut_site_index=100",
         files={
             "control_file": ("control.ab1", b"synthetic-ab1", "application/octet-stream"),

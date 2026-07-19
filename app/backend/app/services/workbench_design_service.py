@@ -310,6 +310,25 @@ class WorkbenchDesignService:
         self,
         payload: CrisprOffTargetRequest,
     ) -> CrisprOffTargetResponse:
+        if payload.genome_build.upper() != "GRCH38":
+            code = unsupported_input_warning("crispr_offtarget_genome_build")
+            raise WorkbenchDesignError(
+                code=code,
+                message="CRISPR off-target screening requires an explicit GRCh38 locus.",
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=[code],
+            )
+        if payload.on_target_locus is None:
+            code = unsupported_input_warning("crispr_offtarget_on_target_locus")
+            raise WorkbenchDesignError(
+                code=code,
+                message=(
+                    "Confirm the resolved on-target chromosome, position, and strand before "
+                    "off-target screening."
+                ),
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=[code],
+            )
         try:
             return self.crispr_offtarget_provider.enumerate(payload)
         except CrisprOffTargetScreeningInputError as exc:

@@ -441,7 +441,14 @@ def test_api_extract_pdf_upload_returns_pdf_meta(auth_client, pdf_bytes: bytes) 
     body = response.json()
     assert body["pdf"]["engine"] == "pypdf"
     assert body["pdf"]["page_count"] >= 1
-    assert body["source_metadata"] is None
+    assert body["source_metadata"] == {
+        "title": "HSIL demo PDF fixture",
+        "authors": [],
+        "year": None,
+        "journal": None,
+        "doi": None,
+        "pmid": None,
+    }
     assert body["guardrails"]["raw_paper_text_in_output"] == "blocked"
     assert body["candidate_count"] >= 1
 

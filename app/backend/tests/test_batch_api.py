@@ -371,7 +371,9 @@ def test_batch_lookup_cache_preserves_richer_variant_metadata(tmp_path: Path) ->
     assert second_job.results[0].hgvs_c == "c.5435T>A"
     assert second_job.results[0].hgvs_p == "p.Leu1812Ter"
     assert second_job.results[0].gnomad_af == 0.00042
-    assert second_job.results[0].report_href == "/lookup?query=ABCA4%3Ac.5435T%3EA"
+    assert second_job.results[0].report_href == (
+        "/report?gene=ABCA4&cdna=c.5435T%3EA&from=batch"
+    )
 
 
 def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -> None:

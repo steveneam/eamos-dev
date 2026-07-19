@@ -15,6 +15,7 @@ from app.repos.variant_library_repo import (
     VariantLibraryNotFoundError,
     VariantLibraryRepoError,
     VariantPopularityRecord,
+    is_library_reserved_variant,
 )
 from app.schemas.variant_library import (
     Folder,
@@ -80,7 +81,7 @@ class VariantLibraryService:
                 variants=[_saved_variant_document(variant) for variant in payload.variants],
                 folders=[folder.model_dump(mode="json") for folder in payload.folders],
             )
-            self._replace_search_variants(payload.variants, principal)
+            self._replace_search_variants(_visible_document_variants(document), principal)
             return _library_store_from_document(document)
         except VariantLibraryRepoError as exc:
             raise _service_unavailable() from exc
@@ -210,7 +211,9 @@ class VariantLibraryService:
         variant: SavedVariant,
         principal: AuthenticatedPrincipal,
     ) -> None:
-        if self.search_index_service is None:
+        if self.search_index_service is None or is_library_reserved_variant(
+            variant.model_dump(mode="json")
+        ):
             return
         try:
             self.search_index_service.index_saved_variant(
@@ -227,9 +230,14 @@ class VariantLibraryService:
     ) -> None:
         if self.search_index_service is None:
             return
+        visible_variants = [
+            variant
+            for variant in variants
+            if not is_library_reserved_variant(variant.model_dump(mode="json"))
+        ]
         try:
             self.search_index_service.index_saved_variants(
-                variants,
+                visible_variants,
                 owner_user_id=principal.user_id,
             )
         except Exception:
@@ -344,6 +352,14 @@ def _saved_variant_document(payload: SavedVariant) -> dict:
     if payload.hgvs_full is None:
         item.pop("hgvs_full", None)
     return item
+
+
+def _visible_document_variants(row: UserLibraryDocumentRecord) -> list[SavedVariant]:
+    return [
+        SavedVariant.model_validate(item)
+        for item in row.variants
+        if not is_library_reserved_variant(item)
+    ]
 
 
 def _normalize_id(value: str) -> str:
