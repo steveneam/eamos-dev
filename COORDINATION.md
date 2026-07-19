@@ -25,7 +25,7 @@ explicitly merge-approved, merged, and verified may B/C launch. Delivery remains
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
-| A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1` | in_progress | — | 1 |
+| A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1` | review · PR #15 · CI minute lock | — | 1 |
 | B workflow-backend | unassigned | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | pending | A merged | 2 |
 | Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending | B merged + fresh Steven approval | 3 |
 | C surface-flow | unassigned | `plan.md` Lane C web paths | `agent/product/surface-flow` | pending | A merged; merge after Task F | 4 |
@@ -111,6 +111,11 @@ own `status`. Messages are append-only; you replace only your own state.
   sequential implementation as `319b9e7` on `origin/main`, then removed the parked
   `.claude/worktrees/search-*` worktrees and local `agent/search/*` branches after Steven's
   explicit cleanup approval. No deploy/env/provider/Supabase/source action occurred.
+- 2026-07-19 (Codex, lead/owner): **Product Workflow Lane A is in review.** Commit
+  `bf589e8` is pushed in PR #15; all Lane A local/structural gates and the Vercel
+  preview passed. Actions run `29683028720` had seven failures with zero steps and
+  two skips under the known minute lock, so required CI is not green. No merge or
+  B/C launch occurred.
 
 ---
 

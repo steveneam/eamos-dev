@@ -25,21 +25,20 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** ACTIVE @ 2026-07-19 09:55 +0000 — launched Product Workflow Lane A
-  in `.claude/worktrees/product-contract-v1` on `agent/product/contract-v1` from
-  `origin/main@4b3c130`. Backend dependencies are isolated in the lane venv;
-  web dependencies are linked read-only to the main checkout.
-- **Product-workflow sprint:** ACTIVE, Lane A only. Lane A owns the frozen
-  Pydantic/TypeScript contract and canaries. B/C remain dependency-held until A
-  is reviewed, required-CI green, explicitly approved, merged, and verified.
+- **Codex:** DONE/HELD @ 2026-07-19 10:17 +0000 — Product Workflow Lane A is
+  committed/pushed as `bf589e8` on `agent/product/contract-v1`; PR #15 is open
+  in review. Local gates and the Vercel preview passed. No merge occurred.
+- **Product-workflow sprint:** Lane A is REVIEW, required-CI blocked by the
+  known GitHub Actions minute lock. B/C remain dependency-held until A is
+  required-CI green, explicitly merge-approved, merged, and verified on main.
   Every later merge and Task F remote mutation retains its separate gate.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
   live as rollback; do not close/cancel it.
-- **GitHub Actions:** plan run `29682238832` for `5bd4d28` failed with seven
-  zero-step jobs and two skips, matching the known minute lock. Steven ruled no
-  additional spend; required CI waits for monthly renewal.
+- **GitHub Actions:** PR run `29683028720` for `bf589e8` failed seven jobs with
+  `steps: []` and skipped two, matching the known minute lock. Steven ruled no
+  additional spend; required CI is not green and waits for monthly renewal.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
@@ -48,35 +47,31 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 09:56 +0000 · Codex
+UNLOCKED · 2026-07-19 10:19 +0000 · Codex
 
 ## Shared File Locks
 
-- **Codex / Lane A:** `app/backend/app/schemas/{__init__,workflow,batch,paper_variants,gene_viewer,workbench,report,variant_library}.py`,
-  `app/web/lib/backend.ts`, Lane A contract canaries, and the Product Workflow
-  Lane A row in `COORDINATION.md` until review handoff.
+- None.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 09:55 +0000 · Codex continue Product Workflow Lane A
-Read CURRENT.md, peer mail, and plans/product-workflow-integration/{research,spec,plan}.md first.
-Work only in .claude/worktrees/product-contract-v1 on agent/product/contract-v1.
-Delta: Lane A is launched from origin/main@4b3c130; no product files are edited yet.
-Implement only the frozen Pydantic/TypeScript contract and canaries in Lane A's owned paths; commit/push/PR, but never merge.
-Do not fork B/C until A is reviewed, CI-green, explicitly merge-approved, merged, and verified on main.
-If the recovery-middle floor passes before Lane A finishes, run that read-only sample before continuing.
-Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-green merge gate, and the watcher-owned dirty inbox.
+# Resume prompt · 2026-07-19 10:17 +0000 · Codex Product Workflow Lane A CI gate
+Read CURRENT.md, PR #15, Actions run 29683028720, and plans/product-workflow-integration/plan.md first.
+If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
+Delta: Lane A bf589e8 is pushed/review; local gates + Vercel passed, but seven required CI jobs had zero steps under the known minute lock.
+Do not merge or launch B/C while required CI is red, and do not spend to bypass the monthly lock.
+When Actions renew, rebase without force-push using the plan's fresh review-branch procedure, rerun CI, review scope, then present Steven the merge card.
+The 895 MB npm recovery copy in /tmp requires explicit cleanup authority; the lane uses the shared node_modules link.
+Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F gate, and the watcher-owned dirty inbox.
 ```
 
 ## Pointer
 
-- Audit, contract, and launch package: `plans/product-workflow-integration/`
-  (`research.md`, `spec.md`, and `plan.md`).
-- Lane checkout: `.claude/worktrees/product-contract-v1`; branch:
-  `agent/product/contract-v1`; live board: `COORDINATION.md`.
-- Approval receipt: `docs/governance/decisions.md` (2026-07-19 Product Workflow
-  V1 decision).
+- Audit/contract/launch package: `plans/product-workflow-integration/`.
+- Lane: `.claude/worktrees/product-contract-v1`; `agent/product/contract-v1`;
+  `bf589e8`; PR #15; board: `COORDINATION.md`.
+- Approval receipt: `docs/governance/decisions.md` (2026-07-19 decision).
 - Supabase convention:
   `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`;
   durable target/ledger inventory: `docs/db/supabase-inventory.md`.
@@ -84,27 +79,32 @@ Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollba
   snapshots; Workbench overflows/clips at 390px.
 - Whole-gene acceptance: variant is initial focus only; the continuous locus
   includes all exons/introns/UTRs and a distant selection must feed Primer.
-- Baseline: web 193/193; focused backend 398 collected and green with expected
-  skips; coordination 9/9; frontend boundary 275 tracked files and green.
-- Approved plan/Supabase rollout `5bd4d28`; CI `29682238832` (zero-step lock).
+- Approved plan/Supabase rollout `5bd4d28`; Lane A PR CI `29683028720`
+  (seven zero-step failures; required CI not green).
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- `gogogo` launched only Lane A at `origin/main@4b3c130`; no later lane launched.
+- Lane A added the frozen canonical variant/context/selection, processing,
+  run/artifact, related/curated, URL, and async contracts schema-first, mirrored
+  in TypeScript with exact enum/required/nullability canaries.
+- Secure-implementation review added negative tests for unknown client fields,
+  unsafe/sensitive return paths, decoded controls, mismatched variant/selection/
+  report targets, unsafe filenames/digests, and cross-run artifacts. No confirmed
+  vulnerability remains in the inspected Lane A contract scope.
+- Full local gate passed: focused + adjacent backend contract/boundary/Workbench
+  tests (expected skips only), web 193/193, TypeScript, ESLint, Black, Ruff,
+  frontend boundary 275 files, coordination 9/9, strict handoff lint, diff-check.
+- Commit `bf589e8` is pushed and PR #15 is open. Its Vercel preview passed; Actions
+  run `29683028720` confirmed the known zero-step minute lock, so no merge ran.
+- No later lane, cloud, deploy, Supabase, provider, source, or Phase-7 mutation ran.
 - The repository's worktree install ratchet rejected the plan's stale lane-local
   `npm ci`; Codex restored the intended shared dependency link without deleting
   the generated 895 MB recovery copy, now at
   `/tmp/eamos-product-contract-v1-node_modules-20260719T0953Z` pending explicit
   cleanup authority.
-- Evidence Security and Vibe Security are active in secure-implementation mode:
-  bound untrusted nested input, reject unknown fields, allowlist same-origin
-  return paths, and prove negative cases without expanding into route/auth work.
-- Lane A exit is frozen: exact V1 schema parity, existing contract compatibility,
-  all focused web/backend/boundary gates green, committed/pushed PR handoff, and
-  no merge.
 - Evidence expansion Phases 0-6 remain complete; Phase 7 and all source/live
   activations remain held.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
@@ -114,6 +114,6 @@ Preserve all unrelated cloud/deploy/provider/source/Phase-7 holds, Render rollba
 
 ## Next Action
 
-- From the Lane A worktree, inventory current schema/contract conventions and
-  run the focused baseline canaries; then implement only the frozen V1 contract,
-  verify, commit/push/open the PR, and pause before merge.
+- Run the Phase-3c recovery-middle sample first if its floor has passed. Otherwise
+  hold PR #15 until Actions minutes renew; then obtain a real green required-CI
+  run and Steven's explicit merge approval before merging or releasing B/C.
