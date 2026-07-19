@@ -25,18 +25,21 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** PHASES 1/2 COMPLETE @ 2026-07-17 17:19 +0000 — implementation
-  commit `b7c41c7` is pushed. Full local verification and required CI run
-  `29599296576` are green.
-- **Phase-3c soak:** active. Middle evidence is due around/after
-  2026-07-18 11:31 UTC; 48-hour floor is around/after 2026-07-19 11:31 UTC.
-  A due timed checkpoint takes precedence over new expansion work.
+- **Codex:** PHASE-3C RECOVERY BASELINE COMPLETE @ 2026-07-19 05:03 +0000 —
+  live verification and incident receipt are recorded in `d326d06`.
+- **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
+  a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
+  01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
+  live and Phase 4 remains held.
+- **GitHub Actions:** Steven ruled no additional spend; wait for the monthly
+  included-minutes renewal. Commit/push continues normally, but new code or
+  deploy slices cannot clear a required CI boundary while Actions is blocked.
 - **Runtime:** persistent `eamos` tmux under `agent-tmux.service` remains the
   execution seam.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-17 17:19 +0000 · Codex
+UNLOCKED · 2026-07-19 05:06 +0000 · Codex
 
 ## Shared File Locks
 
@@ -45,48 +48,50 @@ None.
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-17 17:14 +0000 · Codex Phases 1/2 complete
-Read CURRENT.md, peer mail, PROGRESS.md, and plans/evidence-source-expansion/plan.md first.
-REVEL call-card Phase 1 and synthetic-fixture-only ESM-1b Phase 2 are complete at b7c41c7.
-CI run 29599296576 is green; do not reopen the slice without a concrete regression.
-If the Phase-3c middle checkpoint is due (around/after 2026-07-18 11:31 UTC), run that evidence sample first.
-Otherwise stop at the next founder-directed task; no further evidence-expansion phase is authorized.
-Do not download/run ESM-1b weights or corpora, materialize bgzip/Tabix assets, upload, mutate Supabase/providers/deployments, or clean watcher-owned files.
+# Resume prompt · 2026-07-19 05:06 +0000 · Codex Phase-3c recovery soak
+Read CURRENT.md, peer mail, PROGRESS.md, and docs/deployment/render-to-syd2-phase3.md first.
+The scheduled middle checkpoint found a 7h15 shared-edge outage; recovery proof is at d326d06.
+The clean window restarted at 2026-07-19T01:46:12Z; Render remains live and Phase 4 is held.
+Run the recovery-middle sample around/after 2026-07-20 01:46 UTC before any expansion work.
+Earliest closure is around/after 2026-07-21 01:46 UTC and still requires a green end sample.
+Commit/push normally, but do not buy GitHub Actions minutes; required new-code CI waits for renewal.
+Do not mutate deployments/providers/Supabase/Render, start Phase 4, or clean watcher-owned files.
 ```
 
 ## Pointer
 
+- Recovery checkpoint and reset receipt: `d326d06`; durable details are the
+  top entry in `PROGRESS.md`.
+- Phase-3c recovery timing, evidence, and exit contract:
+  `docs/deployment/render-to-syd2-phase3.md`.
+- Shared-edge reboot guardrail:
+  `docs/operations/risks-and-guardrails.md`.
 - Implementation: `b7c41c7`; CI:
   `https://github.com/steveneam/eamos-dev/actions/runs/29599296576`.
 - Evidence expansion contract and research:
   `plans/evidence-source-expansion/plan.md` and `research.md`.
-- Phase-3c timing, proof, and exit contract:
-  `docs/deployment/render-to-syd2-phase3.md`.
-- Durable completion receipt: top entry in `PROGRESS.md`.
-- ESM-1b runtime/materialization boundary:
-  `docs/backend-build-ledger-runtime/materialization-plan.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- The Computational call card is REVEL-led from the typed backend decision,
-  including score, PP3/BP4 code, points, theme, provenance, explicit unavailable
-  and not-applicable states, independent card colors, and export parity.
-- Evidence accounting replaces combined/consensus copy. Browser proof covered
-  five states at 390/768/1024/1440; the mobile carousel now has 24-pixel tap
-  targets and scored Lighthouse accessibility 97.
-- The ESM-1b fixture worker streams bounded inputs through SQLite into
-  deterministic raw-score shards, handles contextual duplicates, caps fixture
-  inputs at 100,000 rows, and preserves exact 1022/512/scale-20 tiling.
-- Runtime activation requires a complete release-ready v2 proof and verifies
-  the canonical route plus mounted asset/index name, size, and SHA-256.
-- `npm run verify` passed in 243.0 seconds, including all structural guards,
-  174 web tests, the complete backend suite, and the 17-route production build.
-- No model/corpus download, scoring, bgzip/Tabix materialization, upload,
-  Supabase/provider/deployment mutation, or cleanup occurred.
+- Swordfish's receipt and direct syd2 evidence corroborated a public-edge outage
+  from 2026-07-18 18:30 to 2026-07-19 01:46 UTC. Current health cannot make that
+  interval clean, so the consecutive observation clock restarted.
+- The recovery baseline passed DNS/TLS, direct syd2 and Render health, exact
+  direct/Vercel origin identity, two complete `--require-ok` report/viewer
+  passes, auth/CORS/header checks, and zero post-recovery app/edge 5xx.
+- The exact Compose, digest, hardening, mounts, runtime tree, and zero host
+  bindings remain intact. Disk has 35,376,615,424 bytes free; Docker reported
+  880 MiB / 2 GiB after load; all cgroup pressure/OOM counters are zero.
+- The longstanding Dokploy project-default network was reconciled against the
+  original inspection; Traefik remains explicitly pinned to `dokploy-network`.
+- Swordfish's edge-convergence unit is enabled and active but has not yet seen a
+  natural reboot. Render remains the rollback throughout the restarted soak.
+- No deployment, provider, DNS, environment, Supabase, Render, credential,
+  cleanup, or Phase-4 mutation occurred.
 
 ## Next Action
 
-- On the next resume, run the Phase-3c middle sample if its time floor has
-  passed. Otherwise wait for Steven's next explicit task; do not start another
-  evidence-expansion phase.
+- Run the recovery-middle Phase-3c sample around/after 2026-07-20 01:46 UTC. If
+  it is not yet due, wait for Steven's next explicit task; do not start another
+  evidence-expansion phase or close/cancel Render.
