@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { reportHrefForQuery } from '@/lib/variant-search'
 import type { ParsedVariant } from '@/lib/variant-file'
 import type { BatchResult, Panel } from '@/lib/backend'
@@ -40,6 +41,7 @@ export interface BatchRow {
   acmg: string | null
   gnomadAf: number | null
   reportHref: string | null
+  workbenchHref: string | null
 }
 
 function withFromCompare(href: string | null): string | null {
@@ -60,6 +62,7 @@ export function rowFromParsed(v: ParsedVariant, i: number): BatchRow {
     acmg: null,
     gnomadAf: null,
     reportHref: withFromCompare(reportHrefForQuery(v.query)),
+    workbenchHref: null,
   }
 }
 
@@ -76,10 +79,11 @@ export function rowFromResult(r: BatchResult, i: number): BatchRow {
     clinvar: r.clinvar_verdict ?? null,
     acmg: r.acmg_classification ?? null,
     gnomadAf: r.gnomad_af ?? null,
-    // The backend's report_href points at the legacy /lookup route, which is not
-    // a page in this app (it 404s). Derive the /report href locally — exactly as
-    // the preview rows do — so both states open the same working report.
-    reportHref: withFromCompare(reportHrefForQuery(query)),
+    reportHref: withFromCompare(r.report_href ?? reportHrefForQuery(query)),
+    workbenchHref:
+      r.gene && r.hgvs_c
+        ? `/workbench?${new URLSearchParams({ gene: r.gene, cdna: r.hgvs_c, tool: 'viewer' }).toString()}`
+        : null,
   }
 }
 
@@ -180,6 +184,8 @@ export function BatchTable({
   panelGenes?: string[]
   panelLabel?: string
 }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const membership = useMemo<PanelMembership[]>(
     () =>
       activePanels.map((p) => ({
@@ -191,6 +197,7 @@ export function BatchTable({
   )
 
   const [split, setSplit] = useState(false)
+  const [compareOpen, setCompareOpen] = useState(() => searchParams.get('view') === 'compare')
   // Default sort: actionable-first (P/LP pinned) once annotated, else cohort order.
   const [sort, setSort] = useState<SortState | null>(annotated ? { key: 'clinical', dir: 'asc' } : null)
   const [afMax, setAfMax] = useState<number | null>(null)
@@ -254,6 +261,22 @@ export function BatchTable({
       // capture may already be released
     }
   }
+  const onSeparatorKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 0.1 : 0.05
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setTopFrac((value) => Math.max(0.15, value - step))
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setTopFrac((value) => Math.min(0.85, value + step))
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setTopFrac(0.15)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setTopFrac(0.85)
+    }
+  }
 
   const toggleRow = (key: string) =>
     setSelected((prev) => {
@@ -304,6 +327,15 @@ export function BatchTable({
     setSelected(new Set())
     setSaveFlash(added)
     setTimeout(() => setSaveFlash(null), 1500)
+  }
+
+  const selectedRows = visible.filter((row) => selected.has(row.key))
+  const canCompare = selectedRows.length >= 2 && selectedRows.length <= 3
+  const setComparisonOpen = (open: boolean) => {
+    setCompareOpen(open)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('view', open ? 'compare' : 'cohort')
+    router.replace(`/compare?${params.toString()}`, { scroll: false })
   }
 
   const tableProps = {
@@ -390,25 +422,48 @@ export function BatchTable({
               ✓ Saved {saveFlash} to library
             </span>
           ) : selected.size > 0 ? (
-            <button
-              type="button"
-              onClick={handleSave}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 11px',
-                borderRadius: 8,
-                border: '0.5px solid var(--teal-bdr)',
-                background: 'var(--teal-tint)',
-                color: 'var(--teal-deep)',
-                fontSize: 11.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Save selected ({selected.size}) →
-            </button>
+            <span className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 11px',
+                  borderRadius: 8,
+                  border: '0.5px solid var(--teal-bdr)',
+                  background: 'var(--teal-tint)',
+                  color: 'var(--teal-deep)',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Save selected ({selected.size}) →
+              </button>
+              <button
+                type="button"
+                disabled={!canCompare}
+                title={canCompare ? 'Compare selected variants' : 'Select 2 or 3 variants to compare'}
+                onClick={() => setComparisonOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '5px 11px',
+                  borderRadius: 8,
+                  border: '0.5px solid var(--line-2)',
+                  background: 'var(--bg)',
+                  color: 'var(--ink-2)',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: canCompare ? 'pointer' : 'not-allowed',
+                  opacity: canCompare ? 1 : 0.5,
+                }}
+              >
+                Compare {selected.size}
+              </button>
+            </span>
           ) : null}
           <CopyButton text={payload} label="Copy table for spreadsheet" />
           <button
@@ -457,6 +512,22 @@ export function BatchTable({
         </div>
       </div>
 
+      {compareOpen && canCompare && (
+        <VariantComparison rows={selectedRows} onClose={() => setComparisonOpen(false)} />
+      )}
+      {compareOpen && !canCompare && (
+        <section
+          className="mb-4 flex flex-wrap items-center justify-between gap-3"
+          role="status"
+          style={{ border: '0.5px solid var(--teal-bdr)', borderRadius: 10, background: 'var(--teal-tint)', padding: '10px 12px', color: 'var(--ink-2)', fontSize: 12 }}
+        >
+          <span>Select 2 or 3 rows to open the typed comparison view.</span>
+          <button type="button" onClick={() => setComparisonOpen(false)} style={{ minHeight: 36, padding: '5px 10px', borderRadius: 7, border: '0.5px solid var(--line)', background: 'var(--bg)', color: 'var(--ink-2)', cursor: 'pointer' }}>
+            Return to cohort
+          </button>
+        </section>
+      )}
+
       {split ? (
         <div
           ref={containerRef}
@@ -475,11 +546,20 @@ export function BatchTable({
           <div
             role="separator"
             aria-orientation="horizontal"
+            aria-label="Resize Batch comparison panes"
+            aria-valuemin={15}
+            aria-valuemax={85}
+            aria-valuenow={Math.round(topFrac * 100)}
+            aria-valuetext={`Top pane ${Math.round(topFrac * 100)} percent`}
+            tabIndex={0}
+            className="cmp-separator"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onKeyDown={onSeparatorKeyDown}
             style={{
-              height: 12,
+              height: 16,
               flexShrink: 0,
               cursor: 'row-resize',
               background: 'var(--bg-soft2)',
@@ -517,6 +597,81 @@ function summarizeRows(rows: BatchRow[], panelGenes?: string[]) {
 
 // Re-export through a thin local alias so the import stays a single line above.
 import { summarizeCohort as summarizeCohortLocal } from '@/lib/batch-summary'
+
+function VariantComparison({ rows, onClose }: { rows: BatchRow[]; onClose: () => void }) {
+  const fields: Array<{ label: string; value: (row: BatchRow) => React.ReactNode }> = [
+    { label: 'Gene', value: (row) => row.gene ?? <MissingValue /> },
+    { label: 'Variant', value: (row) => row.label || <MissingValue /> },
+    { label: 'ClinVar', value: (row) => row.clinvar ?? <MissingValue /> },
+    { label: 'ACMG', value: (row) => row.acmg ?? <MissingValue /> },
+    {
+      label: 'gnomAD AF',
+      value: (row) => row.gnomadAf == null ? <MissingValue /> : formatAf(row.gnomadAf),
+    },
+    {
+      label: 'Actions',
+      value: (row) => (
+        <span className="flex flex-wrap gap-2">
+          {row.reportHref && <Link href={row.reportHref}>Report</Link>}
+          {row.workbenchHref && <Link href={row.workbenchHref}>Workbench</Link>}
+        </span>
+      ),
+    },
+  ]
+  return (
+    <section
+      className="mb-4"
+      aria-labelledby="batch-variant-comparison-title"
+      style={{ border: '0.5px solid var(--teal-bdr)', borderRadius: 12, background: 'var(--bg)', padding: '14px 16px' }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 id="batch-variant-comparison-title" style={{ margin: 0, fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>
+            Variant comparison
+          </h3>
+          <p style={{ margin: '3px 0 0', fontSize: 11.5, color: 'var(--ink-4)' }}>
+            Typed Batch facts only. Missing source values stay unavailable.
+          </p>
+        </div>
+        <button type="button" onClick={onClose} style={{ padding: '5px 10px', borderRadius: 8, border: '0.5px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+          Close comparison
+        </button>
+      </div>
+      <div style={{ overflowX: 'auto', marginTop: 12 }}>
+        <table style={{ minWidth: 520, width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr>
+              <th scope="col" style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--ink-4)' }}>Field</th>
+              {rows.map((row) => (
+                <th key={row.key} scope="col" style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--ink)' }}>
+                  {row.gene ?? 'Variant'} · {row.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((field) => (
+              <tr key={field.label} style={{ borderTop: '0.5px solid var(--line)' }}>
+                <th scope="row" style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--ink-4)', fontWeight: 600 }}>
+                  {field.label}
+                </th>
+                {rows.map((row) => (
+                  <td key={row.key} style={{ padding: '8px 10px', color: 'var(--ink-2)', verticalAlign: 'top' }}>
+                    {field.value(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function MissingValue() {
+  return <span style={{ color: 'var(--ink-4)' }}>Unavailable</span>
+}
 
 type TableProps = {
   rows: BatchRow[]
@@ -569,7 +724,7 @@ function Table({
           <SortTh col="variant" label="Variant" sort={sort} onSort={onSort} />
           {annotated && <SortTh col="clinical" label="ClinVar / ACMG" sort={sort} onSort={onSort} />}
           {annotated && <Th style={{ textAlign: 'right' }}>gnomAD AF</Th>}
-          <Th style={{ textAlign: 'right' }}>Report</Th>
+          <Th style={{ textAlign: 'right' }}>Actions</Th>
         </tr>
       </thead>
       <tbody>
@@ -634,10 +789,19 @@ function Table({
                 </Td>
               )}
               <Td style={{ textAlign: 'right' }}>
-                {r.reportHref ? (
-                  <Link href={r.reportHref} style={{ fontSize: 12, fontWeight: 600, color: 'var(--teal-deep)', textDecoration: 'none' }}>
-                    Open report →
-                  </Link>
+                {r.reportHref || r.workbenchHref ? (
+                  <span className="flex flex-wrap justify-end gap-2">
+                    {r.reportHref && (
+                      <Link href={r.reportHref} style={{ fontSize: 12, fontWeight: 600, color: 'var(--teal-deep)', textDecoration: 'none' }}>
+                        Report
+                      </Link>
+                    )}
+                    {r.workbenchHref && (
+                      <Link href={r.workbenchHref} style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none' }}>
+                        Workbench
+                      </Link>
+                    )}
+                  </span>
                 ) : (
                   <span style={{ fontSize: 12, color: 'var(--ink-5)' }}>—</span>
                 )}

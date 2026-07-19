@@ -14,6 +14,13 @@ type Placement = 'nav' | 'rail-foot'
 // hydration render, true thereafter. SSR-safe with no setState-in-effect, so the
 // portal only reaches document.body on the client.
 const emptySubscribe = () => () => {}
+const AUTH_MENU_OPEN_EVENT = 'eamos:open-auth-menu'
+
+/** Open the mounted account control without navigating away from staged work. */
+export function openAuthMenu(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(AUTH_MENU_OPEN_EVENT))
+}
 
 /**
  * Account control. Two placements, one menu:
@@ -89,6 +96,14 @@ export function AuthMenu({
   }, [railFoot, open])
 
   const dark = tone === 'dark'
+
+  useEffect(() => {
+    const onOpenRequest = () => {
+      if (!user && !loading) setOpen('auth')
+    }
+    window.addEventListener(AUTH_MENU_OPEN_EVENT, onOpenRequest)
+    return () => window.removeEventListener(AUTH_MENU_OPEN_EVENT, onOpenRequest)
+  }, [loading, user])
 
   const ink = dark ? 'var(--hero-ink-2)' : 'var(--ink-2)'
   const borderColor = dark ? 'var(--hero-line)' : 'var(--line)'

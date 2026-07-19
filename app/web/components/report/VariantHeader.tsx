@@ -4,6 +4,7 @@ import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { IconCalendar, IconEye, IconShare } from '@/components/icons/Icon'
 import type { LookupResponse, ReportPayload, VariantSummaryRow } from '@/lib/backend'
 import { SaveCurrentButton } from './VariantLibraryRail'
+import { ReportWorkflowActions } from './ReportWorkflowActions'
 
 interface VariantHeaderViewMetric {
   view_count: number
@@ -300,6 +301,7 @@ export function VariantHeader({ payload, data, query, viewMetric, exportSlot }: 
           </div>
           <div className="v-tools">
             <SaveCurrentButton data={data} variant="hero" />
+            <ReportWorkflowActions data={data} />
             {exportSlot}
             <ShareButton />
           </div>

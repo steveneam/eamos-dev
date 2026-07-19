@@ -4,9 +4,13 @@ import { useMemo, useState, type DragEvent } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { WorkRailSection } from '@/components/layout/WorkRail'
+import { useAuth } from '@/components/auth/AuthProvider'
 import { reportHrefForQuery } from '@/lib/variant-search'
+import { buildWorkbenchHrefV1 } from '@/lib/backend'
+import { canonicalVariantFromSaved, stashPaperTarget } from '@/lib/report-workflow'
 import { stashCompareVariants, type ParsedVariant } from '@/lib/variant-file'
 import {
+  clearLocalLibrary,
   createFolder,
   moveVariant,
   removeFolder,
@@ -55,6 +59,7 @@ export interface LibrarySectionProps {
 
 export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySectionProps) {
   const router = useRouter()
+  const { loading: authLoading } = useAuth()
   // On the Batch page (/compare) the "Import VCF → /compare" link is circular and
   // redundant — import lives in the central column there (drop zone + Add file).
   // Keep it on /report and /workbench, where it correctly routes you to Batch.
@@ -69,6 +74,7 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [moveMenuOpen, setMoveMenuOpen] = useState(false)
   const [dragOverSaved, setDragOverSaved] = useState(false)
+  const [confirmClearLocal, setConfirmClearLocal] = useState(false)
 
   const hereId = currentQuery ? currentQuery.toLowerCase() : null
 
@@ -90,6 +96,23 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
     if (href) router.push(href)
   }
 
+  const openReport = (v: SavedVariant) => {
+    const href = reportHrefForQuery(v.query)
+    if (href) router.push(href)
+  }
+
+  const openWorkbench = (v: SavedVariant) => {
+    const canonical = canonicalVariantFromSaved(v)
+    if (canonical) router.push(buildWorkbenchHrefV1(canonical, { tool: 'viewer' }))
+  }
+
+  const openPaper = (v: SavedVariant) => {
+    const canonical = canonicalVariantFromSaved(v)
+    if (!canonical) return
+    stashPaperTarget(canonical)
+    router.push('/paper')
+  }
+
   const toggleSelect = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev)
@@ -105,6 +128,15 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
     () => variants.filter((v) => selected.has(v.id)),
     [variants, selected],
   )
+
+  if (authLoading) {
+    return (
+      <WorkRailSection title="Saved variants" icon={<IconBookmark size={14} />}>
+        <p className="lib-guardrail" role="status">Loading your scoped library…</p>
+      </WorkRailSection>
+    )
+  }
+
   const openInBatch = (vs: SavedVariant[], source: string) => {
     if (vs.length === 0) return
     stashCompareVariants(vs.map(toParsed), source)
@@ -173,6 +205,10 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
       here={hereId === v.id}
       onOpen={() => open(v)}
       onRemove={() => removeOne(v.id)}
+      onOpenReport={() => openReport(v)}
+      onOpenWorkbench={canonicalVariantFromSaved(v) ? () => openWorkbench(v) : undefined}
+      onOpenPaper={canonicalVariantFromSaved(v) ? () => openPaper(v) : undefined}
+      onOpenBatch={() => openInBatch([v], 'Saved variants')}
       onDragStart={onCardDragStart(v.id)}
       openLabel={openLabel}
     />
@@ -389,6 +425,30 @@ export function LibrarySection({ onOpen, currentQuery, openLabel }: LibrarySecti
         ) : (
           <button type="button" className="lib-newfolder" onClick={() => setNewFolderOpen(true)}>
             <IconPlus size={13} /> New folder
+          </button>
+        )}
+
+        {confirmClearLocal ? (
+          <div className="lib-folder-confirm" role="group" aria-label="Confirm local library clear">
+            <span>Clear this device cache? Account data is not deleted.</span>
+            <button type="button" className="confirm-cancel" onClick={() => setConfirmClearLocal(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="confirm-del"
+              onClick={() => {
+                clearLocalLibrary()
+                clearSelection()
+                setConfirmClearLocal(false)
+              }}
+            >
+              Clear local
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="lib-newfolder lib-clear-local" onClick={() => setConfirmClearLocal(true)}>
+            <IconRemove size={13} /> Clear local data
           </button>
         )}
       </WorkRailSection>

@@ -1,5 +1,14 @@
 import { createClient } from '@/utils/supabase/client'
-import { getLibrary, replaceLibrary, type LibraryStore } from './variant-library'
+import {
+  ensureLibraryV2,
+  getLibrary,
+  isLibrarySchemaRow,
+  isLibraryTombstone,
+  libraryIdentity,
+  replaceLibrary,
+  type LibraryStore,
+  type SavedVariant,
+} from './variant-library'
 
 // Account-synced variant library (docs/library-sync/spec.md). localStorage stays
 // the offline cache + anonymous fallback; when signed in we pull the account row,
@@ -31,13 +40,60 @@ function mergeById<T extends { id: string }>(
   return [...byId.values()]
 }
 
-/** Union-merge two stores by id, keeping the newer item on collision. Favours
- *  not losing a save over propagating deletes (no tombstones in v1 — see spec §5). */
-export function mergeStores(local: LibraryStore, remote: LibraryStore): LibraryStore {
-  return {
-    variants: mergeById(local.variants, remote.variants, (a, b) => (b.savedAt > a.savedAt ? b : a)),
-    folders: mergeById(local.folders, remote.folders, (a, b) => (b.createdAt > a.createdAt ? b : a)),
+function mergeVariantRows(local: SavedVariant[], remote: SavedVariant[]): SavedVariant[] {
+  const schemaRows = [...local, ...remote].filter(isLibrarySchemaRow)
+  const newestSchema = schemaRows.reduce<SavedVariant | null>(
+    (newest, row) => (!newest || compareVariantRows(row, newest) > 0 ? row : newest),
+    null,
+  )
+  const byIdentity = new Map<string, SavedVariant>()
+  for (const row of [...local, ...remote]) {
+    const identity = libraryIdentity(row)
+    if (!identity) continue
+    const existing = byIdentity.get(identity)
+    if (!existing || compareVariantRows(row, existing) > 0) {
+      byIdentity.set(identity, row)
+    }
   }
+  return [...byIdentity.values(), ...(newestSchema ? [newestSchema] : [])]
+}
+
+function compareVariantRows(left: SavedVariant, right: SavedVariant): number {
+  if (left.savedAt !== right.savedAt) return left.savedAt - right.savedAt
+  const leftDeleted = isLibraryTombstone(left)
+  const rightDeleted = isLibraryTombstone(right)
+  if (leftDeleted !== rightDeleted) return leftDeleted ? 1 : -1
+  return JSON.stringify([
+    left.id,
+    left.gene,
+    left.variant,
+    left.query,
+    left.raw,
+    left.folderId,
+    left.classification ?? null,
+    left.hgvs_full ?? null,
+  ]).localeCompare(JSON.stringify([
+    right.id,
+    right.gene,
+    right.variant,
+    right.query,
+    right.raw,
+    right.folderId,
+    right.classification ?? null,
+    right.hgvs_full ?? null,
+  ]))
+}
+
+/** Deterministic v2 merge. Per-item last-write wins; a deletion tombstone wins
+ *  an exact timestamp tie so an older browser cache cannot resurrect a row. */
+export function mergeStores(local: LibraryStore, remote: LibraryStore): LibraryStore {
+  return ensureLibraryV2({
+    variants: mergeVariantRows(local.variants, remote.variants),
+    folders: mergeById(local.folders, remote.folders, (a, b) => {
+      if (b.createdAt !== a.createdAt) return b.createdAt > a.createdAt ? b : a
+      return JSON.stringify([b.id, b.name]).localeCompare(JSON.stringify([a.id, a.name])) > 0 ? b : a
+    }),
+  })
 }
 
 export async function fetchRemoteLibrary(signal?: AbortSignal): Promise<LibraryStore | null> {

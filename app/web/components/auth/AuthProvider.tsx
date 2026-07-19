@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import { setLibraryScope } from '@/lib/variant-library'
 
 export type OAuthProvider = 'google' | 'azure' | 'linkedin_oidc' | 'apple'
 
@@ -31,6 +32,8 @@ interface AuthContextValue {
   configured: boolean
   loading: boolean
   user: AuthUser | null
+  /** Read the current session token immediately before an authenticated call. */
+  getAccessToken: () => Promise<string | null>
   signInWithPassword: (email: string, password: string) => Promise<AuthResult>
   signUp: (email: string, password: string) => Promise<AuthResult>
   signInWithOAuth: (provider: OAuthProvider) => Promise<AuthResult>
@@ -75,11 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true
     client.auth.getSession().then(({ data }) => {
       if (!active) return
-      setUser(toUser(data.session?.user))
+      const nextUser = toUser(data.session?.user)
+      setLibraryScope(nextUser?.id ?? null)
+      setUser(nextUser)
       setLoading(false)
     })
     const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
-      setUser(toUser(session?.user))
+      const nextUser = toUser(session?.user)
+      setLibraryScope(nextUser?.id ?? null)
+      setUser(nextUser)
     })
     return () => {
       active = false
@@ -95,6 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [client],
   )
+
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    if (!client) return null
+    const { data, error } = await client.auth.getSession()
+    if (error) return null
+    return data.session?.access_token ?? null
+  }, [client])
 
   const signUp = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
@@ -150,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: !!client,
       loading,
       user,
+      getAccessToken,
       signInWithPassword,
       signUp,
       signInWithOAuth,
@@ -157,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       signOut,
     }),
-    [client, loading, user, signInWithPassword, signUp, signInWithOAuth, resetPassword, updatePassword, signOut],
+    [client, loading, user, getAccessToken, signInWithPassword, signUp, signInWithOAuth, resetPassword, updatePassword, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

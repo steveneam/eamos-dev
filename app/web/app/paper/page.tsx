@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { PaperClient } from '@/components/paper/PaperClient'
+import { SurfaceLoadingShell } from '@/components/layout/SurfaceLoadingShell'
 
 export const metadata: Metadata = {
   title: 'Paper → Variants',
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 // reads search params, so it needs a Suspense boundary at build time.
 export default function Page() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SurfaceLoadingShell surface="paper" />}>
       <PaperClient />
     </Suspense>
   )

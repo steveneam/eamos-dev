@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { getLibrary, subscribe } from '@/lib/variant-library'
+import { getLibrary, setLibraryScope, subscribeForSync } from '@/lib/variant-library'
 import { pullAndMerge, pushRemoteLibrary } from '@/lib/library-sync'
 
 const PUSH_DEBOUNCE_MS = 1500
@@ -19,6 +19,7 @@ export function LibrarySync() {
   const timer = useRef<number | null>(null)
 
   useEffect(() => {
+    setLibraryScope(userId)
     if (!userId) return
     const controller = new AbortController()
     // Pull + merge on sign-in; the merged store's change event flows through the
@@ -31,7 +32,7 @@ export function LibrarySync() {
         void pushRemoteLibrary(getLibrary())
       }, PUSH_DEBOUNCE_MS)
     }
-    const unsubscribe = subscribe(onChange)
+    const unsubscribe = subscribeForSync(onChange)
 
     return () => {
       controller.abort()

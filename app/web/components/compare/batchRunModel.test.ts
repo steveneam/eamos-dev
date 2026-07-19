@@ -139,7 +139,10 @@ describe('compare batch progress model', () => {
       }),
     )
     expect(progressFromError('network unavailable', null, 12)).toEqual(
-      expect.objectContaining({ stage: 'failed', error: 'Batch lookup failed.' }),
+      expect.objectContaining({
+        stage: 'failed',
+        error: 'Batch lookup failed. Retry the run, or return later if the service remains unavailable.',
+      }),
     )
   })
 

@@ -135,9 +135,7 @@
 /* ─────────────── §2  SavedVariantCard — worklist chrome ─────────────── */
 .lib-list { display: flex; flex-direction: column; gap: 2px; }
 .lib-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: block;
   padding: 8px 10px;
   border-radius: var(--r-md);
   border: 0.5px solid transparent;
@@ -146,6 +144,11 @@
               border-color var(--dur-1) var(--ease-standard);
   /* enter animation */
   animation: lib-row-in var(--dur-2) var(--ease-standard) both;
+}
+.lib-card-mainrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 @keyframes lib-row-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -198,6 +201,40 @@
   transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard);
 }
 .lib-card-remove:hover { background: var(--bg-soft2); color: var(--ink-2); }
+.lib-card-workflows {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 7px 0 0 22px;
+  border: 0.5px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  opacity: 0;
+  max-height: 0;
+  transition: opacity var(--dur-1) var(--ease-standard), max-height var(--dur-1) var(--ease-standard);
+}
+.lib-card:hover .lib-card-workflows,
+.lib-card:focus-within .lib-card-workflows {
+  opacity: 1;
+  max-height: 48px;
+}
+.lib-card-workflows button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 3px;
+  border: 0;
+  border-right: 0.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-4);
+  font: 600 9.5px var(--body);
+  cursor: pointer;
+}
+.lib-card-workflows button:last-child { border-right: 0; }
+.lib-card-workflows button:hover:not(:disabled) { background: var(--teal-tint); color: var(--teal-deep); }
+.lib-card-workflows button:disabled { color: var(--ink-5); cursor: default; }
+.lib-card-workflows button:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; position: relative; z-index: 1; }
+@media (hover: none) {
+  .lib-card-workflows { opacity: 1; max-height: 48px; }
+}
 
 /* ─────────────── §3.1  Saved section: secondary bar + count + empty ─────────────── */
 .lib-secbar {
@@ -351,6 +388,7 @@
   transition: color var(--dur-1) var(--ease-standard), background var(--dur-1) var(--ease-standard);
 }
 .lib-newfolder:hover { color: var(--ink-2); background: var(--bg-soft); }
+.lib-clear-local { margin-top: 4px; color: var(--ink-muted); }
 .lib-folder-input {
   width: 100%;
   margin-top: 6px;

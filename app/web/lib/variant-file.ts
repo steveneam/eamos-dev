@@ -199,6 +199,8 @@ export interface ImportSource {
   clientTruncated?: boolean
   clientParseLimit?: number
   clientParsedCount?: number
+  /** The full File object cannot survive refresh; Generate must fail closed. */
+  requiresFileReattach?: boolean
 }
 
 /** What VariantImport hands back per import (everything but the id, assigned here). */
@@ -294,9 +296,8 @@ export function readCompareVariants(): CompareStash | null {
       ...stash,
       sources: stash.sources.map((source) => ({
         ...source,
-        clientTruncated: undefined,
-        clientParseLimit: undefined,
-        clientParsedCount: undefined,
+        clientTruncated: Boolean(source.clientTruncated),
+        requiresFileReattach: Boolean(source.clientTruncated || source.requiresFileReattach),
       })),
     }
   } catch {

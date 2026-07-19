@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { openAuthMenu } from '@/components/auth/AuthMenu'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
@@ -26,8 +28,17 @@ import { applyFilters, cacheResolvedPanel, filterChipLabel, type ActiveFilter } 
 import { CLASS_RANK, classifyVerdict, summarizeCohort } from '@/lib/batch-summary'
 import type { BatchChatScope } from '@/lib/chat'
 import { getPanel } from '@/lib/panels'
-import { collectBatchResults, createBatch, pollBatchJob, uploadBatch } from '@/lib/batch'
-import type { BatchResult } from '@/lib/backend'
+import {
+  cancelBatchRun,
+  createBatch,
+  deleteBatchRun,
+  exportBatchRun,
+  getBatchJob,
+  listBatchRuns,
+  pollBatchJob,
+  uploadBatch,
+} from '@/lib/batch'
+import type { BatchJob, BatchPage, BatchResult, WorkflowRunV1 } from '@/lib/backend'
 import { LibrarySection } from '@/components/library/LibrarySection'
 import { ScopeGate } from './ScopeGate'
 import { BatchTable, rowFromParsed, rowFromResult } from './BatchTable'
@@ -58,6 +69,16 @@ const noop = () => {}
 // cohort; this only bounds the per-variant list so the prompt window stays tight.
 const CHAT_SAMPLE = 60
 
+function downloadBatchFile(filename: string, content: string, mediaType: string): void {
+  const blob = new Blob([content], { type: mediaType })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 /** Drop the zero-count classes so the chat's cohort summary stays tight. */
 function countsFromDist(dist: Record<string, number>): Record<string, number> {
   return Object.fromEntries(Object.entries(dist).filter(([, n]) => n > 0))
@@ -72,7 +93,10 @@ function countsFromDist(dist: Record<string, number>): Record<string, number> {
  * simulates the run; the real async engine (done/total progress) is P4/P5.
  */
 export function CompareClient() {
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const requestedRunId = searchParams.get('run_id')
+  const { user, loading: authLoading } = useAuth()
   const sampleDemo = searchParams.get('demo') === '1'
   const [stash, setStash] = useState<CompareStash | null>(null)
   const [hydrated, setHydrated] = useState(false)
@@ -80,6 +104,9 @@ export function CompareClient() {
   const [status, setStatus] = useState<RunStatus>('idle')
   // Server-computed batch results; null means none yet or a failed run.
   const [results, setResults] = useState<BatchResult[] | null>(null)
+  const [resultPage, setResultPage] = useState<BatchPage | null>(null)
+  const [pageHistory, setPageHistory] = useState<Array<{ results: BatchResult[]; page: BatchPage }>>([])
+  const [pageIndex, setPageIndex] = useState(0)
   const [progress, setProgress] = useState<BatchProgress | null>(null)
   // True when the scope changed after a run — the visible output no longer matches
   // the filters, so Regenerate is the prompt (we keep the table rather than wipe it).
@@ -93,6 +120,28 @@ export function CompareClient() {
   const uploadFilesRef = useRef<Map<string, File>>(new Map())
   const runSeq = useRef(0)
   const hydratedDemo = useRef<boolean | null>(null)
+  const resumedRunRef = useRef<string | null>(null)
+  const historyOwner = user?.id ?? null
+  const [historyRefresh, setHistoryRefresh] = useState(0)
+  const [historyState, setHistoryState] = useState<{
+    owner: string
+    runs: WorkflowRunV1[]
+    total: number | null
+    error: boolean
+  } | null>(null)
+
+  useEffect(() => {
+    if (!historyOwner) return
+    const owner = historyOwner
+    const controller = new AbortController()
+    void listBatchRuns({ limit: 8, signal: controller.signal })
+      .then((page) => setHistoryState({ owner, runs: page.runs, total: page.total, error: false }))
+      .catch((caught: unknown) => {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return
+        setHistoryState({ owner, runs: [], total: null, error: true })
+      })
+    return () => controller.abort()
+  }, [historyOwner, historyRefresh])
 
   useEffect(() => {
     if (hydratedDemo.current === sampleDemo) return
@@ -154,18 +203,54 @@ export function CompareClient() {
   // backend an upload_ref instead of the browser-capped preview rows.
   const runBatch = useCallback(
     async (runFilters: ActiveFilter[]) => {
+      if (authLoading) return
+      if (!user) {
+        setProgress({
+          stage: 'auth',
+          done: 0,
+          total: variants.length,
+          error: 'Sign in to run Batch annotation. Your staged cohort stays in this tab.',
+        })
+        setStatus('done')
+        openAuthMenu()
+        return
+      }
       const runId = runSeq.current + 1
       runSeq.current = runId
       const isCurrentRun = () => runSeq.current === runId
       setStatus('running')
       setResults(null)
+      setResultPage(null)
+      setPageHistory([])
+      setPageIndex(0)
       setProgress(null)
       setStale(false)
       try {
         const filtersPayload = toBatchFilters(runFilters)
+        const truncatedSources = (stash?.sources ?? []).filter((source) => source.clientTruncated)
+        if (truncatedSources.length > 0 && stash?.sources.length !== 1) {
+          setProgress({
+            stage: 'validation',
+            done: 0,
+            total: variants.length,
+            error: 'Run a large file as its own source. Remove the other sources so its complete server upload cannot be confused with the browser preview.',
+          })
+          setStatus('done')
+          return
+        }
         const uploadSource = stash?.sources.length === 1 ? stash.sources[0] : null
         const uploadFile =
           uploadSource?.clientTruncated ? uploadFilesRef.current.get(uploadSource.id) : undefined
+        if (uploadSource?.clientTruncated && (!uploadFile || uploadSource.requiresFileReattach)) {
+          setProgress({
+            stage: 'validation',
+            done: 0,
+            total: uploadSource.clientParsedCount ?? variants.length,
+            error: 'Reattach the full file before generating. The browser preview is not the complete cohort.',
+          })
+          setStatus('done')
+          return
+        }
         let usedUpload = false
         let job: Awaited<ReturnType<typeof createBatch>>
 
@@ -190,6 +275,11 @@ export function CompareClient() {
         }
 
         if (!isCurrentRun()) return
+        resumedRunRef.current = job.job_id
+        const nextParams = new URLSearchParams(searchParams.toString())
+        nextParams.set('run_id', job.job_id)
+        nextParams.set('view', 'cohort')
+        router.replace(`/compare?${nextParams.toString()}`, { scroll: false })
         setProgress({
           stage: 'queued',
           jobId: job.job_id,
@@ -213,16 +303,75 @@ export function CompareClient() {
           setResults(null)
           return
         }
-        const collected = await collectBatchResults(final, { limit: 200, shouldContinue: isCurrentRun })
-        if (isCurrentRun()) setResults(collected)
+        if (isCurrentRun()) {
+          setResults(final.results)
+          setResultPage(final.page)
+          setPageHistory([{ results: final.results, page: final.page }])
+          setPageIndex(0)
+          setHistoryRefresh((value) => value + 1)
+        }
       } catch (error) {
         if (!isCurrentRun()) return
         setProgress((prev) => progressFromError(error, prev, variants.length))
       }
       if (isCurrentRun()) setStatus('done')
     },
-    [stash?.sources, variants],
+    [authLoading, router, searchParams, stash?.sources, user, variants],
   )
+
+  useEffect(() => {
+    if (!hydrated || authLoading || !requestedRunId || resumedRunRef.current === requestedRunId) return
+    if (!user) {
+      window.queueMicrotask(() => {
+        setProgress({
+          stage: 'auth',
+          jobId: requestedRunId,
+          done: 0,
+          total: 0,
+          error: 'Sign in to resume this Batch run.',
+        })
+        setStatus('done')
+        openAuthMenu()
+      })
+      return
+    }
+    resumedRunRef.current = requestedRunId
+    const sequence = runSeq.current + 1
+    runSeq.current = sequence
+    const isCurrentRun = () => runSeq.current === sequence
+    void (async () => {
+      await Promise.resolve()
+      if (!isCurrentRun()) return
+      setStatus('running')
+      setProgress({ stage: 'queued', jobId: requestedRunId, done: 0, total: 0 })
+      let job = await getBatchJob(requestedRunId, { limit: 200 })
+      if (!isCurrentRun()) return
+      setProgress(progressFromJob(job, false))
+      if (job.status === 'queued' || job.status === 'running') {
+        job = await pollBatchJob(job.job_id, {
+          limit: 200,
+          onUpdate: (next) => {
+            if (isCurrentRun()) setProgress(progressFromJob(next, false))
+          },
+          shouldContinue: isCurrentRun,
+        })
+      }
+      if (!isCurrentRun()) return
+      setProgress(progressFromJob(job, false))
+      setStatus('done')
+      setHistoryRefresh((value) => value + 1)
+      if (job.status === 'completed') {
+        setResults(job.results)
+        setResultPage(job.page)
+        setPageHistory([{ results: job.results, page: job.page }])
+        setPageIndex(0)
+      }
+    })().catch((caught: unknown) => {
+      if (!isCurrentRun()) return
+      setProgress((previous) => progressFromError(caught, previous, 0))
+      setStatus('done')
+    })
+  }, [authLoading, hydrated, requestedRunId, user])
 
   // Changing the scope makes the current run stale, but DON'T wipe the table —
   // keep it on screen and surface Regenerate so you can re-run with the new scope
@@ -238,6 +387,9 @@ export function CompareClient() {
     runSeq.current += 1
     setStatus('idle')
     setResults(null)
+    setResultPage(null)
+    setPageHistory([])
+    setPageIndex(0)
     setProgress(null)
     setStale(false)
   }, [])
@@ -258,6 +410,7 @@ export function CompareClient() {
         clientTruncated: meta.clientTruncated,
         clientParseLimit: meta.clientParseLimit,
         clientParsedCount: meta.clientParsedCount,
+        requiresFileReattach: false,
       }
       if (!merge) uploadFilesRef.current.clear()
       if (meta.uploadFile) uploadFilesRef.current.set(source.id, meta.uploadFile)
@@ -301,6 +454,88 @@ export function CompareClient() {
     setAddingSource(false)
     resetRun()
   }, [resetRun])
+
+  const loadNextPage = async () => {
+    if (pageHistory[pageIndex + 1]) {
+      const cached = pageHistory[pageIndex + 1]
+      setPageIndex(pageIndex + 1)
+      setResults(cached.results)
+      setResultPage(cached.page)
+      return
+    }
+    const jobId = progress?.jobId
+    const cursor = resultPage?.next_cursor
+    if (!jobId || !cursor) return
+    try {
+      const next = await getBatchJob(jobId, { limit: 200, cursor })
+      const entry = { results: next.results, page: next.page }
+      setPageHistory((prev) => [...prev.slice(0, pageIndex + 1), entry])
+      setPageIndex(pageIndex + 1)
+      setResults(next.results)
+      setResultPage(next.page)
+    } catch (caught) {
+      setProgress((previous) => progressFromError(caught, previous, variants.length))
+    }
+  }
+
+  const loadPreviousPage = () => {
+    if (pageIndex <= 0) return
+    const previous = pageHistory[pageIndex - 1]
+    if (!previous) return
+    setPageIndex(pageIndex - 1)
+    setResults(previous.results)
+    setResultPage(previous.page)
+  }
+
+  const cancelCurrentBatch = async () => {
+    const jobId = progress?.jobId
+    if (!jobId) return
+    runSeq.current += 1
+    try {
+      const run = await cancelBatchRun(jobId)
+      setProgress({
+        stage: 'cancelled',
+        status: 'cancelled',
+        jobId: run.run_id,
+        done: run.done,
+        total: run.total,
+        warnings: run.warnings,
+        error: 'Batch lookup was cancelled before completion.',
+      })
+      setStatus('done')
+      setHistoryRefresh((value) => value + 1)
+    } catch (caught) {
+      setProgress((previous) => progressFromError(caught, previous, variants.length))
+      setStatus('done')
+    }
+  }
+
+  const deleteCurrentBatch = async () => {
+    const jobId = progress?.jobId
+    if (!jobId) return
+    try {
+      await deleteBatchRun(jobId)
+      resetRun()
+      setHistoryRefresh((value) => value + 1)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('run_id')
+      params.delete('view')
+      router.replace(params.size ? `/compare?${params.toString()}` : '/compare', { scroll: false })
+    } catch (caught) {
+      setProgress((previous) => progressFromError(caught, previous, variants.length))
+    }
+  }
+
+  const downloadRunExport = async (format: 'tsv' | 'manifest') => {
+    const jobId = progress?.jobId
+    if (!jobId) return
+    try {
+      const exported = await exportBatchRun(jobId, format)
+      downloadBatchFile(exported.filename, exported.content, exported.mediaType)
+    } catch (caught) {
+      setProgress((previous) => progressFromError(caught, previous, variants.length))
+    }
+  }
 
   // Ask-Eamos cohort scope — a bounded summary of the resolved cohort (size +
   // source/panel/filter provenance + classification mix + the most actionable
@@ -370,6 +605,39 @@ export function CompareClient() {
   })()
   const runWarnings = progress?.warnings ?? []
   const completedEmpty = Array.isArray(results) && results.length === 0 && progress?.stage === 'completed'
+  const previewRows = res.shown.slice(0, 500)
+  const history = user && historyState?.owner === user.id ? historyState : null
+
+  const openHistoryRun = (runId: string) => {
+    const params = new URLSearchParams()
+    params.set('run_id', runId)
+    params.set('view', 'cohort')
+    router.push(`/compare?${params.toString()}`)
+  }
+
+  const cancelHistoryRun = async (runId: string) => {
+    try {
+      await cancelBatchRun(runId)
+      setHistoryRefresh((value) => value + 1)
+    } catch (caught) {
+      setProgress((previous) => progressFromError(caught, previous, variants.length))
+      setStatus('done')
+    }
+  }
+
+  const deleteHistoryRun = async (runId: string) => {
+    try {
+      await deleteBatchRun(runId)
+      if (requestedRunId === runId) {
+        resetRun()
+        router.replace('/compare', { scroll: false })
+      }
+      setHistoryRefresh((value) => value + 1)
+    } catch (caught) {
+      setProgress((previous) => progressFromError(caught, previous, variants.length))
+      setStatus('done')
+    }
+  }
 
   return (
     <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
@@ -396,7 +664,33 @@ export function CompareClient() {
             foot={<RailFoot />}
             output={
               <div style={{ padding: '16px 22px 80px 24px' }}>
-                {variants.length === 0 ? (
+                <RecentBatchRuns
+                  signedIn={Boolean(user)}
+                  state={history}
+                  currentRunId={requestedRunId}
+                  onOpen={openHistoryRun}
+                  onCancel={cancelHistoryRun}
+                  onDelete={deleteHistoryRun}
+                />
+                {variants.length === 0 && requestedRunId ? (
+                  <ResumedBatchOutput
+                    status={status}
+                    progress={progress}
+                    results={results}
+                    resultPage={resultPage}
+                    pageIndex={pageIndex}
+                    onCancel={() => void cancelCurrentBatch()}
+                    onDelete={() => void deleteCurrentBatch()}
+                    onExport={(format) => void downloadRunExport(format)}
+                    onPrevious={loadPreviousPage}
+                    onNext={() => void loadNextPage()}
+                    onStartNew={() => {
+                      resumedRunRef.current = null
+                      resetRun()
+                      router.replace('/compare', { scroll: false })
+                    }}
+                  />
+                ) : variants.length === 0 ? (
                   <div style={{ maxWidth: 640, margin: '4px auto 0' }}>
                     <EmptyState onVariants={(v, meta) => loadVariants(v, meta, false)} />
                   </div>
@@ -412,6 +706,7 @@ export function CompareClient() {
                       onToggleAdd={() => setAddingSource((o) => !o)}
                       onRemove={removeSource}
                       onClear={clearCohort}
+                      onReattach={clearCohort}
                     />
                     {addingSource && (
                       <div style={{ marginBottom: 14 }}>
@@ -456,10 +751,24 @@ export function CompareClient() {
                         onGenerate={() => runBatch(filters)}
                       />
                     ) : status === 'running' ? (
-                      <LoadingCard progress={progress} />
+                      <>
+                        <LoadingCard progress={progress} />
+                        {progress?.jobId && (
+                          <div className="mt-3 flex justify-end">
+                            <button type="button" onClick={() => void cancelCurrentBatch()} style={sourceActionBtn(false)}>
+                              Cancel run
+                            </button>
+                          </div>
+                        )}
+                      </>
                     ) : isBatchIssue(progress?.stage) && progress ? (
                       <>
                         <BatchRunIssue progress={progress} />
+                        {progress.jobId && (
+                          <div className="mb-3 flex justify-end">
+                            <DeleteRunButton onDelete={() => void deleteCurrentBatch()} />
+                          </div>
+                        )}
                         {res.shown.length === 0 ? (
                           <EmptyScope
                             onClear={() => changeFilters([])}
@@ -467,13 +776,16 @@ export function CompareClient() {
                             total={res.total}
                           />
                         ) : (
-                          <BatchTable
-                            rows={res.shown.map(rowFromParsed)}
-                            annotated={false}
-                            activePanels={res.activePanels}
-                            panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
-                            panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
-                          />
+                          <>
+                            {res.shown.length > previewRows.length && <PreviewLimitNotice total={res.shown.length} />}
+                            <BatchTable
+                              rows={previewRows.map(rowFromParsed)}
+                              annotated={false}
+                              activePanels={res.activePanels}
+                              panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                              panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                            />
+                          </>
                         )}
                       </>
                     ) : completedEmpty && progress ? (
@@ -485,6 +797,17 @@ export function CompareClient() {
                       <>
                         {stale && <StaleRunNotice />}
                         <BatchWarnings warnings={runWarnings} />
+                        {progress?.jobId && (
+                          <div className="mb-3 flex flex-wrap justify-end gap-2">
+                            <button type="button" onClick={() => void downloadRunExport('tsv')} style={sourceActionBtn(false)}>
+                              Export full TSV
+                            </button>
+                            <button type="button" onClick={() => void downloadRunExport('manifest')} style={sourceActionBtn(false)}>
+                              Export manifest
+                            </button>
+                            <DeleteRunButton onDelete={() => void deleteCurrentBatch()} />
+                          </div>
+                        )}
                         <BatchTable
                           rows={results.map(rowFromResult)}
                           annotated
@@ -492,6 +815,14 @@ export function CompareClient() {
                           panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
                           panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
                         />
+                        {resultPage && (
+                          <BatchPager
+                            page={resultPage}
+                            pageIndex={pageIndex}
+                            onPrevious={loadPreviousPage}
+                            onNext={() => void loadNextPage()}
+                          />
+                        )}
                       </>
                     ) : res.shown.length === 0 ? (
                       <EmptyScope
@@ -500,13 +831,16 @@ export function CompareClient() {
                         total={res.total}
                       />
                     ) : (
-                      <BatchTable
-                        rows={res.shown.map(rowFromParsed)}
-                        annotated={false}
-                        activePanels={res.activePanels}
-                        panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
-                        panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
-                      />
+                      <>
+                        {res.shown.length > previewRows.length && <PreviewLimitNotice total={res.shown.length} />}
+                        <BatchTable
+                          rows={previewRows.map(rowFromParsed)}
+                          annotated={false}
+                          activePanels={res.activePanels}
+                          panelGenes={res.activePanels.flatMap((p) => p.genes.map((g) => g.symbol))}
+                          panelLabel={res.activePanels.map((p) => p.name).join(' + ') || undefined}
+                        />
+                      </>
                     )}
                   </>
                 )}
@@ -536,6 +870,138 @@ export function CompareClient() {
   )
 }
 
+function RecentBatchRuns({
+  signedIn,
+  state,
+  currentRunId,
+  onOpen,
+  onCancel,
+  onDelete,
+}: {
+  signedIn: boolean
+  state: { runs: WorkflowRunV1[]; total: number | null; error: boolean } | null
+  currentRunId: string | null
+  onOpen: (runId: string) => void
+  onCancel: (runId: string) => Promise<void>
+  onDelete: (runId: string) => Promise<void>
+}) {
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  if (!signedIn) return null
+  if (!state) return <p className="mb-3" role="status" style={{ color: 'var(--ink-4)', fontSize: 11.5 }}>Loading saved Batch runs…</p>
+  return (
+    <details className="mb-3" style={{ border: '0.5px solid var(--line)', borderRadius: 10, background: 'var(--bg)' }}>
+      <summary style={{ cursor: 'pointer', padding: '9px 11px', color: 'var(--ink-3)', fontSize: 11.5, fontWeight: 650 }}>
+        Recent runs{state.total != null ? ` · ${state.total.toLocaleString()}` : ''}
+      </summary>
+      <div style={{ borderTop: '0.5px solid var(--line)', padding: '6px 10px 9px' }}>
+        {state.error ? (
+          <p style={{ margin: 4, color: 'var(--ink-4)', fontSize: 11.5 }}>Saved runs are temporarily unavailable.</p>
+        ) : state.runs.length === 0 ? (
+          <p style={{ margin: 4, color: 'var(--ink-4)', fontSize: 11.5 }}>No saved Batch runs yet.</p>
+        ) : (
+          <ul style={{ display: 'grid', gap: 5, padding: 0, margin: 0, listStyle: 'none' }}>
+            {state.runs.map((run) => (
+              <li
+                key={run.run_id}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '7px 8px', borderRadius: 8, background: run.run_id === currentRunId ? 'var(--teal-tint)' : 'var(--bg-soft)' }}
+              >
+                <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>
+                  <strong style={{ color: 'var(--ink-2)' }}>{run.status}</strong>
+                  {' · '}{run.done.toLocaleString()} / {run.total.toLocaleString()}
+                  {' · '}{new Date(run.updated_at).toLocaleString()}
+                </span>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <button type="button" onClick={() => onOpen(run.run_id)} style={sourceActionBtn(run.run_id === currentRunId)}>
+                    {run.run_id === currentRunId ? 'Open' : 'Resume'}
+                  </button>
+                  {(run.status === 'queued' || run.status === 'running') && (
+                    <button type="button" onClick={() => void onCancel(run.run_id)} style={sourceActionBtn(false)}>Cancel</button>
+                  )}
+                  {confirmDelete === run.run_id ? (
+                    <>
+                      <button type="button" onClick={() => setConfirmDelete(null)} style={sourceActionBtn(false)}>Keep</button>
+                      <button type="button" onClick={() => { setConfirmDelete(null); void onDelete(run.run_id) }} style={sourceActionBtn(false)}>Confirm delete</button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmDelete(run.run_id)} style={sourceActionBtn(false)}>Delete</button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </details>
+  )
+}
+
+function ResumedBatchOutput({
+  status,
+  progress,
+  results,
+  resultPage,
+  pageIndex,
+  onCancel,
+  onDelete,
+  onExport,
+  onPrevious,
+  onNext,
+  onStartNew,
+}: {
+  status: RunStatus
+  progress: BatchProgress | null
+  results: BatchResult[] | null
+  resultPage: BatchPage | null
+  pageIndex: number
+  onCancel: () => void
+  onDelete: () => void
+  onExport: (format: 'tsv' | 'manifest') => void
+  onPrevious: () => void
+  onNext: () => void
+  onStartNew: () => void
+}) {
+  const completedEmpty = Array.isArray(results) && results.length === 0 && progress?.stage === 'completed'
+  return (
+    <section aria-label="Resumed Batch run">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 style={{ margin: 0, color: 'var(--ink)', font: '650 20px var(--display)' }}>Saved Batch run</h1>
+          <p style={{ margin: '3px 0 0', color: 'var(--ink-4)', fontSize: 11.5 }}>Owner-scoped server result. Source previews are not restored.</p>
+        </div>
+        <button type="button" onClick={onStartNew} style={sourceActionBtn(false)}>Start a new cohort</button>
+      </div>
+      {status === 'idle' || status === 'running' ? (
+        <>
+          <LoadingCard progress={progress} />
+          {progress?.jobId && <div className="mt-3 flex justify-end"><button type="button" onClick={onCancel} style={sourceActionBtn(false)}>Cancel run</button></div>}
+        </>
+      ) : progress && isBatchIssue(progress.stage) ? (
+        <>
+          <BatchRunIssue progress={progress} />
+          {progress.jobId && <div className="flex justify-end"><DeleteRunButton onDelete={onDelete} /></div>}
+        </>
+      ) : completedEmpty && progress ? (
+        <BatchEmptyRun progress={progress} onClear={onStartNew} />
+      ) : results && results.length > 0 ? (
+        <>
+          <BatchWarnings warnings={progress?.warnings ?? []} />
+          <div className="mb-3 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => onExport('tsv')} style={sourceActionBtn(false)}>Export full TSV</button>
+            <button type="button" onClick={() => onExport('manifest')} style={sourceActionBtn(false)}>Export manifest</button>
+            <DeleteRunButton onDelete={onDelete} />
+          </div>
+          <BatchTable rows={results.map(rowFromResult)} annotated activePanels={[]} />
+          {resultPage && <BatchPager page={resultPage} pageIndex={pageIndex} onPrevious={onPrevious} onNext={onNext} />}
+        </>
+      ) : (
+        <p role="status" style={{ padding: 14, border: '0.5px solid var(--line)', borderRadius: 10, background: 'var(--bg)', color: 'var(--ink-3)', fontSize: 12.5 }}>
+          This saved run has no result page available.
+        </p>
+      )}
+    </section>
+  )
+}
+
 /** Page context shown in the nav center (breadcrumb + title + cohort size) so
  *  the body leads straight with the output — no tall header band above it. */
 function NavContext({ count, source }: { count: number; source?: string }) {
@@ -562,6 +1028,18 @@ function NavContext({ count, source }: { count: number; source?: string }) {
         </span>
       )}
     </div>
+  )
+}
+
+function DeleteRunButton({ onDelete }: { onDelete: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  return confirming ? (
+    <span className="flex flex-wrap items-center gap-2">
+      <button type="button" onClick={() => setConfirming(false)} style={sourceActionBtn(false)}>Keep run</button>
+      <button type="button" onClick={onDelete} style={sourceActionBtn(false)}>Confirm delete</button>
+    </span>
+  ) : (
+    <button type="button" onClick={() => setConfirming(true)} style={sourceActionBtn(false)}>Delete run</button>
   )
 }
 
@@ -736,6 +1214,46 @@ function LoadingCard({ progress }: { progress: BatchProgress | null }) {
   )
 }
 
+function BatchPager({
+  page,
+  pageIndex,
+  onPrevious,
+  onNext,
+}: {
+  page: BatchPage
+  pageIndex: number
+  onPrevious: () => void
+  onNext: () => void
+}) {
+  const start = pageIndex * page.limit + 1
+  const end = Math.min(page.total, start + page.limit - 1)
+  return (
+    <nav
+      className="mt-3 flex flex-wrap items-center justify-between gap-3"
+      aria-label="Batch result pages"
+      style={{
+        border: '0.5px solid var(--line)',
+        borderRadius: 10,
+        background: 'var(--bg)',
+        padding: '9px 11px',
+      }}
+    >
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-4)' }}>
+        {page.total === 0 ? 'No rows' : `${start.toLocaleString()}–${end.toLocaleString()} of ${page.total.toLocaleString()}`}
+        {' · '}at most {page.limit} rows mounted
+      </span>
+      <span className="flex items-center gap-2">
+        <button type="button" onClick={onPrevious} disabled={pageIndex === 0} style={sourceActionBtn(false)}>
+          Previous
+        </button>
+        <button type="button" onClick={onNext} disabled={!page.next_cursor} style={sourceActionBtn(false)}>
+          Next
+        </button>
+      </span>
+    </nav>
+  )
+}
+
 function BatchRunIssue({ progress }: { progress: BatchProgress }) {
   const copy = issueCopy(progress)
   return (
@@ -754,6 +1272,11 @@ function BatchRunIssue({ progress }: { progress: BatchProgress }) {
       <p style={{ fontSize: 12.5, lineHeight: 1.6, margin: '7px 0 0' }}>
         {copy.body}
       </p>
+      {progress.stage === 'auth' && (
+        <button type="button" onClick={openAuthMenu} style={{ ...sourceActionBtn(false), marginTop: 10 }}>
+          Sign in
+        </button>
+      )}
       {progress.done > 0 || progress.total > 0 ? (
         <p style={{ fontFamily: 'var(--mono)', fontSize: 11.5, margin: '9px 0 0' }}>
           {progress.done} / {progress.total} variants completed
@@ -831,6 +1354,25 @@ function StaleRunNotice() {
   )
 }
 
+function PreviewLimitNotice({ total }: { total: number }) {
+  return (
+    <p
+      role="status"
+      style={{
+        margin: '0 0 10px',
+        padding: '9px 11px',
+        borderRadius: 9,
+        border: '0.5px solid var(--line)',
+        background: 'var(--bg-soft)',
+        color: 'var(--ink-3)',
+        fontSize: 12,
+      }}
+    >
+      Showing the first 500 of {total.toLocaleString()} preview rows. Generate the run for server-paged results.
+    </p>
+  )
+}
+
 function BatchWarnings({ warnings, compact = false }: { warnings: string[]; compact?: boolean }) {
   const unique = Array.from(new Set(warnings.filter(Boolean)))
   if (unique.length === 0) return null
@@ -884,6 +1426,7 @@ function BatchWarnings({ warnings, compact = false }: { warnings: string[]; comp
 
 function sourceActionBtn(active: boolean): React.CSSProperties {
   return {
+    minHeight: 44,
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
@@ -907,6 +1450,7 @@ function SourcesBar({
   onToggleAdd,
   onRemove,
   onClear,
+  onReattach,
 }: {
   sources: ImportSource[]
   total: number
@@ -914,7 +1458,9 @@ function SourcesBar({
   onToggleAdd: () => void
   onRemove: (id: string) => void
   onClear: () => void
+  onReattach: () => void
 }) {
+  const needsReattach = sources.some((source) => source.requiresFileReattach)
   return (
     <section style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -940,6 +1486,15 @@ function SourcesBar({
           <SourceChip key={s.id} source={s} onRemove={() => onRemove(s.id)} />
         ))}
       </div>
+      {needsReattach && (
+        <div
+          role="alert"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginTop: 9, padding: '9px 10px', border: '0.5px solid var(--warn-bdr)', borderRadius: 9, background: 'var(--warn-tint)', color: 'var(--warn-text)', fontSize: 11.5 }}
+        >
+          <span>The complete file left browser memory after refresh. Its preview cannot be submitted as the cohort.</span>
+          <button type="button" onClick={onReattach} style={sourceActionBtn(false)}>Start over and reattach</button>
+        </div>
+      )}
     </section>
   )
 }
@@ -1011,8 +1566,17 @@ function SourceChip({ source, onRemove }: { source: ImportSource; onRemove: () =
         </button>
       </span>
       {source.clientTruncated && (
-        <span style={{ margin: '5px 0 0 4px', fontSize: 10.5, color: 'var(--ink-4)' }}>
-          Full file runs server-side
+        <span
+          role={source.requiresFileReattach ? 'alert' : undefined}
+          style={{
+            margin: '5px 0 0 4px',
+            fontSize: 10.5,
+            color: source.requiresFileReattach ? 'var(--warn-text)' : 'var(--ink-4)',
+          }}
+        >
+          {source.requiresFileReattach
+            ? 'Full file must be reattached before Generate'
+            : 'Full file runs server-side'}
         </span>
       )}
       {viewable && open && (
