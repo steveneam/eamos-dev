@@ -25,28 +25,25 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** IN PROGRESS @ 2026-07-19 10:52 +0000 — Lane A is rebuilt unchanged
-  on current `main` as `agent/product/contract-v1-manual`; Steven approved its
-  one-time manual CI substitute. Local gates are green; fresh Vercel is pending.
-- **Product-workflow sprint:** B/C remain dependency-held until the verified
-  Lane A commit reaches and passes on `main`. Every later lane and Task F remote
-  mutation retains its separate gate.
+- **Codex:** DONE @ 2026-07-19 10:57 +0000 — Lane A is integrated on `main` as
+  `6d2f6c9`; local substitute, preview/production Vercel, and current-main smokes
+  passed. Actions did not run and superseded PR #15 is closed.
+- **Product-workflow sprint:** Lane A is complete. B/C are dependency-unblocked
+  but not launched; every later lane and Task F remote mutation retains its
+  separate gate.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
   live as rollback; do not close/cancel it.
-- **GitHub Actions:** run `29683028720` remains failed with seven zero-step jobs.
-  It is not green; Steven approved a Lane-A-only local substitute, not spend or
-  a blanket bypass.
+- **GitHub Actions:** old run `29683028720` remains failed with seven zero-step
+  jobs. Commit `6d2f6c9` used `[skip ci]`; no Actions job or spend ran. Steven's
+  approval was Lane-A-only, not a blanket bypass.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
-- **Runtime:** persistent `eamos` tmux under `agent-tmux.service` remains the
-  execution seam.
-
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 10:52 +0000 · Codex
+UNLOCKED · 2026-07-19 10:57 +0000 · Codex
 
 ## Shared File Locks
 
@@ -55,21 +52,21 @@ UNLOCKED · 2026-07-19 10:52 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 10:52 +0000 · Codex Lane A manual integration
-Read CURRENT.md, the manual worktree, and plans/product-workflow-integration/plan.md first.
+# Resume prompt · 2026-07-19 10:57 +0000 · Codex Product Workflow after Lane A
+Read CURRENT.md, commit 6d2f6c9, and plans/product-workflow-integration/plan.md first.
 If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
-Delta: Steven approved a Lane-A-only manual substitute; current-main code and all runnable local gates are green.
-Commit/push the exact staged slice to the no-PR manual branch, require fresh Vercel green, then promote it to main with CI skipped.
-Docker is unavailable locally and Google Fonts blocked local build; do not describe either as passed.
-After main verification, close stale PR #15 and release the next plan step; do not launch a new parallel lane without the approved workflow.
+Delta: Lane A is on main at 6d2f6c9; local substitute + preview/prod Vercel + current-main smokes passed, Actions skipped, PR #15 closed.
+Docker was unavailable locally and Google Fonts blocked the pre-push local build; neither is recorded as passed.
+Lane A's exception does not automatically apply to later lanes; B/C are unblocked but not launched.
+Before the next implementation run, follow Steven's chosen sequential/manual or existing lane workflow explicitly.
 Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F gate, and the watcher-owned dirty inbox.
 ```
 
 ## Pointer
 
 - Audit/contract/launch package: `plans/product-workflow-integration/`.
-- Lane: `.claude/worktrees/product-contract-v1`;
-  `agent/product/contract-v1-manual`; source `bf589e8`; stale PR #15.
+- Lane A: `main@6d2f6c9`; retained manual/original branches and worktree; PR #15
+  closed. Their cleanup requires explicit authority.
 - Approval receipt: `docs/governance/decisions.md` (2026-07-19 decision).
 - Supabase convention:
   `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`;
@@ -97,9 +94,11 @@ Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F
   TypeScript, ESLint, Black, Ruff, pip audit, the configured high-severity npm
   audit gate, frontend boundary 275 files, coordination 9/9, and diff-check.
 - This host has no Docker executable. Local Next compilation was blocked only by
-  Google Fonts timeouts; the same commit still requires a fresh Vercel build.
+  Google Fonts timeouts; fresh preview and production Vercel builds passed.
 - Steven's one-time Lane A override is recorded in the decision ledger, plan,
   and board. It does not relabel the zero-step Actions run as green.
+- Exact commit `6d2f6c9` is on `origin/main`; current-main contract/web/structural
+  smokes passed, Actions did not run, and superseded PR #15 is closed.
 - No later lane, cloud, deploy, Supabase, provider, source, or Phase-7 mutation ran.
 - The repository's worktree install ratchet rejected the plan's stale lane-local
   `npm ci`; Codex restored the intended shared dependency link without deleting
@@ -115,6 +114,6 @@ Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F
 
 ## Next Action
 
-- Run the recovery-middle sample first if due. Otherwise push the exact manual
-  Lane A commit without a PR, require Vercel green, promote it to current `main`
-  with CI skipped, verify, and retire PR #15 before releasing the next step.
+- Run the recovery-middle sample first if due. Otherwise begin the next approved
+  Product Workflow implementation mode from verified `main@6d2f6c9`; do not
+  infer a later-lane CI waiver or cross any Task F/cloud/deploy gate.

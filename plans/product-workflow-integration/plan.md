@@ -1,7 +1,7 @@
 # Integrated Product Workflow Delivery Plan
 
-Status: approved by Steven on 2026-07-19; Lane A is in its one-time manual
-CI-substitute integration window approved at 2026-07-19 10:51 +0000.
+Status: active; Lane A integrated and verified on `main` as `6d2f6c9` through
+Steven's one-time manual CI substitute. B/C have not launched.
 
 Plan stamped: 2026-07-19 09:48 +0000 · Codex lead.
 
@@ -500,6 +500,12 @@ any unavailable local environment check rather than claiming it passed.
 All downstream dependency order, Task F, cloud/deploy/provider/source holds, and
 later-lane gates remain unchanged. The zero-step Actions run remains failed; it
 is not converted into success evidence.
+
+Receipt: `6d2f6c9` passed the runnable local substitute, fresh preview and
+production Vercel builds, and current-main contract/web/structural smokes.
+Actions did not run; PR #15 was closed as superseded. Docker was unavailable on
+the verification host, and the pre-push local Next build was blocked by Google
+Fonts network timeouts; neither limitation is represented as a passing check.
 
 For every lane, the lane agent:
 

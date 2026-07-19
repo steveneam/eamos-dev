@@ -9,7 +9,7 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Product Workflow V1 ACTIVE — Lane A manual integration only._ Historical
+**Status:** _Product Workflow V1 ACTIVE — Lane A integrated; B/C not launched._ Historical
 Mode-A dogfood completed 2026-07-03; its record remains below.
 
 ---
@@ -19,14 +19,14 @@ Mode-A dogfood completed 2026-07-03; its record remains below.
 _Launched: 2026-07-19 09:55 +0000 · Codex lead · Mode B · exact owned paths and frozen
 contract: `plans/product-workflow-integration/plan.md` + `spec.md`._
 
-The code contract is serial Lane A. Steven approved a one-time manual
-CI-equivalent substitute for Lane A at 2026-07-19 10:51 +0000; only after that
-gate, integration, and `main` verification may B/C launch. Delivery remains
-`A → B → Task F apply → C → D → E`; the Task F mutation has its own founder gate.
+Lane A was integrated and verified on `main` as `6d2f6c9` through Steven's
+one-time manual CI-equivalent substitute. B/C are dependency-unblocked but have
+not launched. Delivery remains `A → B → Task F apply → C → D → E`; the Task F
+mutation has its own founder gate.
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
-| A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1-manual` | manual gate green · Vercel pending | — | 1 |
+| A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1-manual` | integrated `6d2f6c9` · Vercel green | — | 1 |
 | B workflow-backend | unassigned | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | pending | A merged | 2 |
 | Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending | B merged + fresh Steven approval | 3 |
 | C surface-flow | unassigned | `plan.md` Lane C web paths | `agent/product/surface-flow` | pending | A merged; merge after Task F | 4 |
@@ -124,6 +124,11 @@ own `status`. Messages are append-only; you replace only your own state.
   this host and Google Fonts blocked the local Next build, so a fresh same-commit
   Vercel preview remains required before `main` promotion. No downstream or cloud
   gate was waived.
+- 2026-07-19 (Codex, lead/owner): **Lane A integrated.** Exact commit `6d2f6c9`
+  reached `main` with `[skip ci]`; Actions did not run, both preview and production
+  Vercel builds passed, the current-main contract/web/structural smokes passed,
+  and superseded PR #15 was closed. B/C were not launched and every downstream
+  mutation/deploy gate remains intact.
 
 ---
 
