@@ -1,11 +1,14 @@
 # Evidence Source Expansion — Implementation Plan
 
 Status: Phase 0 complete at `49cdacb`; Phase 1 and the synthetic-fixture Phase 2
-implementation were directly authorized on 2026-07-17. Full ESM-1b model/corpus
-acquisition, scoring, bgzip/Tabix materialization, upload, and activation remain
-separate gates.
+are complete at `b7c41c7`. Steven authorized the remaining code-eligible work
+for the next session on 2026-07-19: begin with Phase 3, then advance through
+Phases 4-6 only as each bounded exit gate passes. Phase 7 still requires the
+final published standard. Full ESM-1b model/corpus acquisition, scoring,
+bgzip/Tabix materialization, upload, activation, licensed-content ingestion,
+provider/deployment changes, and Supabase mutation remain separate gates.
 
-Stamped: 2026-07-17 17:13 +0000 · Codex.
+Stamped: 2026-07-19 05:17 +0000 · Codex.
 
 ## Goal
 
@@ -14,8 +17,9 @@ REVEL-led computational card, a scalable clean-regenerated ESM-1b path, safe
 OMIM, LOVD, and MaveDB integration slices, clearer OddsPath handling, and a versioned
 route to the final ACMG/AMP/CAP/ClinGen SVC v4 standard.
 
-This is a plan-ahead artifact created during the Phase-3c 48-hour soak. It does
-not authorize source materialization, a provider or environment change,
+This began as a plan-ahead artifact during the Phase-3c soak. Steven authorized
+the code-eligible Phase 3-6 sequence on 2026-07-19. That authorization still
+does not cover source materialization, a provider or environment change,
 Supabase mutation, deployment action, licensed-content ingestion, or SVC v4
 activation.
 

@@ -34,6 +34,10 @@
 - **GitHub Actions:** Steven ruled no additional spend; wait for the monthly
   included-minutes renewal. Commit/push continues normally, but new code or
   deploy slices cannot clear a required CI boundary while Actions is blocked.
+- **Evidence expansion:** Steven authorized the remaining code-eligible work
+  for the next session at 05:17 UTC. Phase 2 is complete; start with the bounded
+  Phase-3 OMIM cross-reference slice, then advance through Phases 4-6 only as
+  their gates pass. Phase 7 and every live/materialization gate remain held.
 - **Live comm:** `agent-comm` is installed but targets Claude panes only, and
   `live-comm` is not exposed to Codex. Swordfish was notified at 05:10 UTC;
   async peer mail remains the reachable channel. This does not block Phase 3c.
@@ -42,7 +46,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 05:10 +0000 · Codex
+UNLOCKED · 2026-07-19 05:17 +0000 · Codex
 
 ## Shared File Locks
 
@@ -51,15 +55,17 @@ None.
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 05:06 +0000 · Codex Phase-3c recovery soak
-Read CURRENT.md, peer mail, PROGRESS.md, and docs/deployment/render-to-syd2-phase3.md first.
-The scheduled middle checkpoint found a 7h15 shared-edge outage; recovery proof is at d326d06.
-The clean window restarted at 2026-07-19T01:46:12Z; Render remains live and Phase 4 is held.
-Run the recovery-middle sample around/after 2026-07-20 01:46 UTC before any expansion work.
-Earliest closure is around/after 2026-07-21 01:46 UTC and still requires a green end sample.
+# Resume prompt · 2026-07-19 05:17 +0000 · Codex Phase-3 evidence expansion
+Read CURRENT.md, peer mail, PROGRESS.md, the evidence-expansion plan, and the Phase-3c runbook first.
+Phase 2 is complete; Steven authorized remaining code-eligible work for this session.
+If the recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
+Otherwise freeze a bounded Phase-3 exit checklist, then implement safe OMIM cross-reference-only behavior.
+Keep OMIM content/API/mim2gene, downloads, materialization, providers, deploys, and Supabase held.
+After Phase 3, advance through code-eligible Phases 4-6 only as each bounded gate passes; Phase 7 is held.
+The clean soak window started at 2026-07-19T01:46:12Z; earliest closure is 2026-07-21 01:46 UTC.
 Commit/push normally, but do not buy GitHub Actions minutes; required new-code CI waits for renewal.
 Use async peer mail for Eamos/Codex; current live-comm targets Claude panes only.
-Do not mutate deployments/providers/Supabase/Render, start Phase 4, or clean watcher-owned files.
+Do not mutate deployments/providers/Supabase/Render, start Render-cancellation Phase 4, or clean watcher-owned files.
 ```
 
 ## Pointer
@@ -94,11 +100,14 @@ Do not mutate deployments/providers/Supabase/Render, start Phase 4, or clean wat
 - Swordfish's live-comm claim is only partial for Eamos: the executable cannot
   target this Codex session and its skill is Claude-only. A durable correction
   was sent; no production or soak action follows.
+- Steven authorized continued code-eligible evidence expansion for the next
+  session. Phase 2 is already complete; Phase 3 OMIM cross-reference-only work
+  is next, with all source-content and live-operation gates preserved.
 - No deployment, provider, DNS, environment, Supabase, Render, credential,
-  cleanup, or Phase-4 mutation occurred.
+  cleanup, or Render-cancellation Phase-4 mutation occurred.
 
 ## Next Action
 
-- Run the recovery-middle Phase-3c sample around/after 2026-07-20 01:46 UTC. If
-  it is not yet due, wait for Steven's next explicit task; do not start another
-  evidence-expansion phase or close/cancel Render.
+- At the next session, run the recovery-middle Phase-3c sample first only if its
+  2026-07-20 01:46 UTC floor has passed. Otherwise start the bounded Phase-3
+  safe OMIM cross-reference slice. Do not close/cancel Render.
