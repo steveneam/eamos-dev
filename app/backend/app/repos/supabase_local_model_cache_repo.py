@@ -1866,18 +1866,35 @@ def _clinical_gene_disease_summary(
         condition = {
             "name": name or _row_text(mondo or {}, "name") or "",
             "disease_ids": disease_ids,
+            "omim_cross_references": [],
             "inheritance": None,
             "validity": None,
             "mechanism": None,
             "source_urls": [],
             "phenotypes": [],
         }
+        if mondo is not None:
+            for cross_reference in _text_list(mondo.get("xrefs")):
+                _append_omim_cross_reference(
+                    condition,
+                    identifier=cross_reference,
+                    source_id="mondo_disease_ontology",
+                    source_record_id=_row_text(mondo, "mondo_id"),
+                    entry_type="phenotype",
+                )
         conditions_by_key[key] = condition
         return condition
 
     for row in clingen_rows:
         disease_id = _row_text(row, "disease_id")
         condition = condition_for(disease_id, _row_text(row, "disease_label"))
+        _append_omim_cross_reference(
+            condition,
+            identifier=disease_id,
+            source_id="clingen_gene_validity",
+            source_record_id=disease_id,
+            entry_type="phenotype",
+        )
         condition["inheritance"] = condition["inheritance"] or _row_text(
             row,
             "mode_of_inheritance",
@@ -1888,6 +1905,13 @@ def _clinical_gene_disease_summary(
     for row in gencc_rows:
         disease_id = _row_text(row, "disease_curie")
         condition = condition_for(disease_id, _row_text(row, "disease_title"))
+        _append_omim_cross_reference(
+            condition,
+            identifier=disease_id,
+            source_id="gencc_download",
+            source_record_id=disease_id,
+            entry_type="phenotype",
+        )
         condition["validity"] = condition["validity"] or _row_text(row, "assertion")
         _append_unique(condition["source_urls"], _row_text(row, "report_url"))
 
@@ -1896,6 +1920,13 @@ def _clinical_gene_disease_summary(
         condition = _condition_matching_disease_id(conditions_by_key.values(), disease_id)
         if condition is None:
             condition = condition_for(disease_id, _row_text(row, "disease_name"))
+        _append_omim_cross_reference(
+            condition,
+            identifier=disease_id,
+            source_id="human_phenotype_ontology",
+            source_record_id=disease_id,
+            entry_type="phenotype",
+        )
         phenotype = {
             "hpo_id": _row_text(row, "hpo_id"),
             "label": _row_text(row, "hpo_label"),
@@ -1944,6 +1975,11 @@ def _clinical_gene_disease_summary(
         "disease_ids": _dedupe_text(
             disease_id for condition in conditions for disease_id in condition["disease_ids"]
         ),
+        "omim_cross_references": [
+            reference
+            for condition in conditions
+            for reference in condition["omim_cross_references"]
+        ],
         "inheritance": primary.get("inheritance"),
         "penetrance": None,
         "gene_disease_validity": primary.get("validity"),
@@ -2063,6 +2099,30 @@ def _condition_matching_disease_id(
 def _append_unique(values: list[str], value: str | None) -> None:
     if value and value not in values:
         values.append(value)
+
+
+def _append_omim_cross_reference(
+    condition: dict[str, Any],
+    *,
+    identifier: str | None,
+    source_id: str,
+    source_record_id: str | None,
+    entry_type: str,
+) -> None:
+    if identifier is None or source_record_id is None:
+        return
+    prefix, separator, accession = identifier.partition(":")
+    if prefix != "OMIM" or separator != ":" or len(accession) != 6 or not accession.isdigit():
+        return
+    reference = {
+        "identifier": identifier,
+        "entry_type": entry_type,
+        "source_id": source_id,
+        "source_record_id": source_record_id,
+    }
+    references = condition.setdefault("omim_cross_references", [])
+    if reference not in references:
+        references.append(reference)
 
 
 def _first_row_text(rows: list[dict[str, Any]], key: str) -> str | None:

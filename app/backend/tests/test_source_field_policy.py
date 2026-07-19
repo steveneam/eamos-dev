@@ -269,6 +269,28 @@ def test_registered_mavedb_contract_does_not_authorize_archive_acquisition() -> 
     assert serialize.allowed is True
 
 
+def test_reserved_omim_content_sources_deny_every_action() -> None:
+    policy = SourceFieldPolicy()
+    actions = (
+        "acquire",
+        "normalize",
+        "cache",
+        "public_serialize",
+        "product_export",
+        "log",
+        "analyze",
+        "backup",
+        "stage",
+        "restore",
+        "raw_debug",
+    )
+
+    for source_id in ("omim_mim2gene", "omim_licensed_api"):
+        for action in actions:
+            decision = policy.decide(source_id, "gene_disease_validity", action=action)
+            assert decision.allowed is False
+
+
 def test_unknown_license_and_product_tier_deny_by_default() -> None:
     class RegistryWithUnknownLicense:
         def get(self, source_id: str):

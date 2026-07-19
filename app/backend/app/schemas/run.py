@@ -234,9 +234,69 @@ def _protected_source_fact(fact: SourceFactPolicyEnvelope) -> bool:
             fact.source_id,
             getattr(fact, "source", None),
             getattr(fact, "source_list", None),
+            getattr(fact, "identifier_namespace", None),
         )
     ).casefold()
     return any(source in source_text for source in ("omim", "lovd", "mavedb"))
+
+
+OMIM_CROSS_REFERENCE_SUPPLIER_POLICY: dict[str, tuple[str, frozenset[str]]] = {
+    "clingen_gene_validity": ("disease", frozenset({"phenotype"})),
+    "gencc_download": ("disease", frozenset({"phenotype"})),
+    "human_phenotype_ontology": ("gene_or_disease_links", frozenset({"phenotype"})),
+    "mondo_disease_ontology": ("cross_references", frozenset({"phenotype"})),
+}
+
+
+class OmimCrossReference(SourceFactPolicyEnvelope):
+    origin_kind: Literal["cross_reference"] = "cross_reference"
+    identifier_namespace: Literal["OMIM"] = "OMIM"
+    identifier: str
+    entry_type: Literal["gene", "phenotype"]
+    external_link_provider: Literal["omim_web"] = "omim_web"
+    external_url: str
+    evidence_role: Literal["identifier_only"] = "identifier_only"
+
+    @model_validator(mode="after")
+    def _validate_identifier_link(self) -> OmimCrossReference:
+        prefix, separator, accession = self.identifier.partition(":")
+        if prefix != "OMIM" or separator != ":" or len(accession) != 6 or not accession.isdigit():
+            raise ValueError("OMIM cross-reference must use canonical OMIM:<six digits> syntax")
+        if self.external_url != f"https://omim.org/entry/{accession}":
+            raise ValueError("OMIM cross-reference URL must use the canonical HTTPS entry origin")
+        if not self.source_id or not self.source_record_id:
+            raise ValueError("OMIM cross-reference requires its supplying source and record")
+        supplier_policy = OMIM_CROSS_REFERENCE_SUPPLIER_POLICY.get(self.source_id)
+        if supplier_policy is None:
+            raise ValueError("OMIM cross-reference supplier is not approved")
+        policy_field, allowed_entry_types = supplier_policy
+        if self.entry_type not in allowed_entry_types:
+            raise ValueError("OMIM cross-reference entry type is invalid for its supplier")
+        public_decisions = [
+            decision
+            for decision in self.policy_decisions
+            if decision.action == "public_serialize" and decision.field == policy_field
+        ]
+        if (
+            not public_decisions
+            or any(decision.outcome != "allowed" for decision in public_decisions)
+            or self.public_serialization_allowed is not True
+            or not self.policy_version
+            or not self.terms_version_or_hash
+        ):
+            raise ValueError("OMIM cross-reference requires recorded supplier permission")
+        return self
+
+
+def _omim_cross_reference_output_allowed(reference: OmimCrossReference, action: str) -> bool:
+    relevant = [decision for decision in reference.policy_decisions if decision.action == action]
+    return (
+        bool(reference.source_id)
+        and bool(reference.source_record_id)
+        and bool(relevant)
+        and all(decision.outcome == "allowed" for decision in relevant)
+        and _source_fact_output_allowed(reference, action)
+    )
 
 
 class ComputationalAlternate(BaseModel):
@@ -925,6 +985,7 @@ class InterpretationSummary(BaseModel):
 class DiseaseMechanismSection(BaseModel):
     primary_condition: str | None = None
     disease_ids: list[str] = Field(default_factory=list)
+    omim_cross_references: list[OmimCrossReference] = Field(default_factory=list)
     inheritance: str | None = None
     penetrance: str | None = None
     gene_disease_validity: str | None = None
@@ -938,6 +999,19 @@ class DiseaseMechanismSection(BaseModel):
     ) -> list[SourceProvenance]:
         action = _serialization_policy_action(info)
         return [item for item in provenance if _source_fact_output_allowed(item, action)]
+
+    @field_serializer("omim_cross_references", when_used="json")
+    def _serialize_omim_cross_references(
+        self,
+        references: list[OmimCrossReference],
+        info: Any,
+    ) -> list[OmimCrossReference]:
+        action = _serialization_policy_action(info)
+        return [
+            reference
+            for reference in references
+            if _omim_cross_reference_output_allowed(reference, action)
+        ]
 
 
 class MolecularContextSection(BaseModel):

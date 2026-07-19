@@ -376,6 +376,14 @@ def test_gene_disease_real_mode_prefers_private_clinical_source_tables() -> None
                 "hgnc_id": "HGNC:10294",
                 "primary_condition": "Leber congenital amaurosis 2",
                 "disease_ids": ["MONDO:0008765", "OMIM:204100"],
+                "omim_cross_references": [
+                    {
+                        "identifier": "OMIM:204100",
+                        "entry_type": "phenotype",
+                        "source_id": "mondo_disease_ontology",
+                        "source_record_id": "MONDO:0008765",
+                    }
+                ],
                 "inheritance": "Autosomal recessive inheritance",
                 "penetrance": None,
                 "gene_disease_validity": "Definitive",
@@ -412,6 +420,12 @@ def test_gene_disease_real_mode_prefers_private_clinical_source_tables() -> None
     assert result.status == "source_table"
     assert result.summary["primary_condition"] == "Leber congenital amaurosis 2"
     assert result.summary["gene_disease_validity"] == "Definitive"
+    assert result.summary["omim_cross_references"][0]["identifier"] == "OMIM:204100"
+    assert result.summary["omim_cross_references"][0]["source_id"] == ("mondo_disease_ontology")
+    assert result.summary["omim_cross_references"][0]["external_url"] == (
+        "https://omim.org/entry/204100"
+    )
+    assert result.summary["omim_cross_references"][0]["public_serialization_allowed"] is True
     assert result.source_url == "https://search.clinicalgenome.org/kb/gene-validity/example"
 
 
@@ -532,10 +546,12 @@ def test_gene_disease_fixture_returns_source_backed_rpe65_mechanism() -> None:
     assert result.summary["inheritance"] == "AR"
     assert result.summary["gene_disease_validity"] == "definitive"
     assert result.summary["penetrance"] is None
-    assert "OMIM:204100" in result.summary["disease_ids"]
+    assert "OMIM:204100" not in result.summary["disease_ids"]
     assert "MedGen:C1859844" in result.summary["disease_ids"]
     assert "MONDO:0008765" in result.summary["disease_ids"]
     assert "ORPHA:65" in result.summary["disease_ids"]
+    assert result.summary["omim_cross_references"] == []
+    assert "omim_identifier_hidden_without_permitted_supplier" in result.summary["warnings"]
     assert {item["source"] for item in result.summary["provenance"]} >= {
         "HGNC",
         "ClinGen Gene-Disease Validity",

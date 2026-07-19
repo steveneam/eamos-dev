@@ -52,9 +52,11 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
     registry = DEFAULT_DATA_SOURCE_REGISTRY
     source_ids = {record.source_id for record in registry.all()}
 
-    assert len(source_ids) == 36
+    assert len(source_ids) == 38
     assert "mavedb_cc0_bulk" in source_ids
     assert "mavedb_public_api_metadata" in source_ids
+    assert "omim_mim2gene" in source_ids
+    assert "omim_licensed_api" in source_ids
     assert {
         "myvariant_gnomad_only",
         "google_deepmind_alphamissense_hg38",
@@ -72,6 +74,24 @@ def test_default_registry_contains_reviewed_seed_rows() -> None:
         "interproscan_optional_licensed_apps",
         "hmmer_pfam_a",
     } <= source_ids
+
+
+def test_omim_content_routes_are_reserved_but_not_enabled() -> None:
+    registry = DEFAULT_DATA_SOURCE_REGISTRY
+
+    mim2gene = registry.get("omim_mim2gene")
+    assert mim2gene.license_status is LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED
+    assert mim2gene.allowed_fields == ()
+    assert "gene_disease_validity" in mim2gene.restricted_fields
+    assert mim2gene.download_approved is False
+    assert mim2gene.day1_status == "blocked_pending_written_terms_decision"
+
+    licensed_api = registry.get("omim_licensed_api")
+    assert licensed_api.license_status is LicenseStatus.COMMERCIAL_LICENSE_REVIEW_REQUIRED
+    assert licensed_api.allowed_fields == ()
+    assert "api_payloads" in licensed_api.restricted_fields
+    assert licensed_api.download_approved is False
+    assert licensed_api.day1_status == "blocked_until_signed_license"
 
 
 def test_protein_annotation_rows_are_commercial_allowed_but_not_runtime_approved() -> None:

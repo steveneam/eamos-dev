@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 import httpx
 
+from app.services.omim_cross_references import normalize_omim_cross_references
 from app.tools.base import FixtureBackedTool, ToolResult
 
 
@@ -16,6 +17,7 @@ def _unavailable_summary(gene: str | None, warnings: list[str] | None = None) ->
         "hgnc_id": None,
         "primary_condition": None,
         "disease_ids": [],
+        "omim_cross_references": [],
         "inheritance": None,
         "penetrance": None,
         "gene_disease_validity": None,
@@ -136,9 +138,10 @@ def _result_from_source_table_summary(
     extra_warnings: list[str] | None = None,
 ) -> ToolResult:
     normalized = _unavailable_summary(gene)
-    normalized.update(summary)
+    normalized.update(deepcopy(summary))
+    normalized = _normalize_omim_summary(normalized)
     normalized["warnings"] = _dedupe(
-        [*_string_list(summary.get("warnings")), *list(extra_warnings or [])]
+        [*_string_list(normalized.get("warnings")), *list(extra_warnings or [])]
     )
     return ToolResult(
         source=GeneDiseaseTool.source,
@@ -213,21 +216,24 @@ def _summary_from_record(record: dict[str, Any], gene: str) -> dict[str, Any]:
     if penetrance is None and "penetrance_not_source_backed" not in warnings:
         warnings.append("penetrance_not_source_backed")
 
-    return {
-        "gene": _text(record.get("gene")) or gene,
-        "approved_symbol": _text(record.get("approved_symbol")) or gene,
-        "hgnc_id": _text(record.get("hgnc_id")),
-        "gene_name": _text(record.get("gene_name")),
-        "primary_condition": primary_condition,
-        "disease_ids": disease_ids,
-        "inheritance": inheritance,
-        "penetrance": penetrance,
-        "gene_disease_validity": validity,
-        "mechanism": mechanism,
-        "conditions": conditions,
-        "provenance": _provenance(record),
-        "warnings": warnings,
-    }
+    return _normalize_omim_summary(
+        {
+            "gene": _text(record.get("gene")) or gene,
+            "approved_symbol": _text(record.get("approved_symbol")) or gene,
+            "hgnc_id": _text(record.get("hgnc_id")),
+            "gene_name": _text(record.get("gene_name")),
+            "primary_condition": primary_condition,
+            "disease_ids": disease_ids,
+            "inheritance": inheritance,
+            "penetrance": penetrance,
+            "gene_disease_validity": validity,
+            "mechanism": mechanism,
+            "conditions": conditions,
+            "omim_cross_references": _mapping_list(record.get("omim_cross_references")),
+            "provenance": _provenance(record),
+            "warnings": warnings,
+        }
+    )
 
 
 def _merge_hgnc_record(record: dict[str, Any], hgnc_record: dict[str, Any]) -> None:
@@ -281,6 +287,7 @@ def _conditions(record: dict[str, Any]) -> list[dict[str, Any]]:
                 "validity": _text(condition.get("validity")),
                 "mechanism": _text(condition.get("mechanism")),
                 "source_urls": _string_list(condition.get("source_urls")),
+                "omim_cross_references": _mapping_list(condition.get("omim_cross_references")),
             }
         )
     return result
@@ -291,6 +298,75 @@ def _provenance(record: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(provenance, list):
         return []
     return [item for item in provenance if isinstance(item, dict)]
+
+
+def _normalize_omim_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(summary)
+    hidden_identifier = False
+    references, reference_warnings = normalize_omim_cross_references(
+        normalized.get("omim_cross_references")
+    )
+    normalized["omim_cross_references"] = references
+
+    conditions = normalized.get("conditions")
+    if isinstance(conditions, list):
+        for condition in conditions:
+            if not isinstance(condition, dict):
+                continue
+            condition_references, condition_warnings = normalize_omim_cross_references(
+                condition.get("omim_cross_references")
+            )
+            condition["omim_cross_references"] = condition_references
+            reference_warnings.extend(condition_warnings)
+            condition["disease_ids"], condition_hidden = _filter_omim_identifiers(
+                _string_list(condition.get("disease_ids")),
+                condition_references,
+            )
+            hidden_identifier = hidden_identifier or condition_hidden
+            for reference in condition_references:
+                if reference not in references:
+                    references.append(reference)
+
+    normalized["omim_cross_references"] = references
+    normalized["disease_ids"], top_hidden = _filter_omim_identifiers(
+        _string_list(normalized.get("disease_ids")),
+        references,
+    )
+    hidden_identifier = hidden_identifier or top_hidden
+
+    normalized["warnings"] = _dedupe(
+        [
+            *_string_list(normalized.get("warnings")),
+            *reference_warnings,
+            *(["omim_identifier_hidden_without_permitted_supplier"] if hidden_identifier else []),
+        ]
+    )
+    return normalized
+
+
+def _mapping_list(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [deepcopy(item) for item in value if isinstance(item, dict)]
+
+
+def _filter_omim_identifiers(
+    identifiers: list[str],
+    references: list[dict[str, Any]],
+) -> tuple[list[str], bool]:
+    permitted = {
+        str(reference.get("identifier"))
+        for reference in references
+        if reference.get("public_serialization_allowed") is True
+    }
+    visible: list[str] = []
+    hidden = False
+    for identifier in identifiers:
+        if identifier.upper().startswith("OMIM:") and identifier not in permitted:
+            hidden = True
+            continue
+        visible.append(identifier)
+    return visible, hidden
 
 
 def _primary_source_url(summary: dict[str, Any]) -> str | None:

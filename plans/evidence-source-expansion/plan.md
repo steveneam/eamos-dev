@@ -1,14 +1,15 @@
 # Evidence Source Expansion — Implementation Plan
 
 Status: Phase 0 complete at `49cdacb`; Phase 1 and the synthetic-fixture Phase 2
-are complete at `b7c41c7`. Steven authorized the remaining code-eligible work
-for the next session on 2026-07-19: begin with Phase 3, then advance through
-Phases 4-6 only as each bounded exit gate passes. Phase 7 still requires the
-final published standard. Full ESM-1b model/corpus acquisition, scoring,
+are complete at `b7c41c7`; the safe OMIM cross-reference Phase 3 completed and
+passed the full local verification boundary on 2026-07-19. Steven authorized
+the remaining code-eligible work on 2026-07-19: advance through Phases 4-6 only
+as each bounded exit gate passes. Phase 7 still requires the final published
+standard. Full ESM-1b model/corpus acquisition, scoring,
 bgzip/Tabix materialization, upload, activation, licensed-content ingestion,
 provider/deployment changes, and Supabase mutation remain separate gates.
 
-Stamped: 2026-07-19 05:17 +0000 · Codex.
+Stamped: 2026-07-19 05:44 +0000 · Codex.
 
 ## Goal
 
@@ -534,6 +535,29 @@ borrowed by ESM-1v or ESM-2.
 Materializing or uploading the full asset is a separate operator gate.
 
 ## Phase 3 — Safe OMIM Cross-Reference Slice
+
+Implementation checkpoint: 2026-07-19 05:44 +0000 · Codex.
+
+- `OmimCrossReference` now carries the actual supplying source/record, policy
+  envelope, `cross_reference` origin, OMIM namespace, phenotype-versus-gene
+  entry type, fixed `omim_web` provider, canonical HTTPS URL, and explicit
+  `identifier_only` evidence role. Current approved suppliers are phenotype
+  identifiers from MONDO, HPO, ClinGen, and GenCC; no gene-entry supplier is
+  activated by this slice.
+- Private clinical-source normalization preserves MONDO/HPO supplier ownership.
+  Bare or malformed OMIM identifiers, unknown suppliers, wrong entry types,
+  substituted URLs, stale/absent policy decisions, and unverified legacy
+  fixture labels fail closed and are not publicly rendered.
+- The report UI links only typed, server-permitted OMIM identifiers and labels
+  them as non-evidentiary cross-references with their supplying source. It no
+  longer turns legacy OMIM tokens or provenance URLs into an OMIM evidence row.
+- `omim_mim2gene` and `omim_licensed_api` are reserved registry identities with
+  empty public fields, explicit protected fields, and disabled acquisition,
+  cache, provider, and runtime gates. No parser, download, API client, content,
+  provider, persistence, or cloud mutation was added.
+- The cross-reference path cannot create gene-disease validity; focused denial,
+  source-policy, orchestration, contract, and client-link regressions are green.
+  `npm run verify` passed end to end in 212.1 seconds.
 
 1. Preserve the supplying source as `source_id`; store `OMIM` as the identifier
    namespace, `cross_reference` as origin, and `omim_web` as the external link

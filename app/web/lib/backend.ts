@@ -1147,6 +1147,34 @@ export interface SourceFactPolicyEnvelope {
   policy_decisions: SourcePolicyDecision[]
 }
 
+export interface OmimCrossReference {
+  source_id?: string | null
+  source_record_id?: string | null
+  source_version?: string | null
+  source_url?: string | null
+  retrieved_at?: string | null
+  origin_kind: 'cross_reference'
+  match_level?: string | null
+  record_license?: string | null
+  terms_version_or_hash?: string | null
+  license_gate?: string | null
+  launch_gate?: string | null
+  public_serialization_allowed?: boolean | null
+  export_allowed?: boolean | null
+  cache_allowed?: boolean | null
+  attribution?: string | null
+  policy_version?: string | null
+  decision_reason?: string | null
+  decision_at?: string | null
+  policy_decisions: SourcePolicyDecision[]
+  identifier_namespace: 'OMIM'
+  identifier: string
+  entry_type: 'gene' | 'phenotype'
+  external_link_provider: 'omim_web'
+  external_url: string
+  evidence_role: 'identifier_only'
+}
+
 export interface SourceProvenance {
   source_id?: string | null
   source_record_id?: string | null
@@ -1281,6 +1309,7 @@ export interface InterpretationSummary {
 export interface DiseaseMechanismSection {
   primary_condition?: string | null
   disease_ids: string[]
+  omim_cross_references: OmimCrossReference[]
   inheritance?: string | null
   penetrance?: string | null
   gene_disease_validity?: string | null

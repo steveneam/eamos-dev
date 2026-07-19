@@ -6,10 +6,15 @@ import type {
   AssociatedCondition,
   CuratedVariantsDistribution,
   EvidenceSourceSummary,
+  OmimCrossReference,
   ReportExtractionSectionTarget,
   ReportPayload,
   SourceProvenance,
 } from '@/lib/backend'
+import {
+  omimCrossReferenceOrigins,
+  safeOmimCrossReferenceHref,
+} from '@/lib/omim-cross-reference'
 
 interface DiseaseValidityDashboardProps {
   payload: ReportPayload
@@ -146,7 +151,10 @@ function normalizeValidity(value: string | null): string | null {
   return titleCase(value)
 }
 
-function diseaseIdLink(id: string): string | null {
+function diseaseIdLink(
+  id: string,
+  omimCrossReferences: readonly OmimCrossReference[],
+): string | null {
   const idx = id.indexOf(':')
   if (idx < 0) return null
   const prefix = id.slice(0, idx).toUpperCase()
@@ -156,7 +164,7 @@ function diseaseIdLink(id: string): string | null {
     case 'MONDO':
       return `https://monarchinitiative.org/MONDO:${acc}`
     case 'OMIM':
-      return `https://omim.org/entry/${acc}`
+      return safeOmimCrossReferenceHref(id, omimCrossReferences)
     case 'ORPHA':
       return `https://www.orpha.net/en/disease/detail/${acc}`
     case 'MEDGEN':
@@ -189,8 +197,9 @@ function sourceLabelFromUrl(url: string): string | null {
   return null
 }
 
-function rowFromProvenance(item: SourceProvenance): SourceRow {
+function rowFromProvenance(item: SourceProvenance): SourceRow | null {
   const label = item.source === 'Orphadata' ? 'Orphanet' : item.source
+  if (label.toLowerCase().includes('omim')) return null
   return {
     label,
     status: item.status,
@@ -220,20 +229,29 @@ function buildSourceRows(
   conditions: DiseaseCondition[],
   ids: string[],
   curated: CuratedVariantsDistribution | null | undefined,
+  omimCrossReferences: readonly OmimCrossReference[],
 ): SourceRow[] {
   const rows = new Map<string, SourceRow>()
   const provenance = Array.isArray(geneDiseaseRow?.summary?.provenance)
     ? (geneDiseaseRow.summary.provenance as SourceProvenance[])
     : []
-  for (const item of provenance) addSourceRow(rows, rowFromProvenance(item))
+  for (const item of provenance) {
+    const row = rowFromProvenance(item)
+    if (row) addSourceRow(rows, row)
+  }
 
   for (const id of ids) {
     const label = sourceLabelFromId(id)
-    if (label) {
+    const href = diseaseIdLink(id, omimCrossReferences)
+    if (label && (label !== 'OMIM' || href)) {
       addSourceRow(rows, {
-        label,
-        status: geneDiseaseRow?.status ?? 'missing',
-        href: diseaseIdLink(id),
+        label: label === 'OMIM' ? 'OMIM identifier link' : label,
+        status: label === 'OMIM' ? 'cross_reference' : geneDiseaseRow?.status ?? 'missing',
+        href,
+        note:
+          label === 'OMIM'
+            ? 'Identifier-only link supplied by a permitted upstream source; not OMIM-derived disease evidence'
+            : null,
       })
     }
   }
@@ -241,28 +259,51 @@ function buildSourceRows(
   for (const condition of conditions) {
     for (const id of condition.diseaseIds) {
       const label = sourceLabelFromId(id)
-      if (label) {
+      const href = diseaseIdLink(id, omimCrossReferences)
+      if (label && (label !== 'OMIM' || href)) {
         addSourceRow(rows, {
-          label,
-          status: condition.sourceKind === 'gene_disease' ? geneDiseaseRow?.status ?? 'missing' : 'legacy',
-          href: diseaseIdLink(id),
-          note: condition.sourceKind === 'legacy_report' ? 'Legacy condition payload' : null,
+          label: label === 'OMIM' ? 'OMIM identifier link' : label,
+          status:
+            label === 'OMIM'
+              ? 'cross_reference'
+              : condition.sourceKind === 'gene_disease'
+                ? geneDiseaseRow?.status ?? 'missing'
+                : 'legacy',
+          href,
+          note:
+            label === 'OMIM'
+              ? 'Identifier-only link supplied by a permitted upstream source; not OMIM-derived disease evidence'
+              : condition.sourceKind === 'legacy_report'
+                ? 'Legacy condition payload'
+                : null,
         })
       }
     }
     for (const url of condition.sourceUrls) {
       const label = sourceLabelFromUrl(url)
-      if (label) {
+      const permittedOmimUrl =
+        label !== 'OMIM' ||
+        omimCrossReferences.some(
+          (reference) =>
+            reference.external_url === url &&
+            safeOmimCrossReferenceHref(reference.identifier, [reference]) === url,
+        )
+      if (label && permittedOmimUrl) {
         addSourceRow(rows, {
-          label,
-          status: geneDiseaseRow?.status ?? 'missing',
+          label: label === 'OMIM' ? 'OMIM identifier link' : label,
+          status: label === 'OMIM' ? 'cross_reference' : geneDiseaseRow?.status ?? 'missing',
           href: url,
+          note:
+            label === 'OMIM'
+              ? 'Identifier-only link supplied by a permitted upstream source; not OMIM-derived disease evidence'
+              : null,
         })
       }
     }
     for (const token of (condition.sourceList ?? '').split(/\s*(?:[|,]|\u00b7)\s*/)) {
       const label = token.trim()
       if (!label) continue
+      if (/^OMIM$/i.test(label)) continue
       if (/^(OMIM|MONDO|GenCC|ClinGen|DECIPHER|Orphanet|PubMed)$/i.test(label)) {
         addSourceRow(rows, {
           label,
@@ -420,7 +461,9 @@ export function DiseaseValidityDashboard({
   const selected = conditions[selectedIndex] ?? conditions[0] ?? null
 
   const typedDisease = payload.report_profile?.disease_mechanism ?? null
+  const omimCrossReferences = typedDisease?.omim_cross_references ?? []
   const diseaseIds = primaryIds(selected, summary, payload)
+  const omimOrigins = omimCrossReferenceOrigins(diseaseIds, omimCrossReferences)
   const primaryCondition =
     selected?.name ??
     readString(summary.primary_condition) ??
@@ -446,7 +489,13 @@ export function DiseaseValidityDashboard({
     ...(typedDisease?.warnings ?? []),
     ...(payload.curated_variants_distribution?.warnings ?? []),
   ]
-  const sourceRows = buildSourceRows(geneDiseaseRow, conditions, diseaseIds, payload.curated_variants_distribution)
+  const sourceRows = buildSourceRows(
+    geneDiseaseRow,
+    conditions,
+    diseaseIds,
+    payload.curated_variants_distribution,
+    omimCrossReferences,
+  )
   const curated = payload.curated_variants_distribution
   const curatedSourceStatus = curated?.source_status ?? (curated ? 'legacy' : null)
   const curatedIsClinVar = curated?.source_id === 'ncbi_clinvar_vcf'
@@ -490,10 +539,15 @@ export function DiseaseValidityDashboard({
           <span style={kickerStyle}>Disease identifiers</span>
           <div style={chipRowStyle}>
             {diseaseIds.map((id) => {
-              const href = diseaseIdLink(id)
+              const href = diseaseIdLink(id, omimCrossReferences)
               const label = sourceLabelFromId(id)
+              if (label === 'OMIM' && !href) return null
+              const linkTitle =
+                label === 'OMIM' && omimOrigins.length > 0
+                  ? `OMIM identifier link; cross-reference supplied by ${omimOrigins.join(', ')}`
+                  : label ?? id
               return href ? (
-                <a key={id} href={href} target="_blank" rel="noopener noreferrer" style={idChipStyle} title={label ?? id}>
+                <a key={id} href={href} target="_blank" rel="noopener noreferrer" style={idChipStyle} title={linkTitle}>
                   {id}
                 </a>
               ) : (
@@ -501,6 +555,12 @@ export function DiseaseValidityDashboard({
               )
             })}
           </div>
+          {omimOrigins.length > 0 && (
+            <p style={identifierOriginStyle}>
+              OMIM identifiers are non-evidentiary links. Cross-reference supplied by{' '}
+              {omimOrigins.join(', ')}.
+            </p>
+          )}
         </div>
       )}
 
@@ -535,9 +595,16 @@ export function DiseaseValidityDashboard({
                   </span>
                   <span style={chipRowStyle}>
                     <StatusChip label={condition.sourceKind === 'gene_disease' ? sourceState : 'legacy'} />
-                    {condition.diseaseIds.slice(0, 3).map((id) => (
-                      <span key={id} style={miniIdStyle}>{id}</span>
-                    ))}
+                    {condition.diseaseIds
+                      .filter(
+                        (id) =>
+                          sourceLabelFromId(id) !== 'OMIM' ||
+                          diseaseIdLink(id, omimCrossReferences) !== null,
+                      )
+                      .slice(0, 3)
+                      .map((id) => (
+                        <span key={id} style={miniIdStyle}>{id}</span>
+                      ))}
                   </span>
                 </button>
               )
@@ -783,6 +850,14 @@ const idChipStyle: CSSProperties = {
   fontFamily: 'var(--mono)',
   color: 'var(--ink-3)',
   textDecoration: 'none',
+}
+
+const identifierOriginStyle: CSSProperties = {
+  flexBasis: '100%',
+  margin: 0,
+  fontSize: 11,
+  lineHeight: 1.45,
+  color: 'var(--ink-4)',
 }
 
 const panelStyle: CSSProperties = {

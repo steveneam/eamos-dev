@@ -6,7 +6,12 @@ import re
 import pytest
 
 from app.schemas.lookup import SearchInputInterpretation
-from app.services.variant_report_orchestrator import _computational_deep_dive_from_annotations
+from app.schemas.run import ReportPayload
+from app.services.omim_cross_references import build_omim_cross_reference
+from app.services.variant_report_orchestrator import (
+    _build_disease_mechanism,
+    _computational_deep_dive_from_annotations,
+)
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.search_input_resolver import SearchInputResolution, SourceSpecificInputs
 from app.tools.base import ToolResult
@@ -121,6 +126,39 @@ def test_computational_deep_dive_ignores_retired_predictor_exclusions() -> None:
     }
 
 
+def test_disease_profile_preserves_governed_omim_link_without_promoting_validity() -> None:
+    reference, warning = build_omim_cross_reference(
+        {
+            "identifier": "OMIM:204100",
+            "entry_type": "phenotype",
+            "source_id": "mondo_disease_ontology",
+            "source_record_id": "MONDO:0008765",
+        }
+    )
+    assert warning is None
+    assert reference is not None
+
+    section = _build_disease_mechanism(
+        payload=ReportPayload(patient_id="omim-xref"),
+        evidence_map={
+            "gene_disease": {
+                "primary_condition": "Open supplier label",
+                "disease_ids": ["MONDO:0008765", "OMIM:204100"],
+                "omim_cross_references": [reference.model_dump(mode="json")],
+                "gene_disease_validity": None,
+                "warnings": [],
+            }
+        },
+        evidence_statuses={"gene_disease": "local"},
+    )
+    dumped = section.model_dump(mode="json")
+
+    assert dumped["gene_disease_validity"] is None
+    assert dumped["omim_cross_references"][0]["identifier"] == "OMIM:204100"
+    assert dumped["omim_cross_references"][0]["source_id"] == ("mondo_disease_ontology")
+    assert dumped["omim_cross_references"][0]["evidence_role"] == "identifier_only"
+
+
 def test_lookup_returns_typed_variant_report_profile(client) -> None:
     response = client.post(
         "/api/v1/lookup?include_lazy_sections=true",
@@ -231,7 +269,9 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert disease["inheritance"] == "AR"
     assert disease["penetrance"] is None
     assert disease["gene_disease_validity"] == "definitive"
-    assert "OMIM:204100" in disease["disease_ids"]
+    assert "OMIM:204100" not in disease["disease_ids"]
+    assert disease["omim_cross_references"] == []
+    assert "omim_identifier_hidden_without_permitted_supplier" in disease["warnings"]
     assert "MedGen:C1859844" in disease["disease_ids"]
     assert "ORPHA:65" in disease["disease_ids"]
     assert "penetrance_not_source_backed" in disease["warnings"]

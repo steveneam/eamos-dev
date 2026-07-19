@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from app.schemas.lookup import SearchInputInterpretation
@@ -8,7 +7,6 @@ from app.schemas.protein_annotation import ProteinDomainTrack
 from app.schemas.run import (
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
-    AssociatedCondition,
     ClinicalTrialQueryExecution,
     ComputationalDeepDiveSection,
     ComputationalPredictorRow,
@@ -28,6 +26,10 @@ from app.schemas.run import (
     VariantSummaryRow,
 )
 from app.services.population_frequency_section import build_population_frequency_section
+from app.services.omim_cross_references import (
+    legacy_condition_ids,
+    validated_omim_cross_references,
+)
 from app.services.clinical_consensus import sanitize_acmg_rationale
 from app.services.computational_calibration import calibration_field_values
 from app.services.computational_evidence import (
@@ -293,11 +295,16 @@ def _build_disease_mechanism(
     gene_disease = evidence_map.get("gene_disease", {})
     if gene_disease:
         warnings = _string_list(gene_disease.get("warnings"))
+        omim_cross_references, omim_warnings = validated_omim_cross_references(
+            gene_disease.get("omim_cross_references")
+        )
+        warnings = _dedupe_text([*warnings, *omim_warnings])
         if not _optional_text(gene_disease.get("penetrance")):
             warnings = _dedupe_text([*warnings, "penetrance_not_source_backed"])
         return DiseaseMechanismSection(
             primary_condition=_optional_text(gene_disease.get("primary_condition")),
             disease_ids=_string_list(gene_disease.get("disease_ids")),
+            omim_cross_references=omim_cross_references,
             inheritance=_optional_text(gene_disease.get("inheritance")),
             penetrance=_optional_text(gene_disease.get("penetrance")),
             gene_disease_validity=_optional_text(gene_disease.get("gene_disease_validity")),
@@ -324,7 +331,7 @@ def _build_disease_mechanism(
 
     return DiseaseMechanismSection(
         primary_condition=condition.name,
-        disease_ids=_condition_ids(condition),
+        disease_ids=legacy_condition_ids(condition),
         inheritance=condition.inheritance,
         penetrance=None,
         gene_disease_validity=condition.evidence_level,
@@ -853,24 +860,6 @@ def _first_variant_row(payload: ReportPayload) -> VariantSummaryRow:
     if payload.variant_summary_rows:
         return payload.variant_summary_rows[0]
     return VariantSummaryRow()
-
-
-def _condition_ids(condition: AssociatedCondition) -> list[str]:
-    candidates = [condition.source, condition.db_tag, condition.source_list]
-    ids: list[str] = []
-    for text in candidates:
-        if not text:
-            continue
-        ids.extend(re.findall(r"(OMIM\s*#?\d+|ORPHA:\d+|MONDO:\d+)", text, flags=re.I))
-    seen: set[str] = set()
-    result: list[str] = []
-    for item in ids:
-        normalized = item.replace(" ", "").replace("#", "#")
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        result.append(item)
-    return result
 
 
 def _gene_disease_provenance(

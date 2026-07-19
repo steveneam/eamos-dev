@@ -1,5 +1,32 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-19 05:44 +0000 - Codex - Phase 3 safe OMIM cross-reference slice
+
+Phase 3 now exposes OMIM only as a supplier-owned identifier link. The new
+typed contract retains the MONDO/HPO/ClinGen/GenCC source and source record,
+policy decisions and terms fingerprint, cross-reference origin, phenotype/gene
+entry type, fixed `omim_web` provider, canonical URL, and an explicit
+`identifier_only` evidence role. The server and web client both fail closed on
+bare identifiers, unknown suppliers, wrong entry types, substituted URLs, and
+missing or denied public-serialization decisions. Legacy fixture OMIM tokens
+are hidden rather than presented as OMIM evidence.
+
+The private clinical-source summary now carries MONDO/HPO ownership through
+orchestration, while gene-disease validity remains independently sourced and
+cannot be created by a cross-reference. The UI labels permitted links as
+non-evidentiary and names their supplying source. `omim_mim2gene` and
+`omim_licensed_api` are reserved as fully gated registry identities; no parser,
+download, content/API use, persistence, provider, deployment, Supabase, or
+other live mutation occurred.
+
+Verification passed: focused backend policy/orchestration/contract coverage,
+focused web policy coverage, the executable backend and web boundary ratchets,
+and full `npm run verify` (11 Node ratchets, 177 web tests, the complete backend
+suite, lint, Black, Ruff, TypeScript, and the production Next.js build). The
+first full verify exposed the orchestrator's 900-line structural ceiling; the
+OMIM validation and legacy-ID parsing were split into the dedicated service,
+restoring the orchestrator to 887 lines before the final green run.
+
 ## 2026-07-19 05:03 +0000 - Codex - Phase-3c recovery baseline; clean clock reset
 
 The overdue middle checkpoint found that the current application is healthy

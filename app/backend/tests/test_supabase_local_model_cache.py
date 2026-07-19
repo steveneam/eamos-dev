@@ -484,6 +484,20 @@ def test_clinical_gene_disease_summary_merges_private_source_rows() -> None:
     assert summary is not None
     assert summary["hgnc_id"] == "HGNC:10294"
     assert summary["disease_ids"] == ["MONDO:0008765", "OMIM:204100"]
+    assert summary["omim_cross_references"] == [
+        {
+            "identifier": "OMIM:204100",
+            "entry_type": "phenotype",
+            "source_id": "mondo_disease_ontology",
+            "source_record_id": "MONDO:0008765",
+        },
+        {
+            "identifier": "OMIM:204100",
+            "entry_type": "phenotype",
+            "source_id": "human_phenotype_ontology",
+            "source_record_id": "OMIM:204100",
+        },
+    ]
     assert summary["conditions"][0]["phenotypes"][0]["hpo_id"] == "HP:0000510"
     assert summary["source_counts"]["gencc_assertions"] == 1
     assert summary["gencc_assertion_count"] == 1
@@ -495,6 +509,31 @@ def test_clinical_gene_disease_summary_merges_private_source_rows() -> None:
         "MONDO",
         "Human Phenotype Ontology",
     }
+
+
+def test_omim_cross_reference_does_not_create_gene_disease_validity() -> None:
+    summary = _clinical_gene_disease_summary(
+        gene="RPE65",
+        clingen_rows=[],
+        gencc_rows=[],
+        mondo_rows=[],
+        hpo_rows=[
+            {
+                "disease_id": "OMIM:204100",
+                "disease_name": "Open supplier label",
+                "hpo_id": "HP:0000510",
+                "hpo_label": "Visual impairment",
+                "evidence": "IEA",
+                "frequency": None,
+            }
+        ],
+    )
+
+    assert summary is not None
+    assert summary["disease_ids"] == ["OMIM:204100"]
+    assert summary["gene_disease_validity"] is None
+    assert summary["conditions"][0]["validity"] is None
+    assert summary["omim_cross_references"][0]["source_id"] == ("human_phenotype_ontology")
 
 
 def test_clinical_gene_disease_summary_prefers_higher_validity_primary_condition() -> None:
