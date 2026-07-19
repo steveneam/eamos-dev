@@ -34,12 +34,15 @@
 - **GitHub Actions:** Steven ruled no additional spend; wait for the monthly
   included-minutes renewal. Commit/push continues normally, but new code or
   deploy slices cannot clear a required CI boundary while Actions is blocked.
+- **Live comm:** `agent-comm` is installed but targets Claude panes only, and
+  `live-comm` is not exposed to Codex. Swordfish was notified at 05:10 UTC;
+  async peer mail remains the reachable channel. This does not block Phase 3c.
 - **Runtime:** persistent `eamos` tmux under `agent-tmux.service` remains the
   execution seam.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 05:06 +0000 · Codex
+UNLOCKED · 2026-07-19 05:10 +0000 · Codex
 
 ## Shared File Locks
 
@@ -55,6 +58,7 @@ The clean window restarted at 2026-07-19T01:46:12Z; Render remains live and Phas
 Run the recovery-middle sample around/after 2026-07-20 01:46 UTC before any expansion work.
 Earliest closure is around/after 2026-07-21 01:46 UTC and still requires a green end sample.
 Commit/push normally, but do not buy GitHub Actions minutes; required new-code CI waits for renewal.
+Use async peer mail for Eamos/Codex; current live-comm targets Claude panes only.
 Do not mutate deployments/providers/Supabase/Render, start Phase 4, or clean watcher-owned files.
 ```
 
@@ -87,6 +91,9 @@ Do not mutate deployments/providers/Supabase/Render, start Phase 4, or clean wat
   original inspection; Traefik remains explicitly pinned to `dokploy-network`.
 - Swordfish's edge-convergence unit is enabled and active but has not yet seen a
   natural reboot. Render remains the rollback throughout the restarted soak.
+- Swordfish's live-comm claim is only partial for Eamos: the executable cannot
+  target this Codex session and its skill is Claude-only. A durable correction
+  was sent; no production or soak action follows.
 - No deployment, provider, DNS, environment, Supabase, Render, credential,
   cleanup, or Phase-4 mutation occurred.
 
