@@ -3,6 +3,29 @@
 Relocated from `agent_handoff/DECISIONS.md`: 2026-07-15 21:39 +1000 by Codex
 to keep durable reference material outside the live session handoff.
 
+## 2026-07-19: Repository-Local Google Fonts Approved
+
+Section added: 2026-07-19 11:14 +0000 · Codex.
+
+Decision (Steven, 2026-07-19): approve downloading and committing the existing
+Inter, Spectral, and IBM Plex Mono faces so local and hosted builds no longer
+depend on the live Google Fonts service. For this font-only slice, use the
+manual/no-Actions route Steven requested: verify the complete frontend gate and
+an outbound-network-constrained production build locally, push the verified
+commit to `main` with CI skipped, and require the real Vercel deployment to pass.
+
+Receipt: commit `a79d08b` vendors the seven exact Latin WOFF2 assets emitted by
+the previously successful Google-backed build, preserves the existing weights,
+CSS variables, swap behavior, and fallback stacks, and stores each upstream SIL
+OFL 1.1 notice beside its family. Web tests passed 193/193; TypeScript, ESLint,
+the 275-file web boundary, and a production build with HTTP(S) routed through a
+dead local proxy passed. No GitHub Actions run started, and Vercel production
+deployment `HoZVc4nrJARWYRvJ6ZQdvyxeSTvo` completed successfully.
+
+This is a separate per-instance font-resilience exception. It does not widen
+the Lane A exception or waive CI/merge, Task F, Supabase, deploy, provider,
+source, Phase 7, or other founder gates for any later Product Workflow lane.
+
 ## 2026-07-19: Lane A Manual CI Substitute Approved
 
 Section added: 2026-07-19 10:51 +0000 · Codex.
