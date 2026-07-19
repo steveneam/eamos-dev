@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 import re
@@ -114,6 +114,11 @@ EamosComputedTier = Literal[
 EamosComputedDirection = Literal["pathogenic", "benign"]
 EamosComputedStrength = Literal["very_strong", "strong", "moderate", "supporting"]
 EamosComputedBenignCut = Literal["tavtigian_2020", "acgs_panel"]
+EamosComputedClassificationBasis = Literal[
+    "bayesian_points",
+    "ba1_standalone_override",
+    "legacy_conflict_cap",
+]
 AcmgCaseContextLimitationStatus = Literal["not_scored"]
 AcmgCaseContextLimitationReason = Literal["missing_case_context"]
 SourceOriginKind = Literal["direct", "cross_reference", "derived"]
@@ -711,6 +716,112 @@ class FunctionalStudy(SourceFactPolicyEnvelope):
         return [item for item in provenance if _source_fact_output_allowed(item, action)]
 
 
+class FunctionalAssayConfusionMatrix(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pathogenic_abnormal: int = Field(ge=0)
+    pathogenic_normal: int = Field(ge=0)
+    benign_abnormal: int = Field(ge=0)
+    benign_normal: int = Field(ge=0)
+
+
+def _normalized_identifier_set(values: list[str]) -> set[str]:
+    return {value.strip().casefold() for value in values if value.strip()}
+
+
+class FunctionalAssayValidation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    validation_id: str = Field(min_length=1)
+    validation_version: str = Field(min_length=1)
+    validation_policy_id: str = Field(min_length=1)
+    validation_policy_version: str = Field(min_length=1)
+    status: ComputationalStandardStatus
+    gene_id: str = Field(min_length=1)
+    disease_id: str = Field(min_length=1)
+    disease_mechanism: str = Field(min_length=1)
+    assay_name: str = Field(min_length=1)
+    assay_relevance: str = Field(min_length=1)
+    pathogenic_truth_variant_ids: list[str] = Field(min_length=1)
+    benign_truth_variant_ids: list[str] = Field(min_length=1)
+    evaluation_variant_ids: list[str] = Field(default_factory=list)
+    truth_set_independence_basis: str = Field(min_length=1)
+    truth_evaluation_overlap_rejected: bool
+    circularity_reviewed: bool
+    confusion_matrix: FunctionalAssayConfusionMatrix
+    pseudocount_policy: Literal["brnich_2020_one_discordant_control"]
+    pseudocount: Decimal = Field(ge=Decimal("1"), le=Decimal("1"))
+    direction: EamosComputedDirection
+    functional_assay_oddspath: Decimal = Field(gt=Decimal("0"))
+    confidence_interval_lower: Decimal = Field(gt=Decimal("0"))
+    confidence_interval_upper: Decimal = Field(gt=Decimal("0"))
+    maximum_supported_strength: EamosComputedStrength
+    curator: str = Field(min_length=1)
+    validation_date: date
+    source_url: str = Field(min_length=1)
+    source_version: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_assay_record(self) -> FunctionalAssayValidation:
+        pathogenic = _normalized_identifier_set(self.pathogenic_truth_variant_ids)
+        benign = _normalized_identifier_set(self.benign_truth_variant_ids)
+        evaluation = _normalized_identifier_set(self.evaluation_variant_ids)
+        if len(pathogenic) != len(self.pathogenic_truth_variant_ids):
+            raise ValueError("pathogenic truth-set variant IDs must be non-empty and unique")
+        if len(benign) != len(self.benign_truth_variant_ids):
+            raise ValueError("benign truth-set variant IDs must be non-empty and unique")
+        if len(evaluation) != len(self.evaluation_variant_ids):
+            raise ValueError("evaluation-set variant IDs must be non-empty and unique")
+        if pathogenic & benign:
+            raise ValueError("pathogenic and benign truth sets must be independent")
+        if (
+            self.confusion_matrix.pathogenic_abnormal + self.confusion_matrix.pathogenic_normal
+            != len(pathogenic)
+        ):
+            raise ValueError("pathogenic confusion-matrix total must match the truth set")
+        if self.confusion_matrix.benign_abnormal + self.confusion_matrix.benign_normal != len(
+            benign
+        ):
+            raise ValueError("benign confusion-matrix total must match the truth set")
+        if (pathogenic | benign) & evaluation:
+            raise ValueError("truth and evaluation variant sets must not overlap")
+        if not self.truth_evaluation_overlap_rejected or not self.circularity_reviewed:
+            raise ValueError("truth-set overlap and circularity review must pass")
+        if self.confidence_interval_lower > self.functional_assay_oddspath:
+            raise ValueError("functional assay OddsPath falls below its confidence interval")
+        if self.functional_assay_oddspath > self.confidence_interval_upper:
+            raise ValueError("functional assay OddsPath exceeds its confidence interval")
+        if urlsplit(self.source_url).scheme != "https":
+            raise ValueError("functional assay validation source URL must use HTTPS")
+        return self
+
+
+class FunctionalEvidenceAssertionCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assertion_id: str = Field(min_length=1)
+    code: FunctionalEvidenceCode
+    applied_strength: EamosComputedStrength
+    variant_id: str = Field(min_length=1)
+    gene_id: str = Field(min_length=1)
+    disease_id: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    source_record_id: str = Field(min_length=1)
+    source_version: str = Field(min_length=1)
+    source_url: str = Field(min_length=1)
+    selected_for_counting: bool = False
+    selection_rationale: str | None = None
+    validation: FunctionalAssayValidation
+
+    @model_validator(mode="after")
+    def _validate_assertion_candidate(self) -> FunctionalEvidenceAssertionCandidate:
+        if self.selected_for_counting and not (self.selection_rationale or "").strip():
+            raise ValueError("selected functional assertion requires a selection rationale")
+        if urlsplit(self.source_url).scheme != "https":
+            raise ValueError("functional assertion source URL must use HTTPS")
+        return self
+
+
 class FunctionalEvidenceSummary(BaseModel):
     total_count: int
     source_breakdown: FunctionalEvidenceSourceBreakdown = Field(
@@ -718,6 +829,7 @@ class FunctionalEvidenceSummary(BaseModel):
     )
     evidence_codes: list[FunctionalEvidenceCode] = Field(default_factory=list)
     source_asserted_codes: list[str] = Field(default_factory=list)
+    assertion_candidates: list[FunctionalEvidenceAssertionCandidate] = Field(default_factory=list)
     display_metrics: FunctionalEvidenceDisplayMetrics = Field(
         default_factory=FunctionalEvidenceDisplayMetrics
     )
@@ -734,11 +846,25 @@ class FunctionalEvidenceSummary(BaseModel):
         return [study for study in studies if _source_fact_output_allowed(study, action)]
 
 
+class EamosComputedPolicyDiff(BaseModel):
+    field: str
+    general_value: str
+    overlay_value: str
+
+
 class EamosComputedVersionPin(BaseModel):
     framework: str
+    ruleset_id: str
+    ruleset_version: str
+    conflict_policy_id: str
     pvs1_revision: str
     pp3_calibration: str
     vcep_id: str | None = None
+    population_policy_id: str
+    population_policy_version: str
+    cspec_overlay_id: str | None = None
+    cspec_overlay_version: str | None = None
+    population_policy_diff: list[EamosComputedPolicyDiff] = Field(default_factory=list)
 
 
 class EamosComputedConflict(BaseModel):
@@ -756,7 +882,16 @@ class EamosComputedCriterion(BaseModel):
     threshold: str | int | float | Decimal | None = None
     source_db: str | None = None
     source_version: str | None = None
+    source_url: str | None = None
     svi_reference: str | None = None
+    policy_id: str | None = None
+    policy_version: str | None = None
+    policy_source_url: str | None = None
+    cspec_overlay_id: str | None = None
+    cspec_overlay_version: str | None = None
+    functional_assay_oddspath: Decimal | None = None
+    functional_assay_confidence_interval_lower: Decimal | None = None
+    functional_assay_confidence_interval_upper: Decimal | None = None
 
 
 class AcmgCaseContextLimitation(BaseModel):
@@ -774,13 +909,43 @@ class EamosComputedClassification(BaseModel):
     sum_pathogenic: Decimal
     sum_benign: Decimal
     tier: EamosComputedTier
+    classification_basis: EamosComputedClassificationBasis
     conflict: EamosComputedConflict
     ba1_override: bool
-    posterior: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    aggregate_evidence_likelihood_ratio: Decimal | None = Field(default=None, gt=Decimal("0"))
+    prior_odds: Decimal | None = Field(default=None, gt=Decimal("0"))
+    posterior_odds: Decimal | None = Field(default=None, gt=Decimal("0"))
+    model_posterior: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("1"),
+    )
     benign_cut: EamosComputedBenignCut
     per_criterion: list[EamosComputedCriterion] = Field(default_factory=list)
     limitations: list[AcmgCaseContextLimitation] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_classification_basis(self) -> EamosComputedClassification:
+        model_values = (
+            self.aggregate_evidence_likelihood_ratio,
+            self.prior_odds,
+            self.posterior_odds,
+            self.model_posterior,
+        )
+        if self.ba1_override:
+            if self.classification_basis != "ba1_standalone_override" or self.tier != "Benign":
+                raise ValueError("BA1 override requires the benign stand-alone basis")
+            if any(value is not None for value in model_values):
+                raise ValueError("BA1 override cannot expose Bayesian model quantities")
+        else:
+            if self.classification_basis == "ba1_standalone_override":
+                raise ValueError("BA1 stand-alone basis requires ba1_override")
+            if any(value is None for value in model_values):
+                raise ValueError(
+                    "point-model classifications require all Bayesian model quantities"
+                )
+        return self
 
 
 class ReportCallBadge(BaseModel):

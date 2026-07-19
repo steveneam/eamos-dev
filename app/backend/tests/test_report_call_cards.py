@@ -41,7 +41,7 @@ def _population_card(payload: ReportPayload, evidence_map: dict | None = None) -
 def _decision(**updates) -> ComputationalEvidenceDecision:
     values = {
         "ruleset_id": "richards_2015_tavtigian_2020_eamos_v1",
-        "ruleset_version": "eamos-current-v1",
+        "ruleset_version": "eamos-historical-replay-v1",
         "standard_label": "Richards-2015 + Tavtigian-2020 points",
         "standard_status": "published",
         "application_id": "computational:test",
@@ -398,7 +398,7 @@ def test_computational_card_uses_typed_selected_evidence_decision(
     assert card["provenance"] == [
         "REVEL selected by Eamos policy · "
         + (f"{decision.calibration_version} · " if decision.calibration_version else "")
-        + "Richards-2015 + Tavtigian-2020 points (eamos-current-v1)"
+        + "Richards-2015 + Tavtigian-2020 points (eamos-historical-replay-v1)"
     ]
 
 

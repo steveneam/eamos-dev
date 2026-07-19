@@ -1,5 +1,43 @@
 # Eamos Genomic Report Tool - Build Progress
 
+## 2026-07-19 08:39 +0000 - Codex - Phase 6 OddsPath and ruleset hardening
+
+Phase 6 now names the historical point model's aggregate evidence likelihood
+ratio, prior odds, posterior odds, and model posterior explicitly. The active
+Richards/Tavtigian profile is pinned as an Eamos historical replay with its
+legacy conflict cap named as policy. BA1 is a zero-summand stand-alone override:
+its model quantities are absent, and the report renders model posterior as N/A
+while retaining net points only as audit context.
+
+Functional PS3/BS3 admission is now typed, versioned, and fail-closed. A selected
+source assertion must match the active source and validation policy, exact
+gene/disease and evaluation-variant context, published assay validation,
+independent and disjoint truth sets, a complete confusion matrix, the Brnich
+one-discordant-control policy, a direction-specific calculated OddsPath and
+confidence interval, maximum strength, curator, date, source, and version.
+Source assertions without that record remain visible as context but score
+nothing. Exactly one validated candidate can count, PS3 and BS3 cannot co-fire,
+and functional evidence also requires independent same-direction nonfunctional
+evidence. Population criteria similarly flow only through versioned policies;
+the exact RPE65 / MONDO:0100368 ClinGen GN120 overlay deterministically replaces
+the general thresholds and serializes an auditable policy diff.
+
+The frontend contract and report instruments mirror the new quantities,
+policies, functional provenance, and confidence interval. Fixed population
+bands are identified as general orientation rather than the applied rule, and
+BA1 receives an accessible N/A treatment instead of a fabricated 10% posterior.
+The historical explainer now mirrors dependency, exclusion, PP3/PM1 cap, BA1,
+and legacy-conflict behavior.
+
+Focused Phase-6 backend, contract, boundary, UI, TypeScript, ESLint, Ruff,
+Black, and diff checks passed. Full `npm run verify` passed in 310.2 seconds:
+11 Node ratchets, 26 Vitest files / 193 tests, the complete backend suite, the
+435-file Black check, Ruff, ESLint, TypeScript, and the 17-route production
+Next build. No source acquisition or materialization, live-provider request,
+upload, deployment, Render, Supabase, secret, cleanup, new-ruleset activation,
+or SVC v4 action occurred. The watcher-owned Swordfish inbox remained untouched
+and unstaged.
+
 ## 2026-07-19 07:05 +0000 - Codex - Phase 5 MaveDB archive importer repair
 
 Phase 5 replaces the underspecified JSONL scaffold with a bounded, no-network,

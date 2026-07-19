@@ -2,13 +2,13 @@
 
 // Draggable net-points puck — the shared interaction at the heart of the ACMG
 // "what-if" surfaces. A banded net-points line (the five Tavtigian tiers) with a
-// grabbable thumb: drag it (or arrow-key it) and the tier/posterior recompute
+// grabbable thumb: drag it (or arrow-key it) and the tier/model posterior recompute
 // live. Productionizes the vault `acmg-explainer.html` net-points ruler
 // (Explore mode), reused by both the report Card-4 Explore drag-card and the
 // full /account explainer.
 //
 // It RECOMPUTES NOTHING the engine owns: it only maps a *hypothetical* net to a
-// tier (lib/acmg/points.ts ADR-0022 cuts) + posterior (2.08^net). All real
+// tier (lib/acmg/points.ts ADR-0022 cuts) + point-model posterior. All real
 // verdicts come from the payload; this is a sandbox. `computedNet` paints a faint
 // ghost anchor so the hypothetical always reads against the real call.
 //
@@ -19,8 +19,8 @@ import { useCallback, useId, useRef, type KeyboardEvent, type PointerEvent } fro
 import type { EamosComputedBenignCut } from '@/lib/backend'
 import {
   gaugeBands,
+  modelPosterior,
   POINTS_FORMULA_STAMP,
-  posterior,
   tierByNet,
   tierTokens,
 } from '@/lib/acmg/points'
@@ -77,7 +77,7 @@ export function NetPointsPuck({
   const bands = gaugeBands(benignCut, lo, hi)
   const tier = tierByNet(net, benignCut)
   const tokens = tierTokens(tier)
-  const post = posterior(net)
+  const post = modelPosterior(net)
 
   // Integer net ticks at the four tier dividers + zero.
   const ticks = Array.from(new Set([lo, -7, -1, 0, 6, 10, hi].filter((t) => t >= lo && t <= hi))).sort(
@@ -142,7 +142,7 @@ export function NetPointsPuck({
     onChange(clamp(next))
   }
 
-  const valueText = `net ${signed(net)}, ${tier}, posterior ${pct(post)}`
+  const valueText = `net ${signed(net)}, ${tier}, model posterior ${pct(post)}`
   const thumbColor = tokens.ink
 
   return (

@@ -381,7 +381,7 @@ def test_lookup_returns_typed_variant_report_profile(client) -> None:
     assert computed["sum_benign"] == "0"
     assert computed["conflict"] == {"is_conflicting": False, "reason": None}
     assert computed["ba1_override"] is False
-    assert 0.18 < float(computed["posterior"]) < 0.20
+    assert 0.18 < float(computed["model_posterior"]) < 0.20
     assert computed_rows["PM2"]["triggered"] is True
     assert computed_rows["PM2"]["applied_strength"] == "supporting"
     assert computed_rows["PM2"]["source_db"] == "gnomAD"
@@ -430,10 +430,12 @@ def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
     computed = report_payload["eamos_computed_classification"]
     computed_rows = _computed_rows(report_payload)
     assert computed["tier"] == "VUS"
-    assert computed["net_points"] == "1"
-    assert computed_rows["PS3"]["triggered"] is True
-    assert computed_rows["PS3"]["applied_strength"] == "supporting"
-    assert computed_rows["PS3"]["source_db"] == "ClinGen Evidence Repository"
+    assert computed["net_points"] == "0"
+    assert computed_rows["PS3"]["triggered"] is False
+    assert computed_rows["PS3"]["points"] == "0"
+    assert (
+        "functional_source_assertions_context_only:assay_validation_missing" in computed["warnings"]
+    )
     assert computed_rows["PM2"]["triggered"] is False
     assert "c.260A>G" not in json.dumps(profile)
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None

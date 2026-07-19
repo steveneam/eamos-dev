@@ -82,7 +82,7 @@ export interface PubMedArticle {
 // ─── Eamos computed ACMG classification (points-engine advisory) ───
 // Mirror of app/backend/app/schemas/run.py EamosComputedClassification + its
 // sub-types. The seam the report's ACMG visuals (lib/acmg/points.ts + the SVG
-// instruments) read: net_points → tier/posterior. Backend-led; null until the
+// instruments) read: net_points to tier/model_posterior. Backend-led; null until the
 // points engine materializes.
 export type EamosComputedTier =
   | 'Pathogenic'
@@ -93,12 +93,30 @@ export type EamosComputedTier =
 export type EamosComputedDirection = 'pathogenic' | 'benign'
 export type EamosComputedStrength = 'very_strong' | 'strong' | 'moderate' | 'supporting'
 export type EamosComputedBenignCut = 'tavtigian_2020' | 'acgs_panel'
+export type EamosComputedClassificationBasis =
+  | 'bayesian_points'
+  | 'ba1_standalone_override'
+  | 'legacy_conflict_cap'
+
+export interface EamosComputedPolicyDiff {
+  field: string
+  general_value: string
+  overlay_value: string
+}
 
 export interface EamosComputedVersionPin {
   framework: string
+  ruleset_id: string
+  ruleset_version: string
+  conflict_policy_id: string
   pvs1_revision: string
   pp3_calibration: string
   vcep_id?: string | null
+  population_policy_id: string
+  population_policy_version: string
+  cspec_overlay_id?: string | null
+  cspec_overlay_version?: string | null
+  population_policy_diff: EamosComputedPolicyDiff[]
 }
 
 export interface EamosComputedConflict {
@@ -116,7 +134,16 @@ export interface EamosComputedCriterion {
   threshold?: string | number | null
   source_db?: string | null
   source_version?: string | null
+  source_url?: string | null
   svi_reference?: string | null
+  policy_id?: string | null
+  policy_version?: string | null
+  policy_source_url?: string | null
+  cspec_overlay_id?: string | null
+  cspec_overlay_version?: string | null
+  functional_assay_oddspath?: number | null
+  functional_assay_confidence_interval_lower?: number | null
+  functional_assay_confidence_interval_upper?: number | null
 }
 
 export interface AcmgCaseContextLimitation {
@@ -134,9 +161,15 @@ export interface EamosComputedClassification {
   sum_pathogenic: number
   sum_benign: number
   tier: EamosComputedTier
+  classification_basis: EamosComputedClassificationBasis
   conflict: EamosComputedConflict
   ba1_override: boolean
-  posterior: number
+  aggregate_evidence_likelihood_ratio: number | null
+  prior_odds: number | null
+  posterior_odds: number | null
+  model_posterior: number | null
+  /** Read-only compatibility for captured pre-Phase-6 fixtures. */
+  posterior?: number
   benign_cut: EamosComputedBenignCut
   per_criterion: EamosComputedCriterion[]
   limitations?: AcmgCaseContextLimitation[]
@@ -985,11 +1018,66 @@ export interface FunctionalStudy {
   snippet?: string | null
 }
 
+export interface FunctionalAssayConfusionMatrix {
+  pathogenic_abnormal: number
+  pathogenic_normal: number
+  benign_abnormal: number
+  benign_normal: number
+}
+
+export interface FunctionalAssayValidation {
+  validation_id: string
+  validation_version: string
+  validation_policy_id: string
+  validation_policy_version: string
+  status: ComputationalStandardStatus
+  gene_id: string
+  disease_id: string
+  disease_mechanism: string
+  assay_name: string
+  assay_relevance: string
+  pathogenic_truth_variant_ids: string[]
+  benign_truth_variant_ids: string[]
+  evaluation_variant_ids: string[]
+  truth_set_independence_basis: string
+  truth_evaluation_overlap_rejected: boolean
+  circularity_reviewed: boolean
+  confusion_matrix: FunctionalAssayConfusionMatrix
+  pseudocount_policy: 'brnich_2020_one_discordant_control'
+  pseudocount: number
+  direction: EamosComputedDirection
+  functional_assay_oddspath: number
+  confidence_interval_lower: number
+  confidence_interval_upper: number
+  maximum_supported_strength: EamosComputedStrength
+  curator: string
+  validation_date: string
+  source_url: string
+  source_version: string
+}
+
+export interface FunctionalEvidenceAssertionCandidate {
+  assertion_id: string
+  code: 'PS3' | 'BS3'
+  applied_strength: EamosComputedStrength
+  variant_id: string
+  gene_id: string
+  disease_id: string
+  source_id: string
+  source_record_id: string
+  source_version: string
+  source_url: string
+  selected_for_counting: boolean
+  selection_rationale?: string | null
+  validation: FunctionalAssayValidation
+}
+
 export interface FunctionalEvidenceSummary {
   total_count: number
   source_breakdown: FunctionalEvidenceSourceBreakdown
   evidence_codes: string[]
   source_asserted_codes: string[]
+  assertion_candidates: FunctionalEvidenceAssertionCandidate[]
   display_metrics: FunctionalEvidenceDisplayMetrics
   studies: FunctionalStudy[]
   warnings: string[]

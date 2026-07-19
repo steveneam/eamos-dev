@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  aggregateEvidenceLikelihoodRatio,
   gaugeBands,
   gaugeBoundaries,
+  modelPosterior,
+  modelPosteriorOdds,
+  modelPriorOdds,
   netBoundaries,
-  oddsPath,
-  posterior,
   tierByNet,
   TIER_ORDER,
   tierTokens,
@@ -15,9 +17,9 @@ import {
 // waterfall geometry has silently diverged from the engine — a clinical-accuracy
 // bug, not a cosmetic one.
 
-const pct1 = (n: number) => Number((posterior(n) * 100).toFixed(1))
+const pct1 = (n: number) => Number((modelPosterior(n) * 100).toFixed(1))
 
-describe('posterior() anchors (OddsPath 2.08^net, prior 0.10)', () => {
+describe('modelPosterior() anchors (aggregate LR 2.08^net, prior 0.10)', () => {
   it('hits the spec §3 anchor percentages', () => {
     expect(pct1(0)).toBe(10.0)
     expect(pct1(6)).toBe(90.0)
@@ -30,7 +32,7 @@ describe('posterior() anchors (OddsPath 2.08^net, prior 0.10)', () => {
   it('is monotonic increasing in net and bounded to (0,1)', () => {
     let prev = -1
     for (let n = -12; n <= 14; n++) {
-      const p = posterior(n)
+      const p = modelPosterior(n)
       expect(p).toBeGreaterThan(0)
       expect(p).toBeLessThan(1)
       expect(p).toBeGreaterThan(prev)
@@ -39,10 +41,13 @@ describe('posterior() anchors (OddsPath 2.08^net, prior 0.10)', () => {
   })
 
   it('uses 2.08^net, NOT 2.08^(net/8)', () => {
-    expect(oddsPath(1)).toBeCloseTo(2.08, 10)
-    // net 8 under the wrong /8 formula would give OddsPath 2.08 (posterior 0.19);
-    // the correct formula gives a much higher OddsPath.
-    expect(oddsPath(8)).toBeGreaterThan(100)
+    expect(aggregateEvidenceLikelihoodRatio(1)).toBeCloseTo(2.08, 10)
+    expect(aggregateEvidenceLikelihoodRatio(8)).toBeGreaterThan(100)
+    expect(modelPriorOdds()).toBeCloseTo(1 / 9, 10)
+    expect(modelPosteriorOdds(8)).toBeCloseTo(
+      aggregateEvidenceLikelihoodRatio(8) * modelPriorOdds(),
+      10,
+    )
   })
 })
 
@@ -110,11 +115,11 @@ describe('gaugeBands() — net-points axis', () => {
   })
 })
 
-describe('gaugeBoundaries() — posterior at each tier divider', () => {
-  it('maps the four dividers to the spec posterior labels (~0.001/0.10/0.90/0.99)', () => {
+describe('gaugeBoundaries() — model posterior at each tier divider', () => {
+  it('maps the four dividers to the model-posterior labels', () => {
     const bnd = gaugeBoundaries('tavtigian_2020')
     expect(bnd.map((b) => b.net)).toEqual([-6.5, -0.5, 5.5, 9.5])
-    const p = bnd.map((b) => Number(b.posterior.toFixed(2)))
+    const p = bnd.map((b) => Number(b.modelPosterior.toFixed(2)))
     expect(p[1]).toBe(0.07) // ~LB|VUS  (prior-ish)
     expect(p[2]).toBe(0.86) // ~VUS|LP
     expect(p[3]).toBe(0.99) // ~LP|P

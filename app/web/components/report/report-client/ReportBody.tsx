@@ -446,7 +446,11 @@ export function ReportBody({ data, query, summaryRequest, lazyOverrides, demo = 
             }
           >
             {populationSection && !populationSourceUnreliable && (
-              <AfThermometer af={populationSection.overall?.total?.allele_frequency ?? null} evidence={data.evidence} />
+              <AfThermometer
+                af={populationSection.overall?.total?.allele_frequency ?? null}
+                evidence={data.evidence}
+                computed={computedClassification}
+              />
             )}
             <PopulationFrequencySection
               section={populationSection}

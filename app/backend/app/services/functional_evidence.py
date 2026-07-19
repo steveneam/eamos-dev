@@ -227,6 +227,11 @@ class _FunctionalEvidenceCollector:
                 if any(source != "mavedb" for source in hit.source_tags)
             }
         )
+        summary_warnings = list(warnings)
+        if source_asserted_codes:
+            summary_warnings.append(
+                "functional_source_assertions_context_only:assay_validation_missing"
+            )
         return FunctionalEvidenceSummary(
             total_count=len(studies),
             source_breakdown=FunctionalEvidenceSourceBreakdown(
@@ -244,7 +249,7 @@ class _FunctionalEvidenceCollector:
                 mavedb_only_uncurated=bool(studies) and non_mavedb_count == 0,
             ),
             studies=studies,
-            warnings=warnings,
+            warnings=summary_warnings,
         )
 
 

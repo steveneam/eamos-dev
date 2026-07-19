@@ -1,5 +1,5 @@
 'use client'
-import type { EvidenceSourceSummary } from '@/lib/backend'
+import type { EamosComputedClassification, EvidenceSourceSummary } from '@/lib/backend'
 import { InfoHint } from '@/components/ui/InfoHint'
 import { SourceLink } from '@/components/ui/SourceLink'
 import { GNOMAD_AF_BANDS } from './gnomadMapTheme'
@@ -12,12 +12,12 @@ import { ScaleTrack } from './ScoreScale'
 // chart, AAA), and absent variants pin to grey, never red.
 
 const AF_CHIP_TIP: Record<string, string> = {
-  BA1: 'Allele frequency ≥ 5% in a general population — stand-alone evidence the variant is benign (ACMG BA1).',
-  BS1: 'Allele frequency higher than expected for the disease (1–5%) — strong evidence toward benign (ACMG BS1).',
-  PM2: 'Absent or extremely rare (< 0.1%) in population databases — supporting evidence toward pathogenic (ACMG PM2).',
+  BA1: 'General reference band at ≥ 5%. The active gene/disease policy determines whether BA1 applies.',
+  BS1: 'General reference band at 1–5%. The active gene/disease policy determines whether BS1 applies.',
+  PM2: 'General rare-frequency reference band. The active policy and quality gates determine whether PM2 applies.',
 }
 const INTERMEDIATE_TIP =
-  'Uncommon — between the benign and pathogenic frequency thresholds; not decisive on its own.'
+  'Uncommon on the general reference scale. The active gene/disease policy determines whether frequency evidence applies.'
 const MIS_OE_TIP =
   'Missense observed/expected ratio: fraction of expected missense variants actually seen. Toward 0 = strong depletion (constrained); ≈ 1 = tolerant.'
 const CONSTRAINT_TIP =
@@ -27,7 +27,7 @@ const LOEUF_TIP =
 const PLI_TIP =
   'pLI — probability the gene is intolerant of a single loss-of-function allele. ≥ 0.9 = LoF-intolerant. gnomAD now leads with LOEUF.'
 const AF_TIP =
-  'Allele frequency — how often this exact variant appears across gnomAD reference-population samples. Common variants are usually benign (BA1/BS1); very rare or absent variants give supporting evidence toward pathogenic (PM2). The bar above places this AF on the ACMG benign↔pathogenic thresholds.'
+  'Allele frequency is how often this exact variant appears across gnomAD reference-population samples. The bar is a general orientation guide; the version-pinned advisory policy determines BA1, BS1, or PM2.'
 
 // gnomAD-style constraint thermometer: a coloured banded scale (red = constrained
 // → green = tolerant, low value = constrained for both LOEUF and missense o/e) with
@@ -183,7 +183,15 @@ function fmtAf(af: number | null): string {
   return `${Number(pct.toPrecision(3))}%`
 }
 
-export function AfThermometer({ af, evidence }: { af: number | null; evidence?: EvidenceSourceSummary[] }) {
+export function AfThermometer({
+  af,
+  evidence,
+  computed,
+}: {
+  af: number | null
+  evidence?: EvidenceSourceSummary[]
+  computed?: EamosComputedClassification | null
+}) {
   const observed = af != null && af > 0
   const bandIdx = observed ? GNOMAD_AF_BANDS.findIndex((b) => (af as number) >= b.min) : -1
   const band = bandIdx >= 0 ? GNOMAD_AF_BANDS[bandIdx] : null
@@ -192,22 +200,26 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
   // pinned to the far rare end.
   const markerPct = observed ? (bandIdx + 0.5) * 25 : 98
 
-  const verdict = !observed
-    ? 'Absent · PM2-supporting'
+  const generalGuide = !observed
+    ? 'absent'
     : band?.acmg === 'BA1'
-      ? 'Common · benign (BA1)'
+      ? 'common'
       : band?.acmg === 'BS1'
-        ? 'Frequent · benign (BS1)'
+        ? 'frequent'
         : band?.acmg === 'PM2'
-          ? 'Rare · PM2-supporting'
-          : 'Uncommon · intermediate'
-  const verdictColor = !observed
-    ? 'var(--cls-na-text)'
-    : band?.acmg === 'BA1' || band?.acmg === 'BS1'
+          ? 'rare'
+          : 'intermediate'
+  const appliedPopulation = computed?.per_criterion.find(
+    (criterion) => criterion.triggered && ['BA1', 'BS1', 'PM2'].includes(criterion.code),
+  )
+  const verdict = appliedPopulation
+    ? `${appliedPopulation.code} applied · ${appliedPopulation.threshold ?? 'active policy threshold'}`
+    : `General frequency guide · ${generalGuide}`
+  const verdictColor = appliedPopulation
+    ? appliedPopulation.direction === 'benign'
       ? 'var(--cls-ben-text)'
-      : band?.acmg === 'PM2'
-        ? 'var(--cls-lpath-text)'
-        : 'var(--cls-vus-text)'
+      : 'var(--cls-lpath-text)'
+    : 'var(--ink-3)'
 
   return (
     <div
@@ -310,6 +322,18 @@ export function AfThermometer({ af, evidence }: { af: number | null; evidence?: 
         <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginLeft: 8 }}>{fmtAf(af)}</span>
         <span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 6 }}>· gnomAD v4 · joint</span>
       </div>
+      <p style={{ margin: '7px 0 0', fontSize: 10.5, lineHeight: 1.45, color: 'var(--ink-4)' }}>
+        The bands are a general orientation guide. Advisory policy:{' '}
+        <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-3)' }}>
+          {computed?.acmg_version_pin.population_policy_id ?? 'legacy captured policy'}
+          {computed?.acmg_version_pin.population_policy_version
+            ? `@${computed.acmg_version_pin.population_policy_version}`
+            : ''}
+        </span>
+        {computed?.acmg_version_pin.cspec_overlay_id
+          ? ` · CSpec ${computed.acmg_version_pin.cspec_overlay_id}@${computed.acmg_version_pin.cspec_overlay_version}`
+          : ''}
+      </p>
 
       {/* Gene constraint readout (gnomAD), gnomAD-style coloured thermometers.
           Values render only when molecular_context returns source-backed

@@ -1,6 +1,6 @@
 // Pure mirror of app/backend/app/services/acmg_points_engine.py — the ONLY
 // client-side recompute the ACMG-viz instruments are allowed (spec §5/§3). The
-// engine is authoritative for `tier`, `posterior`, `net_points`, etc.; these
+// engine is authoritative for `tier`, `model_posterior`, `net_points`, etc.; these
 // functions exist so the SVG instruments (PosteriorGauge / EvidencePlane /
 // PointWaterfall) can DRAW band geometry and self-check against the payload, and
 // so the unit test pins us to the engine's exact anchor values. They recompute
@@ -12,27 +12,51 @@
 //
 // The active Vitest coverage lives beside this module in app/web.
 
-import type { EamosComputedBenignCut, EamosComputedTier } from '@/lib/backend'
+import type {
+  EamosComputedBenignCut,
+  EamosComputedClassification,
+  EamosComputedTier,
+} from '@/lib/backend'
 
-/** OddsPath base for one point of evidence (Tavtigian 2020). */
-export const ODDS_PATH_BASE = 2.08
-/** ACMG/AMP prior probability of pathogenicity (Tavtigian 2020). */
-export const PRIOR = 0.1
+export const HISTORICAL_RULESET_ID = 'richards_2015_tavtigian_2020_eamos_v1'
+export const HISTORICAL_RULESET_VERSION = 'eamos-historical-replay-v1'
+export const HISTORICAL_CONFLICT_POLICY_ID = 'eamos_legacy_vus_cap'
+/** Aggregate likelihood-ratio base for one evidence point (Tavtigian 2020). */
+export const AGGREGATE_LIKELIHOOD_RATIO_BASE = 2.08
+/** Model prior probability of pathogenicity (Tavtigian 2020). */
+export const MODEL_PRIOR_PROBABILITY = 0.1
 
-/** OddsPath = 2.08^net (NOT 2.08^(net/8) — see spec §3). */
-export function oddsPath(net: number): number {
-  return Math.pow(ODDS_PATH_BASE, net)
+/** Aggregate evidence likelihood ratio = 2.08^net. */
+export function aggregateEvidenceLikelihoodRatio(net: number): number {
+  return Math.pow(AGGREGATE_LIKELIHOOD_RATIO_BASE, net)
+}
+
+export function modelPriorOdds(): number {
+  return MODEL_PRIOR_PROBABILITY / (1 - MODEL_PRIOR_PROBABILITY)
+}
+
+export function modelPosteriorOdds(net: number): number {
+  return aggregateEvidenceLikelihoodRatio(net) * modelPriorOdds()
+}
+
+/** Model posterior probability of pathogenicity from the net point score. */
+export function modelPosterior(net: number): number {
+  const odds = modelPosteriorOdds(net)
+  return odds / (1 + odds)
 }
 
 /**
- * Posterior probability of pathogenicity from the net point score.
- * `posterior = (OddsPath·prior) / ((OddsPath − 1)·prior + 1)`, prior 0.10.
- * Anchors (unit-tested): net 0→10.0% · +6→90.0% · +9→98.8% · +10→99.4% ·
- * −1→5.1% · −7→0.1%.
+ * Read the explicit Phase-6 field while keeping captured legacy fixtures usable.
+ * BA1 is never assigned a point-model posterior.
  */
-export function posterior(net: number): number {
-  const op = oddsPath(net)
-  return (op * PRIOR) / ((op - 1) * PRIOR + 1)
+export function modelPosteriorFromComputed(
+  computed: EamosComputedClassification,
+): number | null {
+  if (computed.ba1_override) return null
+  const value = computed.model_posterior ?? computed.posterior ?? null
+  if (value === null) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 /**
@@ -128,18 +152,16 @@ export function gaugeBands(
   ]
 }
 
-/** The four internal tier dividers (net value + posterior at that net), for
- *  labelling the gauge axis "P≈0.001 · 0.10 · 0.90 · 0.99" under the boundaries. */
+/** The four internal tier dividers and their point-model posterior values. */
 export function gaugeBoundaries(
   benignCut: EamosComputedBenignCut,
-): { net: number; posterior: number }[] {
+): { net: number; modelPosterior: number }[] {
   const b = netBoundaries(benignCut)
   return [b.likelyBenign - 0.5, b.vus - 0.5, b.likelyPathogenic - 0.5, b.pathogenic - 0.5].map(
-    (net) => ({ net, posterior: posterior(net) }),
+    (net) => ({ net, modelPosterior: modelPosterior(net) }),
   )
 }
 
-/** Compact "Tavtigian-2020 points · OddsPath 2.08^net · prior 0.10" stamp string
- *  (spec accessibility bar — a formula stamp on every visual). */
+/** Compact formula stamp for every point-model visual. */
 export const POINTS_FORMULA_STAMP =
-  'Tavtigian-2020 points · OddsPath 2.08^net · prior 0.10'
+  'Eamos historical replay v1 · Tavtigian-2020 points · aggregate LR 2.08^net · model prior 0.10'

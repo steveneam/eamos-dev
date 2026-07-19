@@ -7,6 +7,7 @@ import type {
   EamosComputedClassification,
 } from '@/lib/backend'
 import { criteriaStateFromComputed } from '@/lib/acmg/criteria-model'
+import { modelPosteriorFromComputed } from '@/lib/acmg/points'
 import { AcmgExplainer } from '@/components/acmg/AcmgExplainer'
 import { AcmgGrid } from './AcmgGrid'
 import { ConfidenceChannel } from './ConfidenceChannel'
@@ -132,9 +133,20 @@ const COMPUTED_WARNING_LABELS: Record<string, string> = {
     'PM3 needs confirmed phase with a second disease-causing allele before EAMOS can score it.',
   'acmg_case_context_not_scored:PP4_phenotype_specificity_required':
     'PP4 needs phenotype specificity or family-case context before EAMOS can score it.',
+  'functional_source_assertions_context_only:assay_validation_missing':
+    'Functional assertions remain context only because no versioned assay-validation record was supplied.',
+  'functional_assertions_context_only:none_selected_for_counting':
+    'Functional assertions remain context only because none was selected by the predeclared assay policy.',
+  'functional_assertion_not_counted:selected_candidate_cardinality':
+    'Functional evidence was not scored because the policy requires exactly one best-validated assertion.',
+  'population_cspec_not_applied:popmax_faf_missing':
+    'The disease-specific population thresholds were not applied because popmax filtering allele frequency was missing.',
 }
 
 function computedWarningLabel(value: string): string {
+  if (value.startsWith('functional_assertion_not_counted:')) {
+    return `Functional evidence was not scored: ${value.split(':').at(-1)?.replaceAll('_', ' ')}.`
+  }
   return COMPUTED_WARNING_LABELS[value] ?? value
 }
 
@@ -167,7 +179,12 @@ export function EamosAcmgClassifier({
   computed?: EamosComputedClassification | null
 }) {
   if (!computed && !data) return null
-  const pct = computed ? `${(computed.posterior * 100).toFixed(1)}%` : null
+  const modelPosterior = computed ? modelPosteriorFromComputed(computed) : null
+  const modelPosteriorSummary = computed?.ba1_override
+    ? 'BA1 stand-alone · model posterior not applicable'
+    : modelPosterior === null
+      ? 'model posterior unavailable'
+      : `model posterior ${(modelPosterior * 100).toFixed(1)}%`
   const caseContextMessages = computed ? computedCaseContextMessages(computed) : []
 
   return (
@@ -182,13 +199,13 @@ export function EamosAcmgClassifier({
               <EvidenceChip size="sm" dot classification={computed.tier} title="EAMOS point-based advisory classification">
                 {computed.tier}
               </EvidenceChip>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>posterior {pct}</span>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{modelPosteriorSummary}</span>
             </span>
           }
         >
           <div aria-label="EAMOS-computed ACMG/AMP advisory classification">
             <p style={{ margin: '0 0 14px', fontSize: 12, lineHeight: 1.55, color: 'var(--ink-3)' }}>
-              Combines the predictors above (PP3/BP4) with population, loss-of-function and functional evidence into a{' '}
+              Combines the predictors above (PP3/BP4) with population, loss-of-function and validated functional evidence into a{' '}
               <strong style={{ color: 'var(--ink)' }}>Tavtigian-2020 point score</strong>. EAMOS-computed{' '}
               <strong style={{ color: 'var(--ink)' }}>advisory</strong>; the curated clinical classification in section 1 takes
               precedence.
@@ -199,12 +216,13 @@ export function EamosAcmgClassifier({
                 role="note"
                 style={{
                   margin: '0 0 14px',
-                  borderLeft: '3px solid var(--warn)',
+                  border: '0.5px solid var(--warn)',
+                  borderRadius: 'var(--r-sm)',
                   background: 'color-mix(in srgb, var(--warn) 7%, transparent)',
                   padding: '10px 12px',
                 }}
               >
-                <div className="eamos-kicker" style={{ marginBottom: 7 }}>Case context not scored</div>
+                <div className="eamos-kicker" style={{ marginBottom: 7 }}>Evidence not scored</div>
                 <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5 }}>
                   {caseContextMessages.map((item) => (
                     <li key={item.key}>{item.message}</li>

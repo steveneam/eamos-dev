@@ -440,9 +440,9 @@ function OffMapCohorts({
 }
 
 const BAND_TAG_MEANING: Record<string, string> = {
-  BA1: 'ACMG BA1 — stand-alone benign evidence (allele frequency ≥ 5%)',
-  BS1: 'ACMG BS1 — strong benign evidence (more common than the disorder)',
-  PM2: 'ACMG PM2 — supporting pathogenic evidence (absent or extremely rare)',
+  BA1: 'General BA1 reference band (allele frequency ≥ 5%); active gene/disease policy may differ',
+  BS1: 'General BS1 reference band; active gene/disease policy may differ',
+  PM2: 'General PM2 reference band; active policy and data-quality gates determine scoring',
   Intermediate:
     'Intermediate — too rare to call benign (below BS1), too common for PM2; allele frequency gives no ACMG evidence either way.',
 }
@@ -486,7 +486,8 @@ function MapLegendFooter() {
           </div>
           <div>
             Colour is the variant’s <strong>absolute allele frequency</strong> in each gnomAD
-            group, against fixed ACMG-style cutoffs:
+            group, against fixed general ACMG-style reference cutoffs. The EAMOS advisory uses its
+            version-pinned gene/disease policy, which may differ:
           </div>
           <ul
             style={{

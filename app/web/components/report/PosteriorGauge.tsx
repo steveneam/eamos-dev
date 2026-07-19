@@ -1,19 +1,20 @@
-// A3 — Posterior Gauge (matches the vault posterior-gauge.svg). The axis is
+// A3 — Point-model posterior gauge (matches the vault posterior-gauge.svg). The axis is
 // LINEAR IN NET POINTS — points are linear in log-odds — with the five tier
 // bands by net width and the posterior probability labelled under each tier
 // divider (the "compress near 1.0" honesty lives in the labels: +6→0.90,
 // +10→0.99, not in invisible slivers). The marker sits at the net score; the big
-// readout is the posterior. Reuses the shared ScaleTrack primitive.
+// readout is the model posterior. Reuses the shared ScaleTrack primitive.
 //
 // The engine is authoritative: we render `computed.net_points` (marker) and
-// `computed.posterior` / `computed.tier` (readout) verbatim; points.ts only
-// supplies band geometry. BA1 override / conflict cap (where the net-implied
-// tier and the verdict disagree) surface as an honest note.
+// `computed.model_posterior` / `computed.tier` (readout) verbatim; points.ts only
+// supplies band geometry. BA1 has no point-model posterior and gets a distinct
+// not-applicable treatment.
 
 import type { EamosComputedClassification } from '@/lib/backend'
 import {
   gaugeBands,
   gaugeBoundaries,
+  modelPosteriorFromComputed,
   POINTS_FORMULA_STAMP,
   tierByNet,
   tierTokens,
@@ -32,9 +33,9 @@ const pct = (p: number) => `${(p * 100).toFixed(1)}%`
 const fmtPost = (p: number) => (p < 0.01 ? p.toFixed(3) : p.toFixed(2))
 
 function overrideNote(computed: EamosComputedClassification): string | null {
-  if (computed.ba1_override) return 'BA1 stand-alone benign override — classified Benign regardless of the point total.'
+  if (computed.ba1_override) return 'BA1 is a stand-alone benign override. The net point total is retained only for audit.'
   if (computed.conflict.is_conflicting)
-    return `Conflicting evidence — advisory capped to VUS${computed.conflict.reason ? ` (${computed.conflict.reason})` : ''}.`
+    return `Conflicting evidence. Advisory capped to VUS${computed.conflict.reason ? ` (${computed.conflict.reason})` : ''}.`
   if (tierByNet(computed.net_points, computed.benign_cut) !== computed.tier) {
     return 'Engine tier differs from the net-implied tier (overlay or override applied).'
   }
@@ -63,17 +64,87 @@ export function PosteriorGauge({
   const boundaries = gaugeBoundaries(computed.benign_cut)
 
   const tokens = tierTokens(computed.tier)
-  const p = computed.posterior
+  const p = modelPosteriorFromComputed(computed)
   const note = overrideNote(computed)
   const netLabel = `${net >= 0 ? '+' : ''}${net}`
-  const ariaLabel = `Posterior probability of pathogenicity ${pct(p)}. EAMOS-computed advisory tier ${computed.tier}, net ${netLabel} points on the Tavtigian-2020 scale.`
+  if (p === null) {
+    const status = computed.ba1_override ? 'not applicable because BA1 applies' : 'unavailable'
+    const ariaLabel = `Model posterior ${status}. EAMOS-computed advisory tier ${computed.tier}, net ${netLabel} points retained for audit.`
+    const dataTable = (
+      <table className="sr-only">
+        <caption>EAMOS-computed classification basis</caption>
+        <tbody>
+          <tr>
+            <th scope="row">Model posterior</th>
+            <td>Not applicable</td>
+          </tr>
+          <tr>
+            <th scope="row">Classification basis</th>
+            <td>{computed.classification_basis}</td>
+          </tr>
+          <tr>
+            <th scope="row">Advisory tier</th>
+            <td>{computed.tier}</td>
+          </tr>
+          <tr>
+            <th scope="row">Audit net points</th>
+            <td>{netLabel}</td>
+          </tr>
+        </tbody>
+      </table>
+    )
+
+    if (variant === 'chip') {
+      return (
+        <span
+          role="img"
+          aria-label={ariaLabel}
+          title={ariaLabel}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '5px 10px',
+            borderRadius: 999,
+            border: `0.5px solid ${tokens.edge}`,
+            background: tokens.band,
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 700, color: tokens.ink }}>
+            {computed.ba1_override ? 'BA1' : 'N/A'}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--ink-4)' }}>model posterior N/A</span>
+          {dataTable}
+        </span>
+      )
+    }
+
+    return (
+      <figure role="img" aria-label={ariaLabel} style={{ margin: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--display)', fontSize: 24, fontWeight: 400, color: tokens.ink }}>
+            N/A
+          </span>
+          <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+            model posterior not applicable · <strong style={{ color: tokens.ink }}>{computed.tier}</strong> · audit net {netLabel}
+          </span>
+        </div>
+        <p role="note" style={{ margin: '8px 0 0', fontSize: 10.5, lineHeight: 1.45, color: 'var(--warn-text)' }}>
+          {note ?? 'No point-model posterior was supplied.'}
+        </p>
+        {dataTable}
+      </figure>
+    )
+  }
+
+  const ariaLabel = `Model posterior probability of pathogenicity ${pct(p)}. EAMOS-computed advisory tier ${computed.tier}, net ${netLabel} points on the Tavtigian-2020 scale.`
 
   const dataTable = (
     <table className="sr-only">
-      <caption>EAMOS-computed posterior probability of pathogenicity</caption>
+      <caption>EAMOS-computed point-model posterior probability of pathogenicity</caption>
       <tbody>
         <tr>
-          <th scope="row">Posterior</th>
+          <th scope="row">Model posterior</th>
           <td>{pct(p)}</td>
         </tr>
         <tr>
@@ -87,7 +158,7 @@ export function PosteriorGauge({
         {boundaries.map((b) => (
           <tr key={b.net}>
             <th scope="row">Net {b.net} boundary</th>
-            <td>posterior {fmtPost(b.posterior)}</td>
+            <td>model posterior {fmtPost(b.modelPosterior)}</td>
           </tr>
         ))}
       </tbody>
@@ -114,7 +185,7 @@ export function PosteriorGauge({
         <span style={{ width: 72 }}>
           <ScaleTrack bands={scaleBands} height={6} radius={3} pin={{ pos: xNet(net) / 100 }} />
         </span>
-        <span style={{ fontSize: 10, color: 'var(--ink-4)' }}>posterior</span>
+        <span style={{ fontSize: 10, color: 'var(--ink-4)' }}>model posterior</span>
         {dataTable}
       </span>
     )
@@ -128,7 +199,7 @@ export function PosteriorGauge({
             {pct(p)}
           </span>
           <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-            posterior · <span style={{ color: tokens.ink, fontWeight: 600 }}>{computed.tier}</span> · net {netLabel}
+            model posterior · <span style={{ color: tokens.ink, fontWeight: 600 }}>{computed.tier}</span> · net {netLabel}
           </span>
         </div>
       </div>
@@ -169,14 +240,14 @@ export function PosteriorGauge({
               color: 'var(--ink-4)',
             }}
           >
-            {fmtPost(b.posterior)}
+            {fmtPost(b.modelPosterior)}
           </span>
         ))}
       </div>
 
       <div aria-hidden style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--ink-5)', marginTop: 1 }}>
         <span>← benign</span>
-        <span>net {netLabel} → posterior {pct(p)}</span>
+        <span>net {netLabel} → model posterior {pct(p)}</span>
         <span>pathogenic →</span>
       </div>
 

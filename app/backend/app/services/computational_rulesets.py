@@ -6,6 +6,7 @@ from types import MappingProxyType
 from typing import Literal, Mapping
 
 RulesetStatus = Literal["published", "draft", "shadow", "withdrawn"]
+ConflictResolutionPolicy = Literal["eamos_legacy_vus_cap", "none"]
 
 
 @dataclass(frozen=True)
@@ -45,14 +46,19 @@ class ComputationalRulesetRecord:
     predictor_selection_rules: tuple[str, ...]
     dependency_and_exclusion_edges: tuple[tuple[str, str, str], ...]
     standalone_overrides: tuple[str, ...]
+    conflict_resolution_policy: ConflictResolutionPolicy
+    population_policy_id: str
+    functional_validation_policy_id: str
+    functional_validation_policy_version: str
+    functional_assertion_source_ids: tuple[str, ...]
     cspec_overlay_version: str | None
     activated_at: str | None
 
 
-RICHARDS_TAVTIGIAN_CURRENT = ComputationalRulesetRecord(
+RICHARDS_TAVTIGIAN_EAMOS_V1 = ComputationalRulesetRecord(
     ruleset_id="richards_2015_tavtigian_2020_eamos_v1",
     framework_name="Richards-2015 + Tavtigian-2020 points",
-    framework_version="eamos-current-v1",
+    framework_version="eamos-historical-replay-v1",
     publication_url="https://pmc.ncbi.nlm.nih.gov/articles/PMC8011844/",
     document_url=("https://pmc.ncbi.nlm.nih.gov/articles/PMC8011844/pdf/nihms-1681181.pdf"),
     document_checksum=("sha256:2714eb28dda9188e4567377554ec829c8d62b442f3dfbed7dfb9a4fa763b8a01"),
@@ -81,19 +87,32 @@ RICHARDS_TAVTIGIAN_CURRENT = ComputationalRulesetRecord(
     dependency_and_exclusion_edges=(
         ("PP3", "BP4", "mutually_exclusive"),
         ("PP3", "PM1", "combined_pathogenic_points_cap_4"),
+        ("PM2", "BS1", "mutually_exclusive"),
+        ("PM2", "BA1", "mutually_exclusive"),
+        ("PS3", "BS3", "mutually_exclusive"),
+        ("PS3", "nonfunctional_pathogenic_evidence", "requires_same_direction_evidence"),
+        ("BS3", "nonfunctional_benign_evidence", "requires_same_direction_evidence"),
     ),
     standalone_overrides=("BA1",),
-    cspec_overlay_version=None,
+    # The VUS conflict cap is retained only as an explicit, replayable Eamos-v1
+    # behavior. A future ruleset must choose its own cited policy rather than
+    # inheriting this field by accident.
+    conflict_resolution_policy="eamos_legacy_vus_cap",
+    population_policy_id="acmg_svi_general_frequency_v1",
+    functional_validation_policy_id="clingen_svi_brnich_2020_v1",
+    functional_validation_policy_version="1.0.0",
+    functional_assertion_source_ids=("clingen", "clinvar"),
+    cspec_overlay_version="cspec-registry-v1",
     activated_at="2026-07-17",
 )
 
 RULESET_REGISTRY: Mapping[str, ComputationalRulesetRecord] = MappingProxyType(
-    {RICHARDS_TAVTIGIAN_CURRENT.ruleset_id: RICHARDS_TAVTIGIAN_CURRENT}
+    {RICHARDS_TAVTIGIAN_EAMOS_V1.ruleset_id: RICHARDS_TAVTIGIAN_EAMOS_V1}
 )
 
 
 def active_ruleset() -> ComputationalRulesetRecord:
-    record = RULESET_REGISTRY[RICHARDS_TAVTIGIAN_CURRENT.ruleset_id]
+    record = RULESET_REGISTRY[RICHARDS_TAVTIGIAN_EAMOS_V1.ruleset_id]
     if record.status != "published" or record.activated_at is None:
         raise RuntimeError("active computational ruleset is not published and activated")
     return record

@@ -19,7 +19,7 @@ EAMOS will become **the only variant report that *draws the classification decis
 |---|---|---|
 | **Breadth** | Viz wave **+ its backend engine**; reconcile the rest of build-ledger §2 against what's already built | §9 reconciliation; the broader predictor/exome/phenopacket waves are **not** specced here |
 | **Verdict model** | **Points engine = primary EAMOS advisory**; the existing Richards-2015 categorical classifier (`EamosAcmgClassifier.tsx`) is **demoted into an audit/expandable detail**, not removed | The curated ClinGen→ClinVar aggregation stays the *precedence* call (unchanged); EAMOS now has **one** headline advisory verdict, not two |
-| **v1 cut** | **Hero set + Evidence Fingerprint** | A1 Evidence Plane + A2 Point Waterfall + A3 Posterior Gauge + A4 confidence channel (§3/Card 4) **and** B5 Evidence Fingerprint + posterior chip (CallCardsGrid). Everything else = fast-follow |
+| **v1 cut** | **Hero set + Evidence Fingerprint** | A1 Evidence Plane + A2 Point Waterfall + A3 Model Posterior Gauge + A4 confidence channel (§3/Card 4) **and** B5 Evidence Fingerprint + model-posterior chip (CallCardsGrid). Everything else = fast-follow |
 | **Drag/what-if card** | **Fast-follow** | Static hero visuals + engine contract prove out first; the draggable Explore card ([[interactive-classification-card]]) lands next |
 
 **v1 (this spec's commitment):** A1, A2, A3, A4, B5 + the points engine + the contract.
@@ -31,7 +31,7 @@ EAMOS will become **the only variant report that *draws the classification decis
 
 **Frontend (`app/web/components/report/`, Next 16 / React 19, Reading Room):**
 - `ScoreScale.tsx` — shared `ScaleTrack` + `ScorePin` primitive (used by `CalibratedInSilicoTable`, `AfThermometer`). **This is the seed for the shared `<EvidenceBar>`** — extend it, don't fork.
-- `EamosAcmgClassifier.tsx` — current EAMOS auto-verdict = **Richards-2015 categorical count rules** (no points, no posterior). → to be **demoted to audit detail**.
+- `EamosAcmgClassifier.tsx` — current EAMOS auto-verdict = **Richards-2015 categorical count rules** (no points, no model posterior). → to be **demoted to audit detail**.
 - `CallCardsGrid.tsx`, `CompositeVerdictBar.tsx`, `AcmgGrid.tsx`, `AcmgCriteriaFold.tsx`, `CalibratedInSilicoTable.tsx` — the §3/§2 surfaces these instruments slot into.
 
 **Backend (`app/backend/app/`):**
@@ -41,7 +41,7 @@ EAMOS will become **the only variant report that *draws the classification decis
 - `services/build_ledger.py` — runtime readiness ledger. Confirms: **no points-engine item exists**; the `acmg_classifier` item == `clinical_consensus + computational_calibration`.
 - `schemas/run.py` — where the new `eamos_computed_classification` block is added.
 
-**The gap (what to build):** the points combiner that fuses PVS1-tree + calibrated bands + gnomAD/ClinVar evidence into `{net_points, posterior, per_criterion[]}` — and the five SVG instruments that draw it.
+**The gap (what to build):** the points combiner that fuses PVS1-tree + calibrated bands + gnomAD/ClinVar evidence into `{net_points, model_posterior, per_criterion[]}` — and the five SVG instruments that draw it.
 
 ---
 
@@ -53,17 +53,29 @@ This is the **single seam** between Codex and Claude. Codex authors it in `schem
 interface EamosComputedClassification {
   acmg_version_pin: {                 // emitted on every output (engine spec §In-scope)
     framework: string;                // "Richards-2015 + Tavtigian-2020 points"
+    ruleset_id: string;
+    ruleset_version: string;          // "eamos-historical-replay-v1"
+    conflict_policy_id: string;
     pvs1_revision: string;            // "Abou-Tayoun-2018"
     pp3_calibration: string;          // "Pejaver-2022"
     vcep_id?: string;                 // present only when a VCEP overlay applied
+    population_policy_id: string;
+    population_policy_version: string;
+    cspec_overlay_id?: string;
+    cspec_overlay_version?: string;
+    population_policy_diff: Array<{field: string; general_value: string; overlay_value: string}>;
   };
   net_points: number;                 // ΣP − ΣB (seed for the puck / waterfall total)
   sum_pathogenic: number;             // ΣP — Evidence-Plane Y
   sum_benign: number;                 // ΣB — Evidence-Plane X
   tier: "Pathogenic" | "Likely Pathogenic" | "VUS" | "Likely Benign" | "Benign";
+  classification_basis: "bayesian_points" | "ba1_standalone_override" | "legacy_conflict_cap";
   conflict: { is_conflicting: boolean; reason?: string };  // discordance cap → forced VUS
-  ba1_override: boolean;              // BA1 hard benign override fired (short-circuits the sum)
-  posterior: number;                  // 0..1; OddsPath = 2.08^net, prior 0.10 (see below)
+  ba1_override: boolean;              // BA1 is outside the point sum
+  aggregate_evidence_likelihood_ratio: number | null;
+  prior_odds: number | null;
+  posterior_odds: number | null;
+  model_posterior: number | null;      // null whenever BA1 is the classification basis
   benign_cut: "tavtigian_2020" | "acgs_panel";             // which ADR-0022 cut applied
   per_criterion: Array<{
     code: string;                     // "PVS1", "PM2", ...
@@ -75,18 +87,27 @@ interface EamosComputedClassification {
     threshold?: string | number;
     source_db?: string;               // "gnomAD v4", "ClinVar", "AlphaMissense", ...
     source_version?: string;
+    source_url?: string;
     svi_reference?: string;
+    policy_id?: string;
+    policy_version?: string;
+    policy_source_url?: string;
+    cspec_overlay_id?: string;
+    cspec_overlay_version?: string;
+    functional_assay_oddspath?: number;
+    functional_assay_confidence_interval_lower?: number;
+    functional_assay_confidence_interval_upper?: number;
   }>;
 }
 ```
 
 **Non-negotiable clinical rules** (binding on engine AND visuals — single source [[acmg-criteria-and-points-reference]] §1–§5; do not paraphrase them here):
-- **Posterior:** `OddsPath = 2.08^net` → `posterior = (OddsPath·0.10)/((OddsPath−1)·0.10+1)`. **Not** `2.08^(net/8)`. Verified anchors the FE unit tests must hit: net `0→10.0%` · `+6→90.0%` · `+9→98.8%` · `+10→99.4%` · `−1→5.1%` · `−7→0.1%`.
+- **Historical point-model quantities:** `aggregate_evidence_likelihood_ratio = 2.08^net`; combine it with prior odds from model prior `0.10` to obtain `posterior_odds` and `model_posterior`. These names are distinct from a functional assay's independently validated `functional_assay_oddspath`. Verified anchors remain net `0→10.0%` · `+6→90.0%` · `+9→98.8%` · `+10→99.4%` · `−1→5.1%` · `−7→0.1%`.
 - **Tier cuts (ADR 0022 default Tavtigian-2020):** P ≥+10 · LP +6..+9 · VUS 0..+5 · LB −1..−6 · B ≤−7. `acgs_panel` exception (LB −1..−5 / B ≤−6) applies **only** via VCEP overlay; the FE reads `benign_cut` and follows it.
 - **Variable strength is per-application** — `applied_strength`/`points`, never a fixed code→points map.
-- **BA1 = hard override** (not a summand); **discordance cap → conflicting VUS** regardless of net; mutually-exclusive pairs never co-fire; PP5/BP6 demoted.
+- **BA1 = hard override** (not a summand and no model posterior); the custom discordance cap is an explicit historical Eamos-v1 replay policy; mutually-exclusive pairs never co-fire; PP5/BP6 are demoted.
 
-The Evidence Plane needs `conflict` (hatched marker) and `ba1_override` (legend note); the gauge needs `posterior`; the waterfall needs `per_criterion[].points` + `applied_strength`. **All of it comes from the engine — the FE recomputes nothing except the two pure mirror functions in §5.**
+The Evidence Plane needs `conflict` (hatched marker) and `ba1_override` (legend note); the gauge needs `model_posterior`; the waterfall needs `per_criterion[].points` + `applied_strength`. BA1 renders an explicit not-applicable model state. **All of it comes from the engine — the FE recomputes only the historical geometry helpers in §5.**
 
 ---
 
@@ -95,15 +116,15 @@ The Evidence Plane needs `conflict` (hatched marker) and `ba1_override` (legend 
 **New module:** `app/backend/app/services/acmg_points_engine.py` — a **separate advisory** object; **must not modify** `clinical_consensus.py`.
 
 **Build order (engine spec [[eamos-acmg-classifier-tool]] Build plan, v1 subset):**
-1. **Points core.** `{code → applied_strength} → points → ΣP/ΣB → net → BA1 override → discordance cap → tier(net, benign_cut) → posterior(net)`. Emit the §3 contract + `acmg_version_pin`. Unit-test Tavtigian-2020 worked examples (`1 VStrong + 1 Strong = +12 → P`; `2 Mod + 1 Supp = +5 → VUS`; `PVS1 + PM2_Supporting = +9 → LP`).
+1. **Points core.** `{code → applied_strength} → points → ΣP/ΣB → net → BA1 override → historical conflict policy → tier(net, benign_cut) → named model quantities`. Emit the §3 contract + `acmg_version_pin`. Unit-test Tavtigian-2020 worked examples (`1 VStrong + 1 Strong = +12 → P`; `2 Mod + 1 Supp = +5 → VUS`; `PVS1 + PM2_Supporting = +9 → LP`).
 2. **Wire existing evidence.** Feed `computational_calibration.py` bands (PP3/BP4) + `pvs1_nmd.py` strength tree (strength-modulated PVS1, not flat Very-Strong) + gnomAD-popmax/ClinVar for PM2/BA1/BS1/BS2/PM1/PM4/PM5/PP2/BP1/BP3/BP7.
 3. **Serialize.** Add `eamos_computed_classification` to `schemas/run.py`; populate it in the lookup/report path so `/report` receives it. Keep it **distinct** from `clinical_consensus`.
 
-**v1 boundary:** coverage expansion (auto PS3/BS3 from literature, PM3/BP2 phasing), the VCEP overlay, the AI narration layer, and the benchmark harness are **out of v1** (engine spec phases 3/5/6) — mark them "not assessed" in `per_criterion`. The LLM never activates a criterion or decides a tier (guardrail stays).
+**Phase 6 boundary:** source PS3/BS3 stays visible but is admitted only through the typed Brnich assay-validation contract and active dependency policy; study count never creates strength. Versioned population policies and exact gene/disease CSpec overlays now replace untyped global scoring assumptions. The LLM never activates a criterion or decides a tier.
 
 **Fast-follow (Codex):** ClinVar ≥2★ P/B **reference-set precompute** per predictor (the load-bearing build-time asset for the B7 beeswarm — [[variant-report-visualizations]] B7); calibrated `position`/CI surfacing for the B1 forest.
 
-**Tests:** the 10 must-get-right rules from [[acmg-criteria-and-points-reference]] §5 as cases; posterior anchor values; BA1 short-circuit; discordance→VUS; mutually-exclusive pairs reject.
+**Tests:** the 10 must-get-right rules from [[acmg-criteria-and-points-reference]] §5 as cases; model-posterior anchors; BA1 model quantities absent; historical conflict replay; functional validation/dependency rejection; CSpec precedence/diff; mutually-exclusive pairs reject.
 
 ---
 
@@ -112,19 +133,19 @@ The Evidence Plane needs `conflict` (hatched marker) and `ba1_override` (legend 
 **New components** in `app/web/components/report/`:
 - `EvidencePlane.tsx` (A1) — ΣB→x, ΣP→y; anti-diagonal P−B tier bands; clean marker vs **hatched conflict marker** (`conflict.is_conflicting`); BA1 legend note (`ba1_override`).
 - `PointWaterfall.tsx` (A2) — one signed bar per triggered criterion = **applied** points, labelled `PVS1_Strong +4` / `PM2_Supporting +1`; sums to net against tier ticks; renders as a `<table>` for SR for free.
-- `PosteriorGauge.tsx` (A3) — 5 ClinGen bands on the **true logistic scale** (unequal widths; LP/P compress near 1.0); marker at `posterior`.
+- `PosteriorGauge.tsx` (A3) — point-model bands and marker at `model_posterior`; BA1 renders a separate N/A state with its audit net, never a percentage gauge.
 - `EvidenceFingerprint.tsx` (B5) — four ticks (rarity · predictors · conservation · constraint) on one shared benign↔pathogenic baseline + "N of 4 agree"; **must not look like the ACMG verdict**.
 - `ConfidenceChannel.tsx` (A4) — small evidence-quality channel (review-status stars + "n criteria, max strength Strong") beside the verdict. May fold into an existing header rather than a standalone file.
 
 **Shared primitives** in `app/web/lib/acmg/`:
-- `points.ts` — `tierByNet(net, benign_cut)` + `posterior(net)`, **pure mirror functions** of the engine. Unit-tested to the §3 anchor values + ADR-0022 band edges. These are the *only* client recompute; everything else reads the payload.
+- `points.ts` — `tierByNet(net, benign_cut)` plus explicitly named historical aggregate-LR, prior-odds, posterior-odds, and model-posterior helpers. Unit-tested to the §3 anchor values + ADR-0022 band edges. These are the *only* client recompute; everything else reads the payload.
 - Extend `ScoreScale.tsx` into the shared `<EvidenceBar>` reused by A2/B5 (and later B1/B2/B3).
 
 **Integration edits:**
 - `EamosAcmgClassifier.tsx` → reworked: the **points verdict is the headline EAMOS advisory** (badge + Evidence Plane + Waterfall + Gauge); the Richards categorical output moves **into an expandable audit detail** ("legacy categorical view"). Curated ClinGen→ClinVar stays the precedence call above it.
-- `CallCardsGrid.tsx` → mount `EvidenceFingerprint` + posterior chip + confidence channel at the summary.
+- `CallCardsGrid.tsx` → mount `EvidenceFingerprint` + model-posterior/N/A chip + confidence channel at the summary.
 
-**Accessibility / theming (production bar, [[design-invariants]]):** every chart `role="img"` + full-sentence `aria-label` + a visually-hidden `<table>` with the real data; **position is the primary encoding** (colour only reinforces; tiers also print the net value/glyph); `prefers-reduced-motion` → static; Reading-Room OKLCH `--cls-*` tokens (no raw hex); a **data-source/formula stamp** on every visual ("Tavtigian-2020 points · OddsPath 2.08^net · prior 0.10").
+**Accessibility / theming (production bar, [[design-invariants]]):** every chart `role="img"` + full-sentence `aria-label` + a visually-hidden `<table>` with the real data; **position is the primary encoding** (colour only reinforces; tiers also print the net value/glyph); `prefers-reduced-motion` → static; Reading-Room OKLCH `--cls-*` tokens (no raw hex); point-model visuals carry the historical formula stamp, while BA1 surfaces the stand-alone basis instead of a formula.
 
 **Build order:** `points.ts` + tests → A3 gauge (smallest, proves the contract) → A1 plane → A2 waterfall → A4 channel → B5 fingerprint → wire into `EamosAcmgClassifier` + `CallCardsGrid`.
 
@@ -134,7 +155,7 @@ The Evidence Plane needs `conflict` (hatched marker) and `ba1_override` (legend 
 
 | Surface (file) | Instruments | Tier |
 |---|---|---|
-| **CallCardsGrid** (top summary) | B5 Evidence Fingerprint + A3 posterior chip + A4 confidence channel | **v1** |
+| **CallCardsGrid** (top summary) | B5 Evidence Fingerprint + A3 model-posterior/N/A chip + A4 confidence channel | **v1** |
 | **§3 Clinical Consensus / Card 4** (`EamosAcmgClassifier.tsx`) | A1 Evidence Plane + A2 Point Waterfall + A3 Posterior Gauge; Richards → audit detail | **v1** |
 | §3 / Card 4 | Interactive Explore (drag what-if) card | fast-follow |
 | **§2 In-silico** (`CalibratedInSilicoTable.tsx`) | B1 Predictor Forest, B3 conservation bullet, B7 beeswarm | fast-follow |
@@ -163,7 +184,7 @@ Splice / protein-domain / 3D structure are a **different domain** → [[predicto
 
 ```
 Step 0  (joint)   Freeze the §3 contract in schemas/run.py + a matching FE mock fixture.   ← gate
-Step 1  Codex     acmg_points_engine.py core + posterior + tier + version pin + tests.
+Step 1  Codex     acmg_points_engine.py core + named model quantities + tier + version pin + tests.
         Claude    lib/acmg/points.ts + tests; A3 gauge against the mock fixture.
 Step 2  Codex     Wire computational_calibration + pvs1_nmd + gnomAD/ClinVar; populate the block.
         Claude    A1 plane, A2 waterfall, A4 channel, B5 fingerprint; wire into Card 4 + CallCardsGrid.

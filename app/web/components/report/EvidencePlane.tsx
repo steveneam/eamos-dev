@@ -61,6 +61,9 @@ export function EvidencePlane({
    *  sets ΣP (y) and ΣB (x) independently → net = ΣP − ΣB. Static when omitted. */
   onChange?: (sumPathogenic: number, sumBenign: number) => void
 }) {
+  const ba1Criterion = computed.per_criterion.find(
+    (criterion) => criterion.code === 'BA1' && criterion.triggered,
+  )
   const b = netBoundaries(computed.benign_cut)
   const sp = computed.sum_pathogenic
   const sb = computed.sum_benign
@@ -273,7 +276,7 @@ export function EvidencePlane({
       {(computed.conflict.is_conflicting || computed.ba1_override) && (
         <p role="note" style={{ margin: '8px 0 0', fontSize: 10.5, lineHeight: 1.45, color: 'var(--warn-text)' }}>
           {computed.ba1_override
-            ? 'BA1: allele frequency ≥ 5% triggers a stand-alone benign override (not summed into ΣB).'
+            ? `BA1: the active ${ba1Criterion?.policy_id ?? 'population'} policy threshold${ba1Criterion?.threshold ? ` (${ba1Criterion.threshold})` : ''} triggers a stand-alone benign override and is not summed into ΣB.`
             : `Hatched marker: pathogenic and benign evidence conflict — advisory capped to VUS${computed.conflict.reason ? ` (${computed.conflict.reason})` : ''}.`}
         </p>
       )}

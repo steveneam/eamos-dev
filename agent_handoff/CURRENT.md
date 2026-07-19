@@ -25,8 +25,8 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** EVIDENCE EXPANSION PHASE 5 COMPLETE @ 2026-07-19 07:05 +0000 —
-  the code-only MaveDB archive importer repair passed full local verification.
+- **Codex:** EVIDENCE EXPANSION PHASE 6 COMPLETE @ 2026-07-19 08:39 +0000 —
+  the bounded code-only ruleset hardening passed full local verification.
 - **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
@@ -34,15 +34,15 @@
 - **GitHub Actions:** Phase-3 run `29675375104` failed with zero steps/logs,
   consistent with the known minute lock. Steven ruled no additional spend;
   commit/push continues, but required CI waits for monthly renewal.
-- **Evidence expansion:** Phases 0-5 are complete. Bounded code-only Phase 6 is
-  next. Source acquisition/materialization, live providers, ruleset activation,
-  and Phase 7 remain held.
+- **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
+  materialization, live providers, new-ruleset activation, and Phase 7 remain
+  held behind their existing gates.
 - **Runtime:** persistent `eamos` tmux under `agent-tmux.service` remains the
   execution seam.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 07:05 +0000 · Codex
+UNLOCKED · 2026-07-19 08:39 +0000 · Codex
 
 ## Shared File Locks
 
@@ -51,26 +51,26 @@ UNLOCKED · 2026-07-19 07:05 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 07:05 +0000 · Codex Phase-6 evidence expansion
+# Resume prompt · 2026-07-19 08:39 +0000 · Codex Phase-6 complete
 Read CURRENT.md, peer mail, PROGRESS.md, the evidence-expansion plan, and the Phase-3c runbook first.
-Phase 5 MaveDB code-only importer repair is complete and full npm run verify passed in 224.9 seconds.
+Phase 6 ruleset hardening is complete; full npm run verify passed in 310.2 seconds.
 If the recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
-Otherwise freeze and start bounded code-only Phase 6 current OddsPath/ruleset hardening.
-Name aggregate model quantities honestly; audit BA1, dependency edges, and functional assay-validation gates without activating a new ruleset.
-Keep source acquisition/materialization, live providers, deploys, Supabase, and SVC v4 activation held.
+Before that floor, do not start Phase 7; it requires the final published standard and explicit activation gates.
+Keep source acquisition/materialization, live providers, deploys, Supabase, new-ruleset activation, and SVC v4 held.
 The clean soak window started at 2026-07-19T01:46:12Z; earliest closure is 2026-07-21 01:46 UTC.
-Commit/push normally, but do not buy GitHub Actions minutes; required new-code CI waits for renewal.
+Do not buy GitHub Actions minutes; required Phase-6 CI waits for monthly renewal.
 Do not mutate deployments/providers/Supabase/Render or clean watcher-owned files.
 ```
 
 ## Pointer
 
-- Phase-5 implementation and verification receipt: top `PROGRESS.md` entry and
+- Phase-6 implementation and verification receipt: top `PROGRESS.md` entry and
   `plans/evidence-source-expansion/plan.md`.
-- MaveDB parser/materializer: `app/backend/app/services/mavedb_archive.py` and
-  `app/backend/app/services/mavedb_local.py`.
-- Phase-6 ruleset surfaces: `app/backend/app/services/acmg_points.py`, report
-  schemas/call cards, and the Phase-6 section of the active plan.
+- Phase-6 backend: `app/backend/app/services/acmg_points_engine.py`,
+  `acmg_policy_registry.py`, `functional_assay_validation.py`, and
+  `app/backend/app/schemas/run.py`.
+- Phase-6 web mirror/instruments: `app/web/lib/backend.ts`,
+  `app/web/lib/acmg/points.ts`, and `app/web/components/report/PosteriorGauge.tsx`.
 - Recovery checkpoint and reset receipt: `d326d06`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
@@ -82,22 +82,23 @@ Do not mutate deployments/providers/Supabase/Render or clean watcher-owned files
 
 ## Delta
 
-- MaveDB now has a no-network/no-extraction documented-ZIP parser and schema-v2
-  local store with authoritative license joins and exact numeric provenance.
-- Hostile archives, ambiguous/deprecated or context-drifted matches, checksum
-  failures, and stale schema signatures fail closed with fixed safe codes.
-- Every exact score-set match renders separately as neutral `Uncurated` context;
-  raw scores cannot activate PS3/BS3, points, or clinical color.
-- Full `npm run verify` passed in 224.9 seconds with 188 web tests, the complete
-  backend suite, all ratchets, and the production build.
-- No real MaveDB archive was acquired or materialized; operator and live-runtime
-  gates remain closed.
+- Aggregate likelihood ratio and Bayesian quantities are honestly named under
+  a version-pinned historical replay; BA1 has no model posterior and renders N/A.
+- PS3/BS3 count only through a published, exact-context, confusion-matrix-backed
+  assay validation with Brnich OddsPath, confidence, provenance, selection, and
+  independent-evidence gates. Unvalidated source assertions remain context-only.
+- Versioned population policies replace global thresholds. Exact RPE65 GN120
+  context gets deterministic CSpec precedence plus an auditable general-policy diff.
+- Full `npm run verify` passed in 310.2 seconds with 193 web tests, the complete
+  backend suite, all ratchets, and the 17-route production build.
+- No source acquisition/materialization, live request, upload, provider,
+  deployment, Render, Supabase, cleanup, new-ruleset, or SVC v4 action occurred.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
-  still live as rollback. No live/cloud/Supabase/deploy mutation occurred.
+  still live as rollback.
 - Swordfish's watcher-owned inbox remains dirty and was not edited or staged.
 
 ## Next Action
 
-- Run the recovery-middle sample first only after its 2026-07-20 01:46 UTC
-  floor. Otherwise freeze and start bounded code-only Phase 6 OddsPath/ruleset
-  hardening. Do not activate a new ruleset or close/cancel Render.
+- At or after the 2026-07-20 01:46 UTC floor, run the Phase-3c recovery-middle
+  sample first. Before that floor, preserve the evidence and runtime holds;
+  do not start Phase 7 or close/cancel Render.

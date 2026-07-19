@@ -11,22 +11,23 @@ from app.schemas.run import (
     EamosComputedConflict,
     EamosComputedCriterion,
     EamosComputedDirection,
+    EamosComputedPolicyDiff,
     EamosComputedStrength,
     EamosComputedTier,
     EamosComputedVersionPin,
     ReportPayload,
 )
+from app.services.acmg_policy_registry import (
+    PopulationPolicyResolution,
+    resolve_population_policy,
+)
+from app.services.computational_rulesets import active_ruleset
+from app.services.functional_assay_validation import admit_functional_assertion
 from app.services.pvs1_nmd import Pvs1NmdInput, assess_pvs1_nmd
 
 ACMG_FRAMEWORK = "Richards-2015 + Tavtigian-2020 points"
 PVS1_REVISION = "Abou-Tayoun-2018"
 PP3_CALIBRATION = "eamos-revel-capped-v1+PMID:36413997"
-POSTERIOR_PRIOR = Decimal("0.10")
-ODDS_PATH_BASE = Decimal("2.08")
-PM2_POPMAX_THRESHOLD = 0.0001
-BS1_POPMAX_THRESHOLD = 0.01
-BA1_POPMAX_THRESHOLD = 0.05
-PM2_MIN_ALLELE_NUMBER = 1000
 
 ALL_ACMG_CODES: tuple[str, ...] = (
     "PVS1",
@@ -60,13 +61,18 @@ ALL_ACMG_CODES: tuple[str, ...] = (
 )
 
 _ALL_CODE_SET = frozenset(ALL_ACMG_CODES)
-_MUTUALLY_EXCLUSIVE_CODES: tuple[frozenset[str], ...] = (
-    frozenset({"PM2", "BA1"}),
-    frozenset({"PM2", "BS1"}),
-    frozenset({"PP3", "BP4"}),
-    frozenset({"PS3", "BS3"}),
+_MUTUALLY_EXCLUSIVE_CODES: tuple[frozenset[str], ...] = tuple(
+    frozenset({left, right})
+    for left, right, relationship in active_ruleset().dependency_and_exclusion_edges
+    if relationship == "mutually_exclusive"
+)
+_FUNCTIONAL_DEPENDENCY_CODES = frozenset(
+    left
+    for left, _right, relationship in active_ruleset().dependency_and_exclusion_edges
+    if relationship == "requires_same_direction_evidence"
 )
 _DEPRECATED_TRIGGER_CODES = frozenset({"PP5", "BP6"})
+_TYPED_ADMISSION_ONLY_CODES = frozenset({"PS3", "BS3", "PM2", "BS1", "BA1"})
 _STRENGTH_POINTS: dict[EamosComputedStrength, Decimal] = {
     "very_strong": Decimal("8"),
     "strong": Decimal("4"),
@@ -90,18 +96,47 @@ class AcmgCriterionApplication:
     threshold: str | int | float | Decimal | None = None
     source_db: str | None = None
     source_version: str | None = None
+    source_url: str | None = None
     svi_reference: str | None = None
+    policy_id: str | None = None
+    policy_version: str | None = None
+    policy_source_url: str | None = None
+    cspec_overlay_id: str | None = None
+    cspec_overlay_version: str | None = None
+    functional_assay_oddspath: Decimal | None = None
+    functional_assay_confidence_interval_lower: Decimal | None = None
+    functional_assay_confidence_interval_upper: Decimal | None = None
 
 
-def posterior_from_net(net_points: Decimal | str | int | float) -> Decimal:
+@dataclass(frozen=True)
+class BayesianModelQuantities:
+    aggregate_evidence_likelihood_ratio: Decimal
+    prior_odds: Decimal
+    posterior_odds: Decimal
+    model_posterior: Decimal
+
+
+def bayesian_model_quantities(
+    net_points: Decimal | str | int | float,
+) -> BayesianModelQuantities:
     net = _decimal_value(net_points, field_name="net_points")
+    ruleset = active_ruleset()
     with localcontext() as context:
         context.prec = 40
-        odds_path = ODDS_PATH_BASE**net
-        posterior = (odds_path * POSTERIOR_PRIOR) / (
-            (odds_path - Decimal("1")) * POSTERIOR_PRIOR + Decimal("1")
-        )
-    return posterior.normalize()
+        aggregate_likelihood_ratio = ruleset.likelihood_ratio_base_decimal**net
+        prior_odds = ruleset.prior_decimal / (Decimal("1") - ruleset.prior_decimal)
+        posterior_odds = aggregate_likelihood_ratio * prior_odds
+        model_posterior = posterior_odds / (Decimal("1") + posterior_odds)
+    return BayesianModelQuantities(
+        aggregate_evidence_likelihood_ratio=aggregate_likelihood_ratio.normalize(),
+        prior_odds=prior_odds.normalize(),
+        posterior_odds=posterior_odds.normalize(),
+        model_posterior=model_posterior.normalize(),
+    )
+
+
+def model_posterior_from_net(net_points: Decimal | str | int | float) -> Decimal:
+    return bayesian_model_quantities(net_points).model_posterior
 
 
 def tier_from_net(
@@ -136,11 +171,15 @@ def compute_acmg_points(
     vcep_id: str | None = None,
     warnings: list[str] | None = None,
     limitations: list[AcmgCaseContextLimitation] | None = None,
+    population_resolution: PopulationPolicyResolution | None = None,
 ) -> EamosComputedClassification:
+    ruleset = active_ruleset()
+    resolution = population_resolution or resolve_population_policy(gene_symbol=None)
     normalized = [_normalize_application(application) for application in applications]
     _reject_deprecated_triggers(normalized)
     _reject_duplicate_codes(normalized)
     _reject_mutually_exclusive_codes(normalized)
+    normalized, functional_dependency_warnings = _enforce_functional_dependencies(normalized)
     normalized, dependency_warnings = _cap_pp3_pm1_dependency(normalized)
 
     rows_by_code = _triggered_rows_by_code(normalized)
@@ -160,14 +199,20 @@ def compute_acmg_points(
     )
 
     tier = tier_from_net(net_points, benign_cut)
-    if conflict.is_conflicting:
+    classification_basis = "bayesian_points"
+    if conflict.is_conflicting and ruleset.conflict_resolution_policy == "eamos_legacy_vus_cap":
         tier = "VUS"
+        classification_basis = "legacy_conflict_cap"
     if ba1_override:
         tier = "Benign"
+        classification_basis = "ba1_standalone_override"
+
+    model_quantities = None if ba1_override else bayesian_model_quantities(net_points)
 
     limitation_rows = limitations or []
     compatibility_warnings = [
         *[warning for warning in (warnings or [])],
+        *functional_dependency_warnings,
         *dependency_warnings,
         *[_warning_for_limitation(limitation) for limitation in limitation_rows],
     ]
@@ -175,17 +220,38 @@ def compute_acmg_points(
     return EamosComputedClassification(
         acmg_version_pin=EamosComputedVersionPin(
             framework=ACMG_FRAMEWORK,
+            ruleset_id=ruleset.ruleset_id,
+            ruleset_version=ruleset.framework_version,
+            conflict_policy_id=ruleset.conflict_resolution_policy,
             pvs1_revision=PVS1_REVISION,
             pp3_calibration=PP3_CALIBRATION,
             vcep_id=vcep_id,
+            population_policy_id=resolution.effective_policy.policy_id,
+            population_policy_version=resolution.effective_policy.version,
+            cspec_overlay_id=resolution.overlay.overlay_id if resolution.overlay else None,
+            cspec_overlay_version=resolution.overlay.version if resolution.overlay else None,
+            population_policy_diff=[
+                EamosComputedPolicyDiff(
+                    field=item.field,
+                    general_value=item.general_value,
+                    overlay_value=item.overlay_value,
+                )
+                for item in resolution.diff
+            ],
         ),
         net_points=net_points,
         sum_pathogenic=sum_pathogenic,
         sum_benign=sum_benign,
         tier=tier,
+        classification_basis=classification_basis,
         conflict=conflict,
         ba1_override=ba1_override,
-        posterior=posterior_from_net(net_points),
+        aggregate_evidence_likelihood_ratio=(
+            model_quantities.aggregate_evidence_likelihood_ratio if model_quantities else None
+        ),
+        prior_odds=model_quantities.prior_odds if model_quantities else None,
+        posterior_odds=model_quantities.posterior_odds if model_quantities else None,
+        model_posterior=model_quantities.model_posterior if model_quantities else None,
         benign_cut=benign_cut,
         per_criterion=[rows_by_code.get(code, _not_assessed_row(code)) for code in ALL_ACMG_CODES],
         limitations=limitation_rows,
@@ -198,17 +264,25 @@ def compute_report_acmg_classification(
     evidence_map: dict[str, dict],
     evidence_statuses: dict[str, str] | None = None,
 ) -> EamosComputedClassification:
-    applications = _applications_from_report(payload, evidence_map, evidence_statuses or {})
+    population_resolution = _population_policy_resolution(payload)
+    applications, application_warnings = _applications_from_report(
+        payload,
+        evidence_map,
+        evidence_statuses or {},
+        population_resolution,
+    )
     limitations = _case_context_limitations(payload, evidence_map, applications)
+    computational_warnings = (
+        list(payload.report_profile.computational_decision.warnings)
+        if payload.report_profile is not None
+        and payload.report_profile.computational_decision is not None
+        else []
+    )
     return compute_acmg_points(
         applications,
-        warnings=(
-            list(payload.report_profile.computational_decision.warnings)
-            if payload.report_profile is not None
-            and payload.report_profile.computational_decision is not None
-            else None
-        ),
+        warnings=[*computational_warnings, *application_warnings],
         limitations=limitations,
+        population_resolution=population_resolution,
     )
 
 
@@ -216,16 +290,25 @@ def _applications_from_report(
     payload: ReportPayload,
     evidence_map: dict[str, dict],
     evidence_statuses: dict[str, str],
-) -> list[AcmgCriterionApplication]:
+    population_resolution: PopulationPolicyResolution,
+) -> tuple[list[AcmgCriterionApplication], list[str]]:
     applications: dict[str, AcmgCriterionApplication] = {}
+    warnings: list[str] = []
 
     for application in _source_asserted_acmg_applications(payload, evidence_map):
         _put_application(applications, application)
 
-    for application in _functional_evidence_applications(payload):
+    functional_applications, functional_warnings = _functional_evidence_applications(payload)
+    warnings.extend(functional_warnings)
+    for application in functional_applications:
         _put_application(applications, application)
 
-    for application in _population_frequency_applications(payload):
+    population_applications, population_warnings = _population_frequency_applications(
+        payload,
+        population_resolution,
+    )
+    warnings.extend(population_warnings)
+    for application in population_applications:
         _put_application(applications, application)
 
     computational = _computational_application(payload, evidence_map)
@@ -236,7 +319,60 @@ def _applications_from_report(
     if pvs1 is not None:
         _put_application(applications, pvs1)
 
-    return list(applications.values())
+    return list(applications.values()), _dedupe_text(warnings)
+
+
+def _population_policy_resolution(payload: ReportPayload) -> PopulationPolicyResolution:
+    profile = payload.report_profile
+    header = profile.header if profile is not None else None
+    snapshot = profile.gene_context_snapshot if profile is not None else None
+    decision = profile.computational_decision if profile is not None else None
+    disease = profile.disease_mechanism if profile is not None else None
+    row = payload.variant_summary_rows[0] if payload.variant_summary_rows else None
+    gene_symbol = (row.gene if row is not None else None) or (
+        header.gene if header is not None else None
+    )
+    gene_ids = _dedupe_optional_text(
+        [
+            decision.gene_id if decision is not None else None,
+            header.ensembl_gene_id if header is not None else None,
+            snapshot.ensembl_gene_id if snapshot is not None else None,
+        ]
+    )
+    disease_ids = tuple(disease.disease_ids) if disease is not None else ()
+    return resolve_population_policy(
+        gene_symbol=gene_symbol,
+        gene_ids=gene_ids,
+        disease_ids=disease_ids,
+    )
+
+
+def _functional_context_identifiers(
+    payload: ReportPayload,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    profile = payload.report_profile
+    header = profile.header if profile is not None else None
+    snapshot = profile.gene_context_snapshot if profile is not None else None
+    decision = profile.computational_decision if profile is not None else None
+    row = payload.variant_summary_rows[0] if payload.variant_summary_rows else None
+    population_resolution = _population_policy_resolution(payload)
+    gene_ids = _dedupe_optional_text(
+        [
+            row.gene if row is not None else None,
+            header.gene if header is not None else None,
+            decision.gene_id if decision is not None else None,
+            header.ensembl_gene_id if header is not None else None,
+            snapshot.ensembl_gene_id if snapshot is not None else None,
+            (
+                population_resolution.overlay.gene_id
+                if population_resolution.overlay is not None
+                else None
+            ),
+        ]
+    )
+    disease = profile.disease_mechanism if profile is not None else None
+    disease_ids = tuple(disease.disease_ids) if disease is not None else ()
+    return gene_ids, disease_ids
 
 
 def _case_context_limitations(
@@ -341,7 +477,20 @@ def _triggered_rows_by_code(
             threshold=application.threshold,
             source_db=application.source_db,
             source_version=application.source_version,
+            source_url=application.source_url,
             svi_reference=application.svi_reference,
+            policy_id=application.policy_id,
+            policy_version=application.policy_version,
+            policy_source_url=application.policy_source_url,
+            cspec_overlay_id=application.cspec_overlay_id,
+            cspec_overlay_version=application.cspec_overlay_version,
+            functional_assay_oddspath=application.functional_assay_oddspath,
+            functional_assay_confidence_interval_lower=(
+                application.functional_assay_confidence_interval_lower
+            ),
+            functional_assay_confidence_interval_upper=(
+                application.functional_assay_confidence_interval_upper
+            ),
         )
     return rows
 
@@ -364,8 +513,13 @@ def _source_asserted_acmg_applications(
     for row in _list_of_dicts(worksheet.get("criteria")):
         if row.get("state") != "met" or row.get("assertion_level") != "source_asserted":
             continue
+        code = _optional_text(row.get("code"))
+        if code and code.split("_", 1)[0].upper() in _TYPED_ADMISSION_ONLY_CODES:
+            # Functional and population assertions remain context until their
+            # typed, versioned admission paths accept them below.
+            continue
         application = _application_from_code_strength(
-            code=row.get("code"),
+            code=code,
             strength=row.get("strength"),
             source_db=row.get("source"),
             source_version=_first_text(row.get("evidence_refs")),
@@ -376,77 +530,153 @@ def _source_asserted_acmg_applications(
     return applications
 
 
-def _functional_evidence_applications(payload: ReportPayload) -> list[AcmgCriterionApplication]:
+def _functional_evidence_applications(
+    payload: ReportPayload,
+) -> tuple[list[AcmgCriterionApplication], list[str]]:
     functional = payload.functional_evidence
     if functional is None:
-        return []
+        return [], []
 
-    applications: list[AcmgCriterionApplication] = []
-    for value in functional.source_asserted_codes:
-        application = _application_from_code_strength(
-            code=value,
-            source_db="Functional evidence",
-            source_version=functional.display_metrics.verdict_source,
-            svi_reference=None,
+    warnings: list[str] = []
+    if functional.source_asserted_codes and not functional.assertion_candidates:
+        warnings.append("functional_source_assertions_context_only:assay_validation_missing")
+
+    selected = [
+        candidate
+        for candidate in functional.assertion_candidates
+        if candidate.selected_for_counting
+    ]
+    if not selected:
+        if functional.assertion_candidates:
+            warnings.append("functional_assertions_context_only:none_selected_for_counting")
+        return [], warnings
+    if len(selected) != 1:
+        warnings.append("functional_assertion_not_counted:selected_candidate_cardinality")
+        return [], warnings
+
+    candidate = selected[0]
+    gene_ids, disease_ids = _functional_context_identifiers(payload)
+    admission = admit_functional_assertion(
+        candidate,
+        gene_ids=gene_ids,
+        disease_ids=disease_ids,
+    )
+    if not admission.admitted:
+        warnings.extend(
+            f"functional_assertion_not_counted:{reason}" for reason in admission.reasons
         )
-        if application is not None:
-            applications.append(application)
-    return applications
+        return [], warnings
+
+    return [
+        AcmgCriterionApplication(
+            code=admission.code,
+            applied_strength=admission.applied_strength,
+            evidence_value=admission.functional_assay_oddspath,
+            threshold=(
+                "functional assay OddsPath CI "
+                f"[{admission.confidence_interval_lower}, "
+                f"{admission.confidence_interval_upper}]"
+            ),
+            source_db=admission.source_id,
+            source_version=admission.source_version,
+            source_url=admission.source_url,
+            svi_reference=(
+                f"{admission.source_record_id}; "
+                f"{admission.validation_id}@{admission.validation_version}"
+            ),
+            policy_id=admission.validation_policy_id,
+            policy_version=admission.validation_policy_version,
+            policy_source_url=admission.validation_source_url,
+            functional_assay_oddspath=admission.functional_assay_oddspath,
+            functional_assay_confidence_interval_lower=admission.confidence_interval_lower,
+            functional_assay_confidence_interval_upper=admission.confidence_interval_upper,
+        )
+    ], warnings
 
 
-def _population_frequency_applications(payload: ReportPayload) -> list[AcmgCriterionApplication]:
+def _population_frequency_applications(
+    payload: ReportPayload,
+    resolution: PopulationPolicyResolution,
+) -> tuple[list[AcmgCriterionApplication], list[str]]:
     population = payload.population_frequency_detail
     if population is None:
-        return []
+        return [], []
 
-    frequency = _population_frequency_value(population)
+    frequency, frequency_basis = _population_frequency_value(population)
     if frequency is None:
-        return []
+        return [], []
+    policy = resolution.effective_policy
+    if (
+        frequency_basis != policy.frequency_metric
+        and not policy.allow_maximum_observed_frequency_fallback
+    ):
+        return [], ["population_cspec_not_applied:popmax_faf_missing"]
 
+    overlay = resolution.overlay
     source_db = population.source or "gnomAD"
     source_version = population.dataset or None
-    if frequency >= BA1_POPMAX_THRESHOLD:
+    common = {
+        "source_db": source_db,
+        "source_version": source_version,
+        "source_url": population.source_url,
+        "svi_reference": policy.source_url,
+        "policy_id": policy.policy_id,
+        "policy_version": policy.version,
+        "policy_source_url": policy.source_url,
+        "cspec_overlay_id": overlay.overlay_id if overlay else None,
+        "cspec_overlay_version": overlay.version if overlay else None,
+    }
+    if frequency >= policy.ba1_minimum:
         return [
             AcmgCriterionApplication(
                 "BA1",
                 evidence_value=frequency,
-                threshold=f">={BA1_POPMAX_THRESHOLD:g}",
-                source_db=source_db,
-                source_version=source_version,
-                svi_reference="ACMG/AMP BA1 stand-alone frequency criterion",
+                threshold=f">={format(policy.ba1_minimum, 'f')}",
+                **common,
             )
-        ]
-    if frequency >= BS1_POPMAX_THRESHOLD:
+        ], []
+    if frequency >= policy.bs1_minimum:
         return [
             AcmgCriterionApplication(
                 "BS1",
                 "strong",
                 evidence_value=frequency,
-                threshold=f">={BS1_POPMAX_THRESHOLD:g}",
-                source_db=source_db,
-                source_version=source_version,
+                threshold=f">={format(policy.bs1_minimum, 'f')}",
+                **common,
             )
-        ]
+        ], []
 
     allele_number = population.allele_number
     homozygote_count = population.homozygote_count
+    pm2_frequency_match = (
+        frequency <= policy.pm2_maximum
+        if policy.pm2_maximum_inclusive
+        else frequency < policy.pm2_maximum
+    )
     if (
-        frequency < PM2_POPMAX_THRESHOLD
-        and (allele_number is None or allele_number >= PM2_MIN_ALLELE_NUMBER)
-        and (homozygote_count is None or homozygote_count == 0)
+        pm2_frequency_match
+        and (
+            policy.pm2_minimum_allele_number is None
+            or allele_number is not None
+            and allele_number >= policy.pm2_minimum_allele_number
+        )
+        and (
+            policy.pm2_maximum_homozygotes is None
+            or homozygote_count is not None
+            and homozygote_count <= policy.pm2_maximum_homozygotes
+        )
     ):
+        comparator = "<=" if policy.pm2_maximum_inclusive else "<"
         return [
             AcmgCriterionApplication(
                 "PM2",
                 "supporting",
                 evidence_value=frequency,
-                threshold=f"<{PM2_POPMAX_THRESHOLD:g}",
-                source_db=source_db,
-                source_version=source_version,
-                svi_reference="ClinGen SVI PM2_supporting frequency guardrail",
+                threshold=f"{comparator}{format(policy.pm2_maximum, 'f')}",
+                **common,
             )
-        ]
-    return []
+        ], []
+    return [], []
 
 
 def _computational_application(
@@ -454,13 +684,15 @@ def _computational_application(
     evidence_map: dict[str, dict],
 ) -> AcmgCriterionApplication | None:
     del evidence_map
+    ruleset = active_ruleset()
     profile = payload.report_profile
     decision = profile.computational_decision if profile is not None else None
     if decision is None:
         return None
     if (
         decision.standard_status != "published"
-        or decision.ruleset_id != "richards_2015_tavtigian_2020_eamos_v1"
+        or decision.ruleset_id != ruleset.ruleset_id
+        or decision.ruleset_version != ruleset.framework_version
         or decision.evidence_family != "PP3_BP4"
         or decision.selected_predictor_id != "revel"
         or decision.declared_fallback_policy != "none"
@@ -484,6 +716,7 @@ def _computational_application(
         threshold=_interval_threshold(decision),
         source_db="REVEL",
         source_version=decision.source_version or decision.model_version,
+        source_url=decision.source_url,
         svi_reference=decision.calibration_version,
     )
 
@@ -629,16 +862,17 @@ def _default_strength_for_code(code: str) -> EamosComputedStrength | None:
     return None
 
 
-def _population_frequency_value(population) -> float | None:
-    values = [
-        _optional_float(population.popmax_frequency),
-        _optional_float(population.allele_frequency),
-    ]
+def _population_frequency_value(population) -> tuple[Decimal | None, str | None]:
+    popmax = _optional_decimal(population.popmax_frequency)
+    if popmax is not None:
+        return popmax, "popmax_filtering_allele_frequency"
+
+    values = [_optional_decimal(population.allele_frequency)]
     values.extend(
-        _optional_float(group.allele_frequency) for group in population.genetic_ancestry_groups
+        _optional_decimal(group.allele_frequency) for group in population.genetic_ancestry_groups
     )
     present = [value for value in values if value is not None]
-    return max(present) if present else None
+    return (max(present), "maximum_observed_allele_frequency") if present else (None, None)
 
 
 def _pvs1_exon_context(payload: ReportPayload) -> tuple[int | None, int | None]:
@@ -698,7 +932,20 @@ def _normalize_application(application: AcmgCriterionApplication) -> AcmgCriteri
         threshold=application.threshold,
         source_db=application.source_db,
         source_version=application.source_version,
+        source_url=application.source_url,
         svi_reference=application.svi_reference,
+        policy_id=application.policy_id,
+        policy_version=application.policy_version,
+        policy_source_url=application.policy_source_url,
+        cspec_overlay_id=application.cspec_overlay_id,
+        cspec_overlay_version=application.cspec_overlay_version,
+        functional_assay_oddspath=application.functional_assay_oddspath,
+        functional_assay_confidence_interval_lower=(
+            application.functional_assay_confidence_interval_lower
+        ),
+        functional_assay_confidence_interval_upper=(
+            application.functional_assay_confidence_interval_upper
+        ),
     )
 
 
@@ -730,6 +977,31 @@ def _cap_pp3_pm1_dependency(
                 )
             )
     return adjusted, [_PP3_PM1_CAP_WARNING]
+
+
+def _enforce_functional_dependencies(
+    applications: list[AcmgCriterionApplication],
+) -> tuple[list[AcmgCriterionApplication], list[str]]:
+    retained: list[AcmgCriterionApplication] = []
+    warnings: list[str] = []
+    for application in applications:
+        if application.code not in _FUNCTIONAL_DEPENDENCY_CODES:
+            retained.append(application)
+            continue
+        direction = _direction_for_code(application.code)
+        has_independent_support = any(
+            candidate.code not in _FUNCTIONAL_DEPENDENCY_CODES
+            and _direction_for_code(candidate.code) == direction
+            for candidate in applications
+        )
+        if has_independent_support:
+            retained.append(application)
+        else:
+            warnings.append(
+                "functional_assertion_not_counted:"
+                f"{application.code}_independent_same_direction_evidence_missing"
+            )
+    return retained, warnings
 
 
 def _application_points(application: AcmgCriterionApplication) -> Decimal:
@@ -843,6 +1115,10 @@ def _dedupe_text(items: list[str]) -> list[str]:
     return result
 
 
+def _dedupe_optional_text(items: list[object]) -> tuple[str, ...]:
+    return tuple(_dedupe_text([text for item in items if (text := _optional_text(item))]))
+
+
 def _first_text(value: object) -> str | None:
     if isinstance(value, list):
         for item in value:
@@ -864,13 +1140,14 @@ def _optional_text(value: object) -> str | None:
     return text or None
 
 
-def _optional_float(value: object) -> float | None:
+def _optional_decimal(value: object) -> Decimal | None:
     if value is None or value == "":
         return None
     try:
-        return float(value)
-    except (TypeError, ValueError):
+        parsed = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError, AttributeError):
         return None
+    return parsed if parsed.is_finite() else None
 
 
 def _decimal_value(value: object, *, field_name: str) -> Decimal:

@@ -52,9 +52,11 @@ export function PointWaterfall({
 }: {
   computed: EamosComputedClassification
 }) {
-  const steps = computed.per_criterion
-    .filter((c) => c.triggered && c.points !== 0)
+  const triggered = computed.per_criterion.filter((c) => c.triggered)
+  const steps = triggered
+    .filter((c) => c.points !== 0)
     .sort((a, b) => b.points - a.points) // pathogenic (largest) first, then benign
+  const standAloneOverrides = triggered.filter((c) => c.code === 'BA1' && c.points === 0)
   const net = computed.net_points
   const maxAbs = Math.max(1, ...steps.map((s) => Math.abs(s.points)))
 
@@ -75,7 +77,7 @@ export function PointWaterfall({
   return (
     <figure
       role="img"
-      aria-label={`Point waterfall: ${steps.length} triggered ACMG criteria sum to a net of ${signed(net)} points → ${computed.tier}.`}
+      aria-label={`Point waterfall: ${steps.length} point-summand ACMG criteria sum to a net of ${signed(net)} points and ${standAloneOverrides.length} stand-alone override criteria apply, producing ${computed.tier}.`}
       style={{ margin: 0 }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -86,7 +88,11 @@ export function PointWaterfall({
       </p>
 
       {steps.length === 0 ? (
-        <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: '4px 0' }}>No criteria triggered.</p>
+        <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: '4px 0' }}>
+          {standAloneOverrides.length
+            ? 'No point-summand criteria. BA1 applies separately as a stand-alone benign override.'
+            : 'No criteria triggered.'}
+        </p>
       ) : (
         <>
           {/* benign ← 0 → pathogenic header over the plot column */}
@@ -182,6 +188,14 @@ export function PointWaterfall({
               <td>{signed(c.points)}</td>
             </tr>
           ))}
+          {standAloneOverrides.map((criterion) => (
+            <tr key={criterion.code}>
+              <td>{criterion.code}</td>
+              <td>{criterion.direction}</td>
+              <td>Stand-alone override</td>
+              <td>Not summed</td>
+            </tr>
+          ))}
           <tr>
             <th scope="row">Net</th>
             <td colSpan={2}>{computed.tier}</td>
@@ -190,7 +204,11 @@ export function PointWaterfall({
         </tbody>
       </table>
 
-      <p style={{ margin: '8px 0 0', fontSize: 9.5, color: 'var(--ink-5)' }}>{POINTS_FORMULA_STAMP}</p>
+      <p style={{ margin: '8px 0 0', fontSize: 9.5, color: 'var(--ink-5)' }}>
+        {computed.ba1_override
+          ? 'BA1 stand-alone override · no point-model posterior'
+          : POINTS_FORMULA_STAMP}
+      </p>
     </figure>
   )
 }

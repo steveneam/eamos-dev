@@ -2,15 +2,14 @@
 
 Status: Phase 0 complete at `49cdacb`; Phase 1 and the synthetic-fixture Phase 2
 are complete at `b7c41c7`; the safe OMIM cross-reference Phase 3, fixture-only
-LOVD Phase 4, and code-only MaveDB Phase 5 completed and passed their full local
-verification boundaries on 2026-07-19. Steven authorized the remaining
-code-eligible work on 2026-07-19: Phase 6 is next only through its bounded exit
-gate. Phase 7 still requires the final published standard. Full ESM-1b
+LOVD Phase 4, code-only MaveDB Phase 5, and code-only ruleset hardening Phase 6
+completed and passed their full local verification boundaries on 2026-07-19.
+Phase 7 still requires the final published standard. Full ESM-1b
 model/corpus acquisition, scoring, bgzip/Tabix materialization, upload,
 activation, licensed-content ingestion, provider/deployment changes, and
 Supabase mutation remain separate gates.
 
-Stamped: 2026-07-19 07:05 +0000 · Codex.
+Stamped: 2026-07-19 08:39 +0000 · Codex.
 
 ## Goal
 
@@ -738,6 +737,24 @@ upload, provider/deploy change, Supabase mutation, or cleanup occurred.
   auditable diff from the general ruleset.
 - Replace global one-size PM2/BS1/BA1 assumptions with versioned gene/disease
   policies where authoritative specifications exist.
+
+Completion receipt — 2026-07-19 08:39 +0000 · Codex: Phase 6 now publishes
+honestly named aggregate model quantities under the version-pinned Eamos
+historical replay profile, keeps its custom conflict cap explicit, and models
+BA1 as a stand-alone override with no point-model posterior. Typed functional
+admission calculates Brnich assay OddsPath from independent truth controls and
+a confusion matrix, enforces confidence, strength, source, version, exact
+context, single-selection, exclusion, and independent-evidence gates, and keeps
+unvalidated source assertions visible but uncounted. Versioned population
+policies now resolve by exact gene/disease context; ClinGen RPE65 GN120 has
+deterministic precedence and a serialized diff from the general policy. The
+web report mirrors the contract, labels fixed frequency bands as general
+orientation, and renders BA1's model posterior as accessible N/A. Focused
+checks passed, followed by full `npm run verify` in 310.2 seconds: 11 Node
+ratchets, 26 Vitest files / 193 tests, the complete backend suite, lint,
+formatting, type checks, and the 17-route production build. No gated source,
+cloud, deployment, Supabase, Render, cleanup, new-ruleset, or SVC v4 action
+occurred.
 
 ## Phase 7 — Final SVC v4 Integration
 

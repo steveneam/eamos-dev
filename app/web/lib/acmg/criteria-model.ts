@@ -6,7 +6,7 @@
 // classification); this module lets a user hand-toggle criteria and strengths to
 // learn how the Tavtigian-2020 points framework combines them. It is a faithful
 // TS port of the vault `Wiki/assets/acmg-explainer.html` Criteria-mode compute(),
-// with the tier cuts + posterior delegated to lib/acmg/points.ts so the explainer
+// with the tier cuts + model posterior delegated to lib/acmg/points.ts so the explainer
 // and the report's instruments never drift.
 //
 // The active Vitest coverage lives beside this module in app/web.
@@ -16,19 +16,18 @@ import type {
   EamosComputedClassification,
   EamosComputedTier,
 } from '@/lib/backend'
-import { posterior, tierByNet } from './points'
+import { modelPosterior, tierByNet } from './points'
 
 export type CriteriaStrength = 'very_strong' | 'strong' | 'moderate' | 'supporting' | 'stand_alone'
 export type CriteriaDirection = 'pathogenic' | 'benign'
 
-/** Applied points per strength (Tavtigian-2020 / ClinGen SVI). BA1 stand-alone is
- *  worth a Very-Strong-sized 8 but acts as a hard override, not a summand. */
+/** Applied points per strength. BA1 is a stand-alone override, not a summand. */
 export const STRENGTH_POINTS: Record<CriteriaStrength, number> = {
   very_strong: 8,
   strong: 4,
   moderate: 2,
   supporting: 1,
-  stand_alone: 8,
+  stand_alone: 0,
 }
 
 export const STRENGTH_LABEL: Record<CriteriaStrength, string> = {
@@ -59,11 +58,11 @@ const SS: CriteriaStrength[] = ['very_strong', 'strong', 'moderate', 'supporting
 // completeness but flagged discouraged in their description.
 export const CRITERIA: CriterionDef[] = [
   // Population
-  { code: 'PM2', category: 'Population', direction: 'pathogenic', strengths: [], def: 'supporting', desc: 'Absent / ultra-rare in gnomAD', excl: [] },
+  { code: 'PM2', category: 'Population', direction: 'pathogenic', strengths: [], def: 'supporting', desc: 'Meets active rare-frequency policy', excl: ['BS1', 'BA1'] },
   { code: 'PS4', category: 'Population', direction: 'pathogenic', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'Enriched in affecteds vs controls', excl: [] },
-  { code: 'BS1', category: 'Population', direction: 'benign', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'AF higher than disease allows', excl: [] },
+  { code: 'BS1', category: 'Population', direction: 'benign', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'AF higher than disease allows', excl: ['PM2'] },
   { code: 'BS2', category: 'Population', direction: 'benign', strengths: [], def: 'strong', desc: 'Seen in healthy adults', excl: [] },
-  { code: 'BA1', category: 'Population', direction: 'benign', strengths: [], def: 'stand_alone', desc: 'AF > 5% (hard Benign override)', excl: [] },
+  { code: 'BA1', category: 'Population', direction: 'benign', strengths: [], def: 'stand_alone', desc: 'Meets active stand-alone benign policy', excl: ['PM2'] },
   // Computational
   { code: 'PVS1', category: 'Computational', direction: 'pathogenic', strengths: SS, def: 'very_strong', desc: 'Null variant in a LoF gene', excl: ['PM4'] },
   { code: 'PS1', category: 'Computational', direction: 'pathogenic', strengths: ['strong', 'moderate'], def: 'strong', desc: 'Same amino-acid change as a known pathogenic variant', excl: ['PM5'] },
@@ -77,8 +76,8 @@ export const CRITERIA: CriterionDef[] = [
   { code: 'BP4', category: 'Computational', direction: 'benign', strengths: ['strong', 'moderate', 'supporting'], def: 'supporting', desc: 'In-silico predictors agree: benign', excl: ['PP3'] },
   { code: 'BP7', category: 'Computational', direction: 'benign', strengths: [], def: 'supporting', desc: 'Synonymous, no predicted splice impact', excl: [] },
   // Functional
-  { code: 'PS3', category: 'Functional', direction: 'pathogenic', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'Functional study: damaging', excl: [] },
-  { code: 'BS3', category: 'Functional', direction: 'benign', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'Functional study: no damage', excl: [] },
+  { code: 'PS3', category: 'Functional', direction: 'pathogenic', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'Validated functional assay: damaging', excl: ['BS3'] },
+  { code: 'BS3', category: 'Functional', direction: 'benign', strengths: ['strong', 'moderate', 'supporting'], def: 'strong', desc: 'Validated functional assay: no damage', excl: ['PS3'] },
   // De novo / segregation
   { code: 'PS2', category: 'De novo / segregation', direction: 'pathogenic', strengths: ['very_strong', 'strong', 'moderate', 'supporting'], def: 'strong', desc: 'Confirmed de novo', excl: [] },
   { code: 'PM6', category: 'De novo / segregation', direction: 'pathogenic', strengths: [], def: 'moderate', desc: 'Assumed de novo (unconfirmed)', excl: [] },
@@ -126,15 +125,16 @@ export interface CriteriaResult {
   conflict: boolean
   reason: string
   ba1: boolean
-  posterior: number
+  modelPosterior: number | null
+  dependencyNotes: string[]
   applied: AppliedCriterion[]
 }
 
 /**
  * Combine the selected criteria into a points result. Faithful to the vault
- * Criteria-mode rules: BA1 is a hard Benign override (short-circuits the sum);
- * opposing evidence beyond the ≤1-supporting allowance caps to a *conflicting*
- * VUS regardless of net; otherwise net maps to tier via the ADR-0022 cuts.
+ * Criteria-mode rules: BA1 is a hard Benign override outside the point sum.
+ * This replays the explicit Eamos-v1 conflict cap for historical what-if parity;
+ * future rulesets must supply their own conflict policy.
  */
 export function computeCriteria(
   state: CriteriaState,
@@ -145,6 +145,7 @@ export function computeCriteria(
   let ba1 = false
   const pEl: { code: string; pts: number; strength: CriteriaStrength }[] = []
   const bEl: { code: string; pts: number; strength: CriteriaStrength }[] = []
+  const dependencyNotes: string[] = []
 
   for (const def of CRITERIA) {
     const s = state[def.code]
@@ -154,10 +155,34 @@ export function computeCriteria(
       sumPathogenic += pts
       pEl.push({ code: def.code, pts, strength: s.strength })
     } else {
-      if (def.code === 'BA1') ba1 = true
-      sumBenign += pts
+      if (def.code === 'BA1') {
+        ba1 = true
+      } else {
+        sumBenign += pts
+      }
       bEl.push({ code: def.code, pts, strength: s.strength })
     }
+  }
+
+  const ps3Index = pEl.findIndex((item) => item.code === 'PS3')
+  if (ps3Index >= 0 && !pEl.some((item) => item.code !== 'PS3')) {
+    sumPathogenic -= pEl[ps3Index].pts
+    pEl.splice(ps3Index, 1)
+    dependencyNotes.push('PS3 needs independent same-direction evidence before it enters the point sum.')
+  }
+  const bs3Index = bEl.findIndex((item) => item.code === 'BS3')
+  if (bs3Index >= 0 && !bEl.some((item) => item.code !== 'BS3' && item.code !== 'BA1')) {
+    sumBenign -= bEl[bs3Index].pts
+    bEl.splice(bs3Index, 1)
+    dependencyNotes.push('BS3 needs independent same-direction evidence before it enters the point sum.')
+  }
+
+  const pp3 = pEl.find((item) => item.code === 'PP3')
+  const pm1 = pEl.find((item) => item.code === 'PM1')
+  if (pp3 && pm1 && pp3.pts + pm1.pts > 4) {
+    const adjustment = pp3.pts - Math.max(0, 4 - pm1.pts)
+    pp3.pts -= adjustment
+    sumPathogenic -= adjustment
   }
 
   const net = sumPathogenic - sumBenign
@@ -167,7 +192,7 @@ export function computeCriteria(
 
   if (ba1) {
     tier = 'Benign'
-    reason = 'BA1 hard override (AF > 5%)'
+    reason = 'BA1 stand-alone benign override'
   } else {
     if (sumPathogenic > 0 && sumBenign > 0) {
       const lean = net > 0 ? 'P' : net < 0 ? 'B' : '0'
@@ -183,7 +208,12 @@ export function computeCriteria(
 
   const applied: AppliedCriterion[] = [
     ...pEl.map((e) => ({ code: e.code, direction: 'pathogenic' as const, strength: e.strength, points: e.pts })),
-    ...bEl.map((e) => ({ code: e.code, direction: 'benign' as const, strength: e.strength, points: -e.pts })),
+    ...bEl.map((e) => ({
+      code: e.code,
+      direction: 'benign' as const,
+      strength: e.strength,
+      points: e.code === 'BA1' ? 0 : -e.pts,
+    })),
   ]
 
   return {
@@ -194,7 +224,8 @@ export function computeCriteria(
     conflict,
     reason,
     ba1,
-    posterior: posterior(net),
+    modelPosterior: ba1 ? null : modelPosterior(net),
+    dependencyNotes,
     applied,
   }
 }

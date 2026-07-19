@@ -27,6 +27,28 @@ export function ConfidenceChannel({ computed }: { computed: EamosComputedClassif
     `PVS1 ${pin.pvs1_revision}`,
     `PP3 ${pin.pp3_calibration}`,
   ]
+  if (pin.ruleset_id) items.push(`ruleset ${pin.ruleset_id}@${pin.ruleset_version}`)
+  if (pin.population_policy_id) {
+    items.push(`population ${pin.population_policy_id}@${pin.population_policy_version}`)
+  }
+  if (pin.cspec_overlay_id) {
+    items.push(`CSpec ${pin.cspec_overlay_id}@${pin.cspec_overlay_version ?? 'version unknown'}`)
+    const diffCount = pin.population_policy_diff?.length ?? 0
+    items.push(`${diffCount} population policy setting${diffCount === 1 ? '' : 's'} overridden`)
+  }
+  const functional = triggered.find((criterion) => ['PS3', 'BS3'].includes(criterion.code))
+  if (functional?.functional_assay_oddspath != null) {
+    items.push(
+      `${functional.code} assay OddsPath ${functional.functional_assay_oddspath} ` +
+        `CI ${functional.functional_assay_confidence_interval_lower}–${functional.functional_assay_confidence_interval_upper}`,
+    )
+    if (functional.policy_id) {
+      items.push(`${functional.policy_id}@${functional.policy_version ?? 'version unknown'}`)
+    }
+    if (functional.source_db) {
+      items.push(`${functional.source_db}@${functional.source_version ?? 'version unknown'}`)
+    }
+  }
   if (pin.vcep_id) items.push(`VCEP ${pin.vcep_id}`)
 
   return (

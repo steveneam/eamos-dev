@@ -16,7 +16,18 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import type { EamosComputedClassification } from '@/lib/backend'
-import { posterior, tierByNet, tierTokens } from '@/lib/acmg/points'
+import {
+  aggregateEvidenceLikelihoodRatio,
+  HISTORICAL_CONFLICT_POLICY_ID,
+  HISTORICAL_RULESET_ID,
+  HISTORICAL_RULESET_VERSION,
+  modelPosterior,
+  modelPosteriorFromComputed,
+  modelPosteriorOdds,
+  modelPriorOdds,
+  tierByNet,
+  tierTokens,
+} from '@/lib/acmg/points'
 import {
   blockedCodes,
   computeCriteria,
@@ -36,6 +47,7 @@ import { NetPointsPuck } from './NetPointsPuck'
 
 const signed = (n: number) => `${n >= 0 ? '+' : ''}${n}`
 const pct = (p: number) => `${(p * 100).toFixed(1)}%`
+const modelPosteriorLabel = (p: number | null) => (p === null ? 'not applicable' : pct(p))
 
 const TIER_FULL: Record<string, string> = {
   Pathogenic: 'Pathogenic',
@@ -50,20 +62,39 @@ function toComputed(
   r: CriteriaResult,
   benignCut: EamosComputedClassification['benign_cut'],
 ): EamosComputedClassification {
+  const usesPointModel = !r.ba1
   return {
     acmg_version_pin: {
       framework: 'Richards-2015 + Tavtigian-2020 points',
+      ruleset_id: HISTORICAL_RULESET_ID,
+      ruleset_version: HISTORICAL_RULESET_VERSION,
+      conflict_policy_id: HISTORICAL_CONFLICT_POLICY_ID,
       pvs1_revision: 'Abou-Tayoun-2018',
-      pp3_calibration: 'Pejaver-2022',
+      pp3_calibration: 'eamos-revel-capped-v1+PMID:36413997',
       vcep_id: null,
+      population_policy_id: 'acmg_svi_general_frequency_v1',
+      population_policy_version: '1.0.0',
+      cspec_overlay_id: null,
+      cspec_overlay_version: null,
+      population_policy_diff: [],
     },
     net_points: r.net,
     sum_pathogenic: r.sumPathogenic,
     sum_benign: r.sumBenign,
     tier: r.tier,
+    classification_basis: r.ba1
+      ? 'ba1_standalone_override'
+      : r.conflict
+        ? 'legacy_conflict_cap'
+        : 'bayesian_points',
     conflict: { is_conflicting: r.conflict, reason: r.reason || null },
     ba1_override: r.ba1,
-    posterior: r.posterior,
+    aggregate_evidence_likelihood_ratio: usesPointModel
+      ? aggregateEvidenceLikelihoodRatio(r.net)
+      : null,
+    prior_odds: usesPointModel ? modelPriorOdds() : null,
+    posterior_odds: usesPointModel ? modelPosteriorOdds(r.net) : null,
+    model_posterior: r.modelPosterior,
     benign_cut: benignCut,
     per_criterion: r.applied.map((a) => ({
       code: a.code,
@@ -72,6 +103,7 @@ function toComputed(
       applied_strength: a.strength === 'stand_alone' ? null : a.strength,
       points: a.points,
     })),
+    warnings: r.dependencyNotes,
   }
 }
 
@@ -86,7 +118,8 @@ function exploreResult(sumP: number, sumB: number, benignCut: 'tavtigian_2020' |
     conflict: false,
     reason: '',
     ba1: false,
-    posterior: posterior(net),
+    modelPosterior: modelPosterior(net),
+    dependencyNotes: [],
     applied: [],
   }
 }
@@ -174,6 +207,7 @@ export function AcmgExplainer({
   // In the anchored report context the verdict is a what-if the moment anything
   // deviates from the seed — a puck/plane drag OR a criterion / strength / cut edit.
   const dirty = exploring || (!!anchor && (criteriaChanged || cutChanged))
+  const anchorModelPosterior = anchor ? modelPosteriorFromComputed(anchor) : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -209,7 +243,7 @@ export function AcmgExplainer({
               {TIER_FULL[anchor.tier]}
             </span>
             <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-              net {signed(anchor.net_points)} · posterior {pct(anchor.posterior)}
+              net {signed(anchor.net_points)} · model posterior {modelPosteriorLabel(anchorModelPosterior)}
             </span>
           </div>
           <p style={{ margin: '8px 0 0', fontSize: 11, lineHeight: 1.5, color: 'var(--ink-4)' }}>
@@ -315,7 +349,11 @@ export function AcmgExplainer({
                       </select>
                     ) : (
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-4)', width: 30, textAlign: 'right' }}>
-                        {st.on ? `${dirPath ? '+' : '−'}${STRENGTH_POINTS[st.strength]}` : ''}
+                        {st.on
+                          ? def.code === 'BA1'
+                            ? 'override'
+                            : `${dirPath ? '+' : '−'}${STRENGTH_POINTS[st.strength]}`
+                          : ''}
                       </span>
                     )}
                   </div>
@@ -351,7 +389,8 @@ export function AcmgExplainer({
               {dirty && <span style={{ color: 'var(--ink-4)' }}>what-if · </span>}
               net <strong style={{ fontFamily: 'var(--mono)', color: 'var(--ink)' }}>{signed(result.net)}</strong> · ΣP{' '}
               <strong style={{ fontFamily: 'var(--mono)', color: 'var(--cls-path-text)' }}>+{result.sumPathogenic}</strong> / ΣB{' '}
-              <strong style={{ fontFamily: 'var(--mono)', color: 'var(--cls-ben-text)' }}>−{result.sumBenign}</strong> · posterior {pct(result.posterior)}
+              <strong style={{ fontFamily: 'var(--mono)', color: 'var(--cls-ben-text)' }}>−{result.sumBenign}</strong> · model posterior{' '}
+              {modelPosteriorLabel(result.modelPosterior)}
             </span>
           </div>
 
@@ -404,7 +443,7 @@ function StepTrace({
   const lines: { text: string; tone?: 'flag' | 'ok' }[] = exploring
     ? [
         { text: `Hypothetical evidence total — ΣP +${result.sumPathogenic} · ΣB −${result.sumBenign} · net ${signed(result.net)}` },
-        { text: `tier ${result.tier} · posterior ${pct(result.posterior)}` },
+        { text: `tier ${result.tier} · model posterior ${modelPosteriorLabel(result.modelPosterior)}` },
         { text: 'conflict & BA1 overrides are evaluated in Criteria mode', tone: 'flag' },
       ]
     : [
@@ -412,13 +451,14 @@ function StepTrace({
         { text: `Step 2 · sum benign points      ΣB = −${result.sumBenign}` },
         { text: `Step 3 · net = ΣP − ΣB = ${signed(result.net)}` },
         result.ba1
-          ? { text: 'Step 4 · override · BA1 → hard Benign (stops the sum)', tone: 'flag' }
+          ? { text: 'Step 4 · override · BA1 sets Benign and does not enter the point sum', tone: 'flag' }
           : result.conflict
             ? { text: `Step 4 · override · ${result.reason}`, tone: 'flag' }
             : { text: 'Step 4 · override · none — net maps directly to tier', tone: 'ok' },
         { text: `Step 5 · tier = ${result.tier}  (${benignCut === 'acgs_panel' ? 'ACGS cut' : 'Tavtigian cut'})` },
-        { text: `Step 6 · posterior ≈ ${pct(result.posterior)}` },
+        { text: `Step 6 · model posterior = ${modelPosteriorLabel(result.modelPosterior)}` },
       ]
+  for (const note of result.dependencyNotes) lines.push({ text: `Dependency · ${note}`, tone: 'flag' })
 
   return (
     <div

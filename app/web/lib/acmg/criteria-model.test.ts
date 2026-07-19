@@ -41,7 +41,7 @@ describe('criteria table', () => {
     expect(STRENGTH_POINTS.strong).toBe(4)
     expect(STRENGTH_POINTS.moderate).toBe(2)
     expect(STRENGTH_POINTS.supporting).toBe(1)
-    expect(STRENGTH_POINTS.stand_alone).toBe(8)
+    expect(STRENGTH_POINTS.stand_alone).toBe(0)
   })
 })
 
@@ -70,11 +70,14 @@ describe('computeCriteria — overrides + caps', () => {
     const r = computeCriteria(on('PVS1', 'BA1'))
     expect(r.ba1).toBe(true)
     expect(r.tier).toBe('Benign')
+    expect(r.net).toBe(8)
+    expect(r.sumBenign).toBe(0)
+    expect(r.modelPosterior).toBeNull()
+    expect(r.applied.find((item) => item.code === 'BA1')?.points).toBe(0)
   })
-  it('strong opposing evidence → conflicting VUS regardless of net', () => {
-    // PS3 strong (+4) vs BS3 strong (−4): net 0, both strong → conflict
-    const r = computeCriteria(on('PS3', 'BS3'))
-    expect(r.net).toBe(0)
+  it('the historical Eamos-v1 cap resolves strong opposing evidence to VUS', () => {
+    const r = computeCriteria(on('PVS1', 'BS1'))
+    expect(r.net).toBe(4)
     expect(r.conflict).toBe(true)
     expect(r.tier).toBe('VUS')
   })
@@ -86,14 +89,27 @@ describe('computeCriteria — overrides + caps', () => {
     expect(r.tier).toBe('Likely Pathogenic')
   })
   it('respects a chosen strength (PS3 Moderate = +2, not +4)', () => {
-    const r = computeCriteria(withStrength(initialCriteriaState(), 'PS3', 'moderate'))
-    expect(r.net).toBe(2)
+    const r = computeCriteria(withStrength(on('PM1'), 'PS3', 'moderate'))
+    expect(r.net).toBe(4)
     expect(r.applied.find((a) => a.code === 'PS3')?.points).toBe(2)
+  })
+  it('does not count PS3 without independent same-direction evidence', () => {
+    const r = computeCriteria(on('PS3'))
+    expect(r.net).toBe(0)
+    expect(r.applied.find((item) => item.code === 'PS3')).toBeUndefined()
+    expect(r.dependencyNotes).toContain(
+      'PS3 needs independent same-direction evidence before it enters the point sum.',
+    )
   })
   it('two Strong benign criteria = −8 → Benign', () => {
     const r = computeCriteria(on('BS1', 'BS2'))
     expect(r.net).toBe(-8)
     expect(r.tier).toBe('Benign')
+  })
+  it('caps combined PP3 plus PM1 pathogenic points at four', () => {
+    const r = computeCriteria(withStrength(on('PM1'), 'PP3', 'strong'))
+    expect(r.net).toBe(4)
+    expect(r.applied.find((item) => item.code === 'PP3')?.points).toBe(2)
   })
 })
 
@@ -104,19 +120,43 @@ describe('blockedCodes — mutual exclusion', () => {
   it('PVS1 blocks PM4', () => {
     expect(blockedCodes(on('PVS1')).has('PM4')).toBe(true)
   })
+  it('population and functional dependency pairs block both directions', () => {
+    expect(blockedCodes(on('PM2')).has('BS1')).toBe(true)
+    expect(blockedCodes(on('PM2')).has('BA1')).toBe(true)
+    expect(blockedCodes(on('BA1')).has('PM2')).toBe(true)
+    expect(blockedCodes(on('PS3')).has('BS3')).toBe(true)
+    expect(blockedCodes(on('BS3')).has('PS3')).toBe(true)
+  })
 })
 
 describe('criteriaStateFromComputed — variant seeding round-trip', () => {
   // A minimal engine payload: PS3 Strong (+4) + PM2 Supporting (+1) = net +5 → VUS.
   const computed: EamosComputedClassification = {
-    acmg_version_pin: { framework: 'x', pvs1_revision: 'x', pp3_calibration: 'x', vcep_id: null },
+    acmg_version_pin: {
+      framework: 'x',
+      ruleset_id: 'ruleset-x',
+      ruleset_version: '1',
+      conflict_policy_id: 'eamos_legacy_vus_cap',
+      pvs1_revision: 'x',
+      pp3_calibration: 'x',
+      vcep_id: null,
+      population_policy_id: 'population-x',
+      population_policy_version: '1',
+      cspec_overlay_id: null,
+      cspec_overlay_version: null,
+      population_policy_diff: [],
+    },
     net_points: 5,
     sum_pathogenic: 5,
     sum_benign: 0,
     tier: 'VUS',
+    classification_basis: 'bayesian_points',
     conflict: { is_conflicting: false },
     ba1_override: false,
-    posterior: 0.3,
+    aggregate_evidence_likelihood_ratio: 10,
+    prior_odds: 1 / 9,
+    posterior_odds: 10 / 9,
+    model_posterior: 10 / 19,
     benign_cut: 'tavtigian_2020',
     per_criterion: [
       { code: 'PS3', direction: 'pathogenic', triggered: true, applied_strength: 'strong', points: 4 },
@@ -142,8 +182,16 @@ describe('criteriaStateFromComputed — variant seeding round-trip', () => {
   it('seeds BA1 as a stand-alone benign override', () => {
     const ba1: EamosComputedClassification = {
       ...computed,
+      net_points: 0,
+      sum_pathogenic: 0,
+      tier: 'Benign',
+      classification_basis: 'ba1_standalone_override',
       ba1_override: true,
-      per_criterion: [{ code: 'BA1', direction: 'benign', triggered: true, applied_strength: null, points: -8 }],
+      aggregate_evidence_likelihood_ratio: null,
+      prior_odds: null,
+      posterior_odds: null,
+      model_posterior: null,
+      per_criterion: [{ code: 'BA1', direction: 'benign', triggered: true, applied_strength: null, points: 0 }],
     }
     const r = computeCriteria(criteriaStateFromComputed(ba1), 'tavtigian_2020')
     expect(r.ba1).toBe(true)
