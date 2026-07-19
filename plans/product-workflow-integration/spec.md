@@ -2,7 +2,7 @@
 
 Status: proposed contract freeze; implementation and lane launch require Steven's approval.
 
-Spec stamped: 2026-07-19 09:15 +0000 · Codex.
+Spec stamped: 2026-07-19 09:33 +0000 · Codex.
 
 ## Product Outcome
 
@@ -34,9 +34,12 @@ The four surfaces remain distinct:
    sequences never appear in URLs, analytics, error telemetry, or logs.
 4. A fixture or fallback never masquerades as source-backed output. Missing
    measurements render `not assessed`/`unavailable`, not illustrative numbers.
-5. Full gene means one continuous genomic locus—including introns and UTRs—
-   navigable as one surface. Virtualization is an implementation detail, not
-   user-visible pagination.
+5. Full gene means one continuous genomic locus across the resolved gene bounds,
+   including every annotated exon, every intervening intron, and 5′/3′ UTRs,
+   navigable as one surface. The queried variant is the initial focus, never a
+   crop boundary. Exon-only concatenation, per-exon pagination, and a larger
+   variant-centred window do not satisfy this requirement. Virtualization is an
+   implementation detail, not user-visible pagination.
 6. A tool result is bound to the exact variant, transcript, reference build,
    selection, sequence basis, and edit revision used to compute it. Context
    changes make previous results visibly stale; they are never silently reused.
@@ -349,6 +352,11 @@ Cross-cutting rules:
 
 - Treat the existing full-locus schema and virtualized renderer as the base.
   Do not fork a second viewer.
+- For every supported resolved gene/transcript, load the complete reference
+  locus from the resolved gene start through gene end. Scroll initially to the
+  queried variant, but keep the entire locus reachable in both directions. If a
+  complete source-backed locus is unavailable, return a typed unavailable state;
+  a cropped window or fixture-only proof cannot satisfy release acceptance.
 - Make full locus the complete gene/transcript navigation surface with:
   whole-gene minimap and viewport indicator; exon/variant/coordinate/sequence
   search; window↔locus continuity; genomic/transcript orientation; active
@@ -369,8 +377,10 @@ Cross-cutting rules:
 
 ### Primer
 
-- Accept `SelectionRangeV1` or a resolved default target; record the exact
-  sequence basis and revision in the result.
+- Accept `SelectionRangeV1` from anywhere in the complete gene locus, or a
+  resolved default target. Primer design must be able to target a distant exon,
+  intronic interval, or UTR without relocating the queried variant. Record the
+  exact sequence basis and revision in the result.
 - Return true Primer3/provider measurements only. Missing secondary-structure,
   SNP-avoidance, or specificity data is `not_assessed` with requirements.
 - If no pair qualifies, explain which constraints eliminated candidates and
@@ -466,13 +476,16 @@ The integrated slice is complete only when:
 2. every required handoff round-trips canonical context and preserves `return_to`;
 3. Batch and Paper can resume owner-scoped runs without retaining raw input by
    default;
-4. full-locus selection/edit/navigation feeds all three Workbench tools;
-5. Primer, CRISPR, and Align exports identify source, context, basis, revision,
+4. a variant opened in one exon can navigate to a distant exon, select and edit
+   there, and send that exact interval to Primer without cropping or replacing
+   the full locus;
+5. full-locus selection/edit/navigation feeds all three Workbench tools;
+6. Primer, CRISPR, and Align exports identify source, context, basis, revision,
    and warnings;
-6. fixture/fallback/unavailable states are visibly truthful;
-7. Report curated/related variants are actionable without frontend clinical
+7. fixture/fallback/unavailable states are visibly truthful;
+8. Report curated/related variants are actionable without frontend clinical
    inference;
-8. keyboard, screen-reader, mobile, and reduced-motion acceptance passes;
-9. performance budgets and structural boundaries pass;
-10. focused tests, full local verify, committed browser ratchet, and required CI
+9. keyboard, screen-reader, mobile, and reduced-motion acceptance passes;
+10. performance budgets and structural boundaries pass;
+11. focused tests, full local verify, committed browser ratchet, and required CI
     are green before any merge.

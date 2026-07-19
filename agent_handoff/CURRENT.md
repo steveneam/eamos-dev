@@ -25,9 +25,9 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** DONE @ 2026-07-19 09:25 +0000 — completed the evidence-backed
-  Report/Paper/Batch/Workbench audit, proposed V1 contract, and five-lane Mode B
-  delivery plan. No product implementation or lane launch occurred.
+- **Codex:** DONE @ 2026-07-19 09:34 +0000 — completed the evidence-backed
+  product plan and tightened whole-gene acceptance after Steven's viewer
+  clarification. No product implementation or lane launch occurred.
 - **Product-workflow sprint:** founder-gated. Steven must approve the proposed
   V1 contract, lane partition, and local-migration-authoring choice before Lane A
   starts. Every later merge retains its own explicit approval gate.
@@ -46,7 +46,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 09:28 +0000 · Codex
+UNLOCKED · 2026-07-19 09:34 +0000 · Codex
 
 ## Shared File Locks
 
@@ -55,10 +55,10 @@ UNLOCKED · 2026-07-19 09:28 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 09:25 +0000 · Codex product-workflow approval gate
+# Resume prompt · 2026-07-19 09:34 +0000 · Codex whole-gene viewer approval gate
 Read CURRENT.md, peer mail, and plans/product-workflow-integration/{research,spec,plan}.md first.
 If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it before sprint work.
-Delta: the full product audit, proposed V1 contract, and exact five-lane Mode B launch package are committed and pushed; no implementation launched.
+Delta: full gene now explicitly spans every exon, intervening intron, and UTR; the variant is only initial focus, and a distant-exon edit-to-Primer path is required.
 Review the three P0s and the frozen contract/ownership/merge order in plan.md.
 Founder gate: approve or amend the V1 contract and five lanes, and say whether Lane B may author (never apply) its local Supabase migration.
 If approved, launch Lane A only with the Wave-0 command and prompt; do not fork B/C until A is merged and verified.
@@ -71,6 +71,8 @@ Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-gre
   (`research.md`, `spec.md`, and `plan.md`).
 - P0s: Paper omits required bearer auth; Batch leaves orphaned plaintext upload
   snapshots; Workbench overflows/clips at 390px.
+- Whole-gene acceptance: variant is initial focus only; the continuous locus
+  includes all exons/introns/UTRs and a distant selection must feed Primer.
 - Baseline: web 193/193; focused backend 398 collected and green with expected
   skips; coordination 9/9; frontend boundary 275 tracked files and green.
 - Planning commit `adc1abc`; CI receipt `29681616169` (zero-step minute lock).
@@ -86,6 +88,9 @@ Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-gre
   the highest continuity, retention, and interaction gaps.
 - The plan freezes canonical variant/context/selection, processing disclosure,
   workflow run/artifact, related/curated variant, URL, and async-state contracts.
+- Steven's viewer clarification is explicit: a wider variant window or
+  fixture-only demo cannot pass; the user must navigate, select, and edit a
+  distant exon and submit that exact interval to Primer without losing the locus.
 - The Mode B sprint is A contract → B backend and C surface flow in parallel → D
   Workbench → E ratchets, with one web writer per wave and merge order A→B→C→D→E.
 - Batch owns 2–3-variant comparison; Align owns sequence comparison. Full locus

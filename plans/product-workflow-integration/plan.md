@@ -3,7 +3,7 @@
 Status: proposed Mode B sprint; do not launch or implement until Steven approves
 the contract and lane partition.
 
-Plan stamped: 2026-07-19 09:24 +0000 · Codex lead.
+Plan stamped: 2026-07-19 09:33 +0000 · Codex lead.
 
 ## Outcome And Authority
 
@@ -220,7 +220,12 @@ Tasks, in order:
    checks. Keep service-role credentials server-only.
 7. Add Library v2 tombstones and deterministic merge semantics so deletion
    cannot resurrect an older local item.
-8. Bind locus selection and design services to build, reference basis, edit
+8. Return the complete source-backed genomic locus for every supported resolved
+   gene/transcript, including all exons, intervening introns, and UTRs. The
+   queried variant supplies initial focus only. A cropped window or fixture-only
+   locus fails release acceptance; unavailable source data fails closed with a
+   typed state.
+9. Bind locus selection and design services to build, reference basis, edit
    revision, and context digest. Reject an unresolved or unrelated CRISPR
    off-target locus and require auth for server-side trace processing.
 
@@ -347,9 +352,11 @@ Tasks, in order:
 1. Remove root overflow and clipped controls at 320px and 390px; preserve a
    coherent tool/navigation model across touch, tablet, and desktop.
 2. Turn the existing virtualized full-locus surface into the single whole-gene
-   navigator: minimap/viewport, genomic and transcript orientation, feature and
-   coordinate search, distant jump, transcript choice, and window↔locus
-   continuity. Do not build a second viewer.
+   navigator. It spans the resolved gene bounds with every exon, intervening
+   intron, and UTR; the queried variant is only the initial scroll target. Add a
+   minimap/viewport, genomic and transcript orientation, feature and coordinate
+   search, distant jump, transcript choice, and window↔locus continuity. Do not
+   build a second viewer or satisfy this with a wider variant-centred window.
 3. Implement the same selection model in window and locus modes: pointer/touch
    drag, edge autoscroll, Shift+click, Shift+Arrow, keyboard endpoints,
    coordinate entry, Escape clear, accessible summary, and stable virtualized
@@ -359,9 +366,10 @@ Tasks, in order:
    Context changes retain but visibly stale old results.
 5. Deep-link safe tool/view/context identity and persist explicit workspace
    state. Never place raw sequence, trace, edits, or notes in the URL.
-6. Primer: show only measured facts; label unavailable specificity/SNP/
-   structure checks `not assessed`; explain empty results; add precise overlay,
-   TSV, FASTA, and manifest.
+6. Primer: accept an exact selection anywhere in the complete locus, including a
+   distant exon, intron, or UTR. Show only measured facts; label unavailable
+   specificity/SNP/structure checks `not assessed`; explain empty results; add
+   precise overlay, TSV, FASTA, and manifest.
 7. CRISPR: derive and require confirmation of the canonical on-target locus,
    disable unresolved off-target requests, preserve provider/fallback truth,
    bind guide/donor/outcome results to revision, and export the complete bundle.
@@ -387,7 +395,10 @@ node scripts/eamos-web-boundary.mjs
 Browser acceptance additionally proves no document overflow or clipped primary
 control at all required widths, no ordinary select/scroll input task over
 100ms, at least 50fps on the verification host, and equivalent keyboard/pointer
-selection coordinates in both viewer modes.
+selection coordinates in both viewer modes. The required end-to-end proof opens
+a variant in one exon, jumps to a distant exon in the same gene, selects and
+edits there, submits that exact selection to Primer, returns to the original
+variant, and confirms that the continuous locus was never cropped or replaced.
 
 ### Lane E — Integrated Workflow Ratchets
 
@@ -407,7 +418,8 @@ Tasks:
 
 - Add a committed CDP/browser runner for Report→Workbench, Report→Paper,
   Paper→Report/Batch/Workbench, Batch row/selection handoffs, Library actions,
-  refresh/resume/delete, and Workbench selection→Primer/CRISPR/Align.
+  refresh/resume/delete, distant-exon navigation/editing, and Workbench
+  selection→Primer/CRISPR/Align.
 - Cover 320/390/768/1024/desktop layouts, document overflow, clipped controls,
   keyboard-only paths, focus restoration, ARIA separator behavior, reduced
   motion, async live regions, and fixture/fallback disclosure.
@@ -561,7 +573,7 @@ You own Lane C (Report, Paper, Batch, and shared flow) on agent/product/surface-
 ### Lane D Prompt
 
 ```text
-You own Lane D (Workbench Canvas and Tools) on agent/product/workbench-canvas. Read AGENTS.md, nested instructions, COORDINATION.md, agent_handoff/README.md, the Impeccable skill, and plans/product-workflow-integration/{research,spec,plan}.md completely. Confirm Lanes B and C are in your base. Work only in Lane D's exact globs. Fix 320/390 overflow first; extend the existing virtualized viewer into one whole-gene navigation/selection/edit model; bind exact context/revision to Primer, CRISPR, and Align; remove illustrative decision facts and hard-coded locus behavior; add durable/deep-linked safe state and complete exports/accessibility. Do not fork another viewer or edit backend.ts, shared layout, global CSS, backend, cloud/provider/source/Phase-7 state, or out-of-glob files except your own COORDINATION row. Run all Lane D tests/build/boundary/browser/performance checks and diff-check, stage only owned paths, commit/push without AI attribution, open/update the PR, mark review, and hand Codex lead {branch, PR number, files, isolation, tests, browser evidence, risks}. Never merge.
+You own Lane D (Workbench Canvas and Tools) on agent/product/workbench-canvas. Read AGENTS.md, nested instructions, COORDINATION.md, agent_handoff/README.md, the Impeccable skill, and plans/product-workflow-integration/{research,spec,plan}.md completely. Confirm Lanes B and C are in your base. Work only in Lane D's exact globs. Fix 320/390 overflow first; extend the existing virtualized viewer into one continuous whole-gene navigation/selection/edit model across every exon, intervening intron, and UTR, with the queried variant as initial focus rather than crop boundary; prove a distant-exon selection/edit can feed Primer; bind exact context/revision to Primer, CRISPR, and Align; remove illustrative decision facts and hard-coded locus behavior; add durable/deep-linked safe state and complete exports/accessibility. Do not fork another viewer or edit backend.ts, shared layout, global CSS, backend, cloud/provider/source/Phase-7 state, or out-of-glob files except your own COORDINATION row. Run all Lane D tests/build/boundary/browser/performance checks and diff-check, stage only owned paths, commit/push without AI attribution, open/update the PR, mark review, and hand Codex lead {branch, PR number, files, isolation, tests, browser evidence, risks}. Never merge.
 ```
 
 ### Lane E Prompt
