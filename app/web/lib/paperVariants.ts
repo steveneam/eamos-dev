@@ -73,6 +73,14 @@ export interface PaperRunPage {
 }
 
 const OPAQUE_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/
+const SPREADSHEET_FORMULA_PREFIX = /^[=+\-@]/
+
+/** Flatten one TSV field and force formula-looking values to remain text when
+ * opened in spreadsheet software. Publication-derived fields are untrusted. */
+export function sanitizeTsvCell(value: string): string {
+  const flattened = value.replace(/[\t\r\n]+/g, ' ')
+  return SPREADSHEET_FORMULA_PREFIX.test(flattened) ? `'${flattened}` : flattened
+}
 
 /** True when the response came from the local .eamos-mock fixture rather than a
  *  live extraction — drives the "Mock" marker on the surface. */

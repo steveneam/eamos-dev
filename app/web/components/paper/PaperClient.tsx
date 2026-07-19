@@ -25,6 +25,7 @@ import {
   getPaperRunResult,
   isMockResponse,
   PaperRequestError,
+  sanitizeTsvCell,
   type PaperInputClass,
 } from '@/lib/paperVariants'
 import type { PaperChatScope } from '@/lib/chat'
@@ -413,9 +414,6 @@ function paperWorkbenchHref(
 }
 
 // ─── TSV export of the merged table ─────────────────────────────────────
-function tsvCell(s: string): string {
-  return s.replace(/[\t\r\n]+/g, ' ')
-}
 function mergedToTsv(rows: MergedVariant[]): string {
   const header = [
     'gene',
@@ -449,7 +447,7 @@ function mergedToTsv(rows: MergedVariant[]): string {
         v.validated ? 'yes' : 'no',
         m.mentions.find((x) => x.quote)?.quote ?? '',
       ]
-        .map(tsvCell)
+        .map(sanitizeTsvCell)
         .join('\t'),
     )
   }

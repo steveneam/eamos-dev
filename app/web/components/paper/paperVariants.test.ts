@@ -4,6 +4,7 @@ import {
   getPaperProcessingDisclosure,
   isMockResponse,
   PaperRequestError,
+  sanitizeTsvCell,
 } from '@/lib/paperVariants'
 
 const EMPTY_RESPONSE = {
@@ -26,6 +27,22 @@ const EMPTY_RESPONSE = {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('sanitizeTsvCell', () => {
+  it.each([
+    ['=HYPERLINK("https://example.invalid")', '\'=HYPERLINK("https://example.invalid")'],
+    ['+SUM(1,1)', "'+SUM(1,1)"],
+    ['-2+3', "'-2+3"],
+    ['@SUM(1,1)', "'@SUM(1,1)"],
+  ])('forces formula-prefixed publication data to remain text: %s', (input, expected) => {
+    expect(sanitizeTsvCell(input)).toBe(expected)
+  })
+
+  it('preserves normal text while flattening TSV control characters', () => {
+    expect(sanitizeTsvCell('RPE65 source-backed evidence')).toBe('RPE65 source-backed evidence')
+    expect(sanitizeTsvCell('paper\tone\nquote')).toBe('paper one quote')
+  })
 })
 
 describe('extractPaperVariants', () => {
