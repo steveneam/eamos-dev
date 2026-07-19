@@ -25,7 +25,7 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** DONE/HELD @ 2026-07-19 10:17 +0000 — Product Workflow Lane A is
+- **Codex:** DONE/HELD @ 2026-07-19 10:23 +0000 — Product Workflow Lane A is
   committed/pushed as `bf589e8` on `agent/product/contract-v1`; PR #15 is open
   in review. Local gates and the Vercel preview passed. No merge occurred.
 - **Product-workflow sprint:** Lane A is REVIEW, required-CI blocked by the
@@ -47,7 +47,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 10:19 +0000 · Codex
+UNLOCKED · 2026-07-19 10:23 +0000 · Codex
 
 ## Shared File Locks
 
@@ -56,7 +56,7 @@ UNLOCKED · 2026-07-19 10:19 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 10:17 +0000 · Codex Product Workflow Lane A CI gate
+# Resume prompt · 2026-07-19 10:23 +0000 · Codex Product Workflow Lane A CI gate
 Read CURRENT.md, PR #15, Actions run 29683028720, and plans/product-workflow-integration/plan.md first.
 If the Phase-3c recovery-middle sample is due (around/after 2026-07-20 01:46 UTC), run it first.
 Delta: Lane A bf589e8 is pushed/review; local gates + Vercel passed, but seven required CI jobs had zero steps under the known minute lock.
@@ -97,8 +97,9 @@ Preserve all cloud/deploy/provider/source/Phase-7 holds, Render rollback, Task F
 - Full local gate passed: focused + adjacent backend contract/boundary/Workbench
   tests (expected skips only), web 193/193, TypeScript, ESLint, Black, Ruff,
   frontend boundary 275 files, coordination 9/9, strict handoff lint, diff-check.
-- Commit `bf589e8` is pushed and PR #15 is open. Its Vercel preview passed; Actions
-  run `29683028720` confirmed the known zero-step minute lock, so no merge ran.
+- Commit `bf589e8` is pushed and PR #15 is open. A 10:23 UTC live recheck kept
+  the same seven zero-step Actions failures; Vercel remains green, so no CI
+  rerun, rebase, merge, or downstream lane launch ran.
 - No later lane, cloud, deploy, Supabase, provider, source, or Phase-7 mutation ran.
 - The repository's worktree install ratchet rejected the plan's stale lane-local
   `npm ci`; Codex restored the intended shared dependency link without deleting
