@@ -35,7 +35,7 @@
   a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
   01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
   live as rollback; do not close/cancel it.
-- **GitHub Actions:** planning run `29681616169` for `adc1abc` failed; all seven
+- **GitHub Actions:** clarification run `29681846578` for `b9af5a8` failed; all seven
   failed jobs had zero steps, consistent with the known minute lock. Steven
   ruled no additional spend; required CI waits for monthly renewal.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
@@ -46,7 +46,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 09:34 +0000 · Codex
+UNLOCKED · 2026-07-19 09:35 +0000 · Codex
 
 ## Shared File Locks
 
@@ -75,7 +75,7 @@ Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-gre
   includes all exons/introns/UTRs and a distant selection must feed Primer.
 - Baseline: web 193/193; focused backend 398 collected and green with expected
   skips; coordination 9/9; frontend boundary 275 tracked files and green.
-- Planning commit `adc1abc`; CI receipt `29681616169` (zero-step minute lock).
+- Whole-gene clarification `b9af5a8`; CI `29681846578` (zero-step minute lock).
 - Recovery checkpoint and reset receipt: `d326d06`.
 - Phase-3c recovery timing, evidence, and exit contract:
   `docs/deployment/render-to-syd2-phase3.md`.
@@ -103,8 +103,8 @@ Preserve cloud/deploy/provider/source/Phase-7 holds, Render rollback, the CI-gre
 - The two audit dev servers were stopped and the temporary browser script was
   removed. No application, cloud, deploy, Supabase, source, or Phase-7 mutation
   occurred.
-- Planning docs are committed/pushed at `adc1abc`; required CI remains blocked
-  by the zero-step GitHub Actions minute lock, not a test failure.
+- Planning docs and clarification are committed/pushed through `b9af5a8`;
+  required CI remains blocked by the zero-step Actions lock, not a test failure.
 - Evidence expansion Phases 0-6 remain complete; Phase 7 and all source/live
   activations remain held.
 - The clean Phase-3c recovery clock remains `2026-07-19T01:46:12Z`; Render is
