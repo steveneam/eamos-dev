@@ -25,23 +25,28 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** ACTIVE @ 2026-07-22 14:56 +0000 — landing-page variant-search
-  positioning slice requested by Steven; Task F and Lane C are complete.
+- **Codex:** STOPPED CLEAR-SAFE @ 2026-07-22 15:10 +0000 — Task F,
+  Product Workflow Lane C, and the landing variant-search slice are complete.
 - **Product Workflow V1:** serial contract, B, and C are integrated. Steven
   approved Task F's filled exact card; `user_library_document` and
   `product_workflow_runs` applied to `eamos-dev` as remote ledger entries
   `20260722144613` and `20260722144619`. Exact metadata, grants, RLS, advisors,
   rollback-scoped two-owner isolation, and zero residual rows all verified.
-- **Lane C:** PR #17 merged as `0d52e11` (head `f880655`). Post-merge `main` CI
-  run `29930639353` passed all web, backend, security, container, coordination,
-  and immutable-image pull-back jobs. Lanes D/E remain pending and unlaunched.
-- **Landing exit contract:** remove the rendered founder photo; reposition Eamos
-  as a next-generation variant search engine around the wired 11-engine catalog,
-  release-labelled scores/status, and version-pinned ACMG/AMP criteria. Signal
-  readiness for forthcoming SVC v4 without calling the current ruleset v4.
-  Verify test/type/lint/build, web boundary, and responsive browser audit; then
-  commit/push a focused branch and open/watch its PR. No backend/ruleset change,
-  image-asset deletion, deploy, merge, or cloud/provider mutation is authorized.
+- **Product integration:** Lane C PR #17 merged as `0d52e11`; its post-merge CI
+  is green. Lanes D/E remain pending and unlaunched; D needs a fresh named-lane
+  approval and E remains downstream of D.
+- **Landing:** PR #19 merged as `c6f500f` (head `db8d2fd`) under Steven's explicit
+  approval. Eamos now presents as next-generation variant search across clinical
+  sources, the 11-engine in-silico catalog, traceable score releases/status, and
+  version-pinned ACMG/AMP criteria. The founder photo is no longer rendered; its
+  asset remains on disk. The FAQ tracks forthcoming SVC v4 without labelling the
+  active ruleset v4.
+- **Landing verification:** 223 web tests, TypeScript, lint, build, web boundary,
+  and the responsive browser audit passed. Browser coverage spanned 360–1920 px;
+  LCP was 220 ms and CLS 0.0003. PR checks/Vercel and post-merge `main` CI run
+  `29931752433` passed, including immutable-image pull-back. Production deployment
+  `5557845525` succeeded and `https://eamos-dev.vercel.app/` serves the new title
+  and hero copy without the founder-image reference.
 - **Phase 3 / Render:** Phase 3 is closed. The 13:33 UTC public end sample and
   Swordfish's independent 14:21 UTC syd2 host/container sample are green: exact
   digest and 23-file/47,943,536,945-byte tree, no restart/5xx/429/OOM/cgroup
@@ -53,7 +58,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 14:56 +0000 · Codex
+UNLOCKED · 2026-07-22 15:10 +0000 · Codex
 
 ## Shared File Locks
 
@@ -62,17 +67,16 @@ UNLOCKED · 2026-07-22 14:56 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 14:56 +0000 · Codex landing positioning
-Read CURRENT.md, COORDINATION.md, PRODUCT.md, DESIGN.md, and the Impeccable skill first.
+# Resume prompt · 2026-07-22 15:10 +0000 · Codex post-landing checkpoint
+Read CURRENT.md, COORDINATION.md, and plans/product-workflow-integration/{plan,spec}.md first.
 Task F is applied and fully verified; its sanitized receipt is in docs/db/supabase-inventory.md.
-PR #17 merged as 0d52e11; post-merge main CI 29930639353 is fully green.
-Finish the requested landing copy/metadata pass and remove the rendered founder photo.
-Portray Eamos as next-generation variant search with 11 predictors, traceable release-labelled scores, and version-pinned ACMG/AMP criteria.
-Mention readiness for forthcoming SVC v4 only; never label the active ruleset v4 before final review/activation.
-Run web test/type/lint/build, boundary, and responsive browser audits.
-Commit/push the focused branch, open/update its PR, and watch CI/Vercel; do not merge without Steven approval.
-Lanes D/E need a fresh parallel-lane launch approval and are not part of this slice.
-No deploy/cloud/provider/source/Phase-7 action is authorized.
+Product Workflow A/B/C are integrated; PR #17 and post-merge CI are green.
+Landing PR #19 merged as c6f500f; main CI 29931752433 and Production deployment 5557845525 are green.
+The live Vercel alias serves the new variant-search title/hero and no founder-image reference.
+Lanes D/E remain pending; D is the next serial lane and E depends on D.
+Before launching D, present its exact named-lane ownership/contract/verification card and get fresh Steven approval.
+Do not call the active ACMG ruleset v4 before final review/activation.
+No deploy/cloud/provider/source/Render-retirement/Phase-7 action is authorized.
 Preserve watcher-owned FROM-SWORDFISH.md.
 ```
 
@@ -82,11 +86,10 @@ Preserve watcher-owned FROM-SWORDFISH.md.
   `plans/product-workflow-integration/`; Lane C merge: PR #17 / `0d52e11`.
 - Task F durable receipt: `docs/db/supabase-inventory.md`; exact runbook:
   `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`.
-- Landing copy surfaces: `app/web/components/landing/{LandingClient,HowItWorks,FeaturesGrid,Faq,Testimonials,SiteFooter}.tsx`.
-- Landing metadata: `app/web/app/layout.tsx`; browser audit:
-  `scripts/eamos-capture-landing-features.mjs`.
+- Landing merge: PR #19 / `c6f500f`; copy surfaces:
+  `app/web/components/landing/`; metadata: `app/web/app/layout.tsx`; browser
+  contract: `scripts/eamos-capture-landing-features.mjs`.
 - ACMG/SVC v4 activation boundary: `plans/evidence-source-expansion/`.
-- Product contract/plan: `plans/product-workflow-integration/`.
 - Phase-3c evidence contract: `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
@@ -98,13 +101,18 @@ Preserve watcher-owned FROM-SWORDFISH.md.
   every new table empty. Security advisors remain clear.
 - Product Workflow V1 A/B/C are integrated; D/E are the next planned lanes but
   require Steven's fresh named-lane launch approval.
-- The landing update is a coupled copy/metadata presentation slice. The founder
-  image file stays on disk; only its page rendering is removed.
+- The Impeccable-guided landing pass preserved the warm-paper reading-instrument
+  identity while shifting the information hierarchy from generic evidence
+  workspace to variant search, versioned predictors, and standards readiness.
+- The landing update changed copy, metadata, and its executable browser contract
+  only. It did not change predictor wiring, score data, ACMG rules, or the founder
+  image asset.
 - Phase 3 remains closed on independent evidence. No Render deletion, deploy,
-  provider/source action, or Phase 7 action occurred.
+  provider/source mutation, or Phase 7 action occurred beyond Vercel's normal
+  merge-triggered Production deployment.
 
 ## Next Action
 
-- Finish the landing copy/metadata/photo-removal exit contract, verify it locally
-  including responsive browser evidence, then commit/push a focused branch,
-  open its PR, and watch CI/Vercel. Stop before merge for Steven's approval.
+- If Steven resumes Product Workflow V1, present Lane D's exact single-lane
+  launch card from the frozen plan and stop for fresh approval before launching
+  it. Keep E downstream and do not widen into cloud/provider/Phase-7 work.
