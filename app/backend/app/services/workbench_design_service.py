@@ -316,14 +316,6 @@ class WorkbenchDesignService:
         )
 
     def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse:
-        if not self.workbench_live_design_enabled and payload.design_context_v2 is None:
-            code = unsupported_input_warning("ssodn_live_design")
-            raise WorkbenchDesignError(
-                code=code,
-                message="ssODN donor design is disabled in fixture-only Workbench mode.",
-                status_code=HTTP_UNPROCESSABLE_ENTITY,
-                warnings=[code],
-            )
         sequence_result, context, verified = self._resolve_payload_context(
             payload,
             purpose="ssODN design",
@@ -338,6 +330,9 @@ class WorkbenchDesignService:
                 payload,
                 context,
                 context_warnings=list(sequence_result.warnings),
+                allow_local_transcript=(
+                    self.workbench_live_design_enabled or payload.design_context_v2 is not None
+                ),
             )
         except CrisprSsodnInputError as exc:
             raise WorkbenchDesignError(

@@ -91,9 +91,10 @@ def design_ssodn(
     context: SequenceContext | None,
     *,
     context_warnings: list[str] | None = None,
+    allow_local_transcript: bool = True,
 ) -> CrisprSsodnResponse:
     warnings = list(context_warnings or [])
-    resolved_window = _local_transcript_window(payload)
+    resolved_window = _local_transcript_window(payload) if allow_local_transcript else None
     if resolved_window is None:
         if context is None or context.source != "resolver":
             code = unsupported_input_warning("ssodn_sequence_context")

@@ -528,9 +528,9 @@ def test_crispr_ssodn_route_rejects_fixture_only_mode_without_live_resolution(
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     assert response.json()["detail"] == {
-        "code": "workbench_unsupported_input:ssodn_live_design",
-        "message": "ssODN donor design is disabled in fixture-only Workbench mode.",
-        "warnings": ["workbench_unsupported_input:ssodn_live_design"],
+        "code": "workbench_unsupported_input:ssodn_sequence_context",
+        "message": "ssODN donor design requires a source-backed resolved sequence context.",
+        "warnings": ["workbench_unsupported_input:ssodn_sequence_context"],
     }
 
 
