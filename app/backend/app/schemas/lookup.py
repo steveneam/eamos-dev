@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
+from app.schemas.report import ReportExecutionStateV2, ReportSectionExecutionV2
 from app.schemas.run import EvidenceSourceSummary, ReportPayload
 
 SearchInputMode = Literal[
@@ -208,6 +209,9 @@ class LookupResponse(BaseModel):
     evidence: list[EvidenceSourceSummary]
     warnings: list[str]
     search_interpretation: SearchInputInterpretation | None = None
+    execution_state_v2: ReportExecutionStateV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     _lookup_timing_header: str | None = PrivateAttr(default=None)
 
     @property
@@ -264,6 +268,9 @@ class LookupInitialSummaryResponse(BaseModel):
     tiles: list[LookupSummaryTile] = Field(default_factory=list)
     lazy_sections: list[LookupSectionDescriptor] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    execution_state_v2: ReportExecutionStateV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     _lookup_timing_header: str | None = PrivateAttr(default=None)
 
     @property
@@ -304,6 +311,9 @@ class LookupSectionEnvelope(BaseModel):
     payload: dict[str, Any] | None = None
     freshness: LookupSectionFreshness = Field(default_factory=LookupSectionFreshness)
     warnings: list[str] = Field(default_factory=list)
+    execution_state_v2: ReportSectionExecutionV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class LookupSectionFetchResponse(BaseModel):
