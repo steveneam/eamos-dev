@@ -25,8 +25,9 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED CLEAR-SAFE @ 2026-07-22 15:10 +0000 — Task F,
-  Product Workflow Lane C, and the landing variant-search slice are complete.
+- **Codex:** STOPPED CLEAR-SAFE @ 2026-07-22 15:16 +0000 — Task F,
+  Product Workflow Lane C, landing positioning, and Render Phase-4 cost
+  retirement reconciliation are complete.
 - **Product Workflow V1:** serial contract, B, and C are integrated. Steven
   approved Task F's filled exact card; `user_library_document` and
   `product_workflow_runs` applied to `eamos-dev` as remote ledger entries
@@ -47,18 +48,19 @@
   `29931752433` passed, including immutable-image pull-back. Production deployment
   `5557845525` succeeded and `https://eamos-dev.vercel.app/` serves the new title
   and hero copy without the founder-image reference.
-- **Phase 3 / Render:** Phase 3 is closed. The 13:33 UTC public end sample and
-  Swordfish's independent 14:21 UTC syd2 host/container sample are green: exact
-  digest and 23-file/47,943,536,945-byte tree, no restart/5xx/429/OOM/cgroup
-  pressure since recovery, unchanged hardening, and healthy headroom. Phase 4
-  may retire the Render rollback; no Render disk or service was deleted here.
+- **Phase 3 / Render:** Phase 3 is closed. Steven cancelled the Render persistent
+  disk, moved the remaining Singapore service to free Hobby, and directed Eamos
+  not to count on it. Phase-4 cost retirement is complete: Render is now a
+  non-authoritative shell, not production capacity or rollback. Direct syd2 and
+  Vercel provider-health stayed byte-identical; Render cold-started unreliably
+  and its former disk-backed asset states are missing/unavailable.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 15:10 +0000 · Codex
+UNLOCKED · 2026-07-22 15:16 +0000 · Codex
 
 ## Shared File Locks
 
@@ -67,16 +69,18 @@ UNLOCKED · 2026-07-22 15:10 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 15:10 +0000 · Codex post-landing checkpoint
+# Resume prompt · 2026-07-22 15:16 +0000 · Codex post-Render checkpoint
 Read CURRENT.md, COORDINATION.md, and plans/product-workflow-integration/{plan,spec}.md first.
 Task F is applied and fully verified; its sanitized receipt is in docs/db/supabase-inventory.md.
 Product Workflow A/B/C are integrated; PR #17 and post-merge CI are green.
 Landing PR #19 merged as c6f500f; main CI 29931752433 and Production deployment 5557845525 are green.
 The live Vercel alias serves the new variant-search title/hero and no founder-image reference.
+Render paid disk/compute are retired; its free Hobby shell is not production capacity or rollback.
+Production remains syd2 through preview-api.swordfish.cfd and the Vercel proxy.
 Lanes D/E remain pending; D is the next serial lane and E depends on D.
 Before launching D, present its exact named-lane ownership/contract/verification card and get fresh Steven approval.
 Do not call the active ACMG ruleset v4 before final review/activation.
-No deploy/cloud/provider/source/Render-retirement/Phase-7 action is authorized.
+No deploy/cloud/provider/source/Phase-7 action is authorized.
 Preserve watcher-owned FROM-SWORDFISH.md.
 ```
 
@@ -97,8 +101,6 @@ Preserve watcher-owned FROM-SWORDFISH.md.
 
 - Task F created the three reviewed account-owned workflow/library tables only;
   it did not mutate Storage/source assets, provider/env state, or Phase 7.
-- The two-principal verification ran inside a rolled-back transaction and left
-  every new table empty. Security advisors remain clear.
 - Product Workflow V1 A/B/C are integrated; D/E are the next planned lanes but
   require Steven's fresh named-lane launch approval.
 - The Impeccable-guided landing pass preserved the warm-paper reading-instrument
@@ -107,9 +109,9 @@ Preserve watcher-owned FROM-SWORDFISH.md.
 - The landing update changed copy, metadata, and its executable browser contract
   only. It did not change predictor wiring, score data, ACMG rules, or the founder
   image asset.
-- Phase 3 remains closed on independent evidence. No Render deletion, deploy,
-  provider/source mutation, or Phase 7 action occurred beyond Vercel's normal
-  merge-triggered Production deployment.
+- Phase 4 retired the paid Render disk/compute and its rollback role. The active
+  syd2 origin and Vercel proxy remained healthy and identical; the free Render
+  shell is explicitly outside Eamos availability and capacity planning.
 
 ## Next Action
 

@@ -1,11 +1,10 @@
 # Render to syd2 Phase-3 Seed and Cutover
 
-Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof and
-two-party tenant-grant verification green; Phase 3c public endpoint, Vercel
-traffic cutover, recovery soak, and independent host/container end sample
-green; Phase 3 closed; Render rollback ready for a separate Phase-4 retirement
+Status: Phase 3 closed; Phase 4 cost retirement complete. Production remains on
+syd2. The paid Render disk is cancelled and the retained free Hobby service is
+explicitly non-authoritative, non-capacity, and not a rollback.
 
-Last verified: 2026-07-22 14:25 +0000 - Codex + Swordfish
+Last verified: 2026-07-22 15:16 +0000 - Codex + Swordfish
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -465,3 +464,29 @@ The exact-byte preservation and nothing-only-on-Render proofs were already
 green, so Phase 4 may now retire the Render rollback when Steven explicitly
 performs that destructive provider action. No Render disk or service was
 deleted by this verification.
+
+## Phase 4 cost retirement and rollback declassification
+
+Receipt: 2026-07-22 15:16 +0000 · Steven + Codex.
+
+Steven cancelled the Render persistent disk, moved the remaining Singapore
+service to the free Hobby tier, and directed Eamos not to count on it. This
+retires the paid Render footprint and the rollback role. The free service may
+remain reachable, but it is not part of production capacity, availability,
+disaster recovery, or provider-failover planning. Never point Vercel back to it
+as an automatic or assumed rollback.
+
+Read-only verification after the change proved:
+
+- direct syd2 and Vercel-proxied provider-health responses remained HTTP 200
+  and byte-identical, so production still reaches syd2;
+- the first Render Hobby health request returned no bytes before a 45-second
+  timeout, while a later warmed `/healthz` request returned 200;
+- the warmed Render provider-health response remained top-level `ok`, but its
+  former disk-backed posture was gone: protein annotation was unavailable and
+  the compact-coordinate, ClinVar distribution, ClinGen, PubMed, and literature
+  asset states reported missing or database-missing.
+
+That combination is suitable only as a non-authoritative development shell. It
+is not evidence of a viable Eamos rollback. No agent mutated Render, Vercel,
+syd2, DNS, Supabase, or source data while recording this receipt.
