@@ -1,0 +1,7 @@
+Results
+The USH2A proband carried c. 2276 G >
+T in exon 13 and the BRCA1 allele c.68_69delAG.
+The rs121918127 record was inspected separately.
+
+Methods
+An engineered rescue variant TP53 p.Arg72Pro was introduced into a construct.

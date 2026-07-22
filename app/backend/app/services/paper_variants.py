@@ -1,70 +1,51 @@
-"""Paper → variants: extract variant mentions from publication text, then resolve
-each candidate.
+"""Deterministic Paper → Variants extraction followed by a separate resolver gate.
 
-Reuses Eamos assets rather than rebuilding:
-- the gateway structured validate+repair substrate (`build_gateway_paper_variants_chain`
-  → `extract_structured`) for live extraction;
-- the curated search-input lexicon (`SearchInputReference`) for amino-acid
-  normalization (1-/3-letter/full name) and known-gene validation — no hardcoded
-  amino-acid table here;
-- `EamosSearchInputResolver` as the cDNA/genomic identity gate;
-- `SearchCandidateResolver` as the protein/source-backed candidate gate.
-
-Protein-only mentions resolve only when a source-backed candidate exists. Protein
-constructs without a source-backed allele remain explicit experimental constructs,
-not coordinate-validated clinical variants. Mock-first; inert unless
-`llm_provider == "gateway"`.
+L1-L3 mention extraction is always local and input-bound. A configured gateway
+or injected chain cannot replace, delete, or canonically resolve deterministic
+evidence; optional L4 adjudication remains a separately consented future path.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-from collections import Counter
+from dataclasses import dataclass
+from functools import lru_cache
 
-from app.agents.client import build_gateway_paper_variants_chain
+from app.schemas.capabilities import CapabilityExecutionDisclosureV2
 from app.schemas.lookup import SearchInputCandidate, SearchInputSourceInputs
 from app.schemas.paper_variants import (
+    PaperDocumentExtractionV2,
+    PaperMentionResolutionV2,
+    PaperSourceMetadata,
     PaperVariantCandidate,
-    PaperVariantsExtraction,
     PaperVariantsResult,
     ValidatedPaperVariant,
 )
+from app.schemas.workflow import CanonicalVariantRefV1
+from app.services.paper_extract.document import PaperInputDocument, text_document
+from app.services.paper_extract.grammar import DetectedMention
+from app.services.paper_extract.metadata import legacy_source_metadata
+from app.services.paper_extract.pipeline import build_extraction_draft
 from app.services.search_candidate_resolver import SearchCandidateResolver
 from app.services.search_input_reference import default_search_input_reference
 from app.services.search_input_resolver import EamosSearchInputResolver, SearchInputResolution
 
 logger = logging.getLogger(__name__)
 
-_CDNA_RE = re.compile(r"c\.\d+[A-Za-z0-9>_+*\-]+")
-_GENE_RE = re.compile(r"\b[A-Z][A-Z0-9]{1,9}\b")
-_PROTEIN_RE = re.compile(r"p\.[A-Za-z0-9*]+")
-# Residue substitutions in single-letter (H241A) and three-letter (His241Ala)
-# forms. Loose by design: SearchInputReference.amino_acid() validates each token,
-# so non-amino-acid hits are dropped.
-_PROTEIN_SUB1_RE = re.compile(r"\b([A-Z])(\d{2,4})([A-Z*])\b")
-_PROTEIN_SUB3_RE = re.compile(r"\b([A-Za-z]{3})(\d{1,4})([A-Za-z]{3}|\*)\b")
-_PROTEIN_LIKE_TOKEN_RE = re.compile(r"^[ACDEFGHIKLMNPQRSTVWY]\d{1,5}[ACDEFGHIKLMNPQRSTVWY*]?$")
-_CONSTRUCT_HINTS = (
-    "site-directed",
-    "site directed",
-    "mutagenesis",
-    "we mutated",
-    "substitut",
-    "engineered",
-    "replaced with",
-    "alanine scan",
-    "mutant",
-)
-_CLINICAL_HINTS = (
-    "patient",
-    "proband",
-    "carrier",
-    "homozygous",
-    "compound heterozygous",
-    "diagnosed",
-    "family",
-)
+_NON_ACTIONABLE_CONTEXTS = {
+    "ambiguous",
+    "experimental_construct",
+    "engineered_rescue",
+    "comparator_or_background",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class PaperDocumentRunResult:
+    result: PaperVariantsResult
+    document_extraction: PaperDocumentExtractionV2
+    source_metadata: PaperSourceMetadata | None
 
 
 class PaperVariantsService:
@@ -85,88 +66,89 @@ class PaperVariantsService:
         self.reference = reference or default_search_input_reference()
         self.input_resolver = input_resolver
         self.candidate_resolver = candidate_resolver or SearchCandidateResolver(settings=settings)
+        self.last_document_run: PaperDocumentRunResult | None = None
 
-    def extract(self, paper_text: str, *, validate: bool = True) -> PaperVariantsResult:
-        extraction, warnings, provenance = self._candidates(paper_text)
-        variants = [
-            self._gate(candidate) if validate else _ungated(candidate)
-            for candidate in extraction.variants
-        ]
-        return PaperVariantsResult(
-            variants=variants, warnings=warnings, provenance=list(provenance)
+    def extract(
+        self,
+        paper_text: str | PaperInputDocument,
+        *,
+        validate: bool = True,
+    ) -> PaperVariantsResult:
+        document = (
+            paper_text if isinstance(paper_text, PaperInputDocument) else text_document(paper_text)
+        )
+        run = self.extract_document(document, validate=validate)
+        self.last_document_run = run
+        return run.result
+
+    def extract_document(
+        self,
+        document: PaperInputDocument,
+        *,
+        supplements: tuple[PaperInputDocument, ...] = (),
+        validate: bool = True,
+    ) -> PaperDocumentRunResult:
+        draft = build_extraction_draft((document, *supplements))
+        variants: list[ValidatedPaperVariant] = []
+        resolutions: list[PaperMentionResolutionV2] = []
+        for record in draft.records:
+            candidate = self._candidate_from_record(record)
+            if record.mention.biological_context == "bibliography_only":
+                variant = _ungated(candidate, status="bibliography_only_excluded")
+            elif validate:
+                variant = self._gate(candidate)
+            else:
+                variant = _ungated(candidate)
+            variants.append(variant)
+            resolutions.append(_resolution_for_record(record, variant=variant, validate=validate))
+
+        result = PaperVariantsResult(
+            variants=variants,
+            warnings=list(draft.warnings),
+            provenance=["eamos_paper_extract_l1_l3"],
+        )
+        extraction = draft.finalize(resolutions)
+        main_metadata = next(
+            (
+                row.bibliographic_metadata
+                for row in extraction.bundle.documents
+                if row.role == "main"
+            ),
+            None,
+        )
+        return PaperDocumentRunResult(
+            result=result,
+            document_extraction=extraction,
+            source_metadata=legacy_source_metadata(main_metadata),
         )
 
     # -- candidate extraction ---------------------------------------------
 
-    def _candidates(
-        self, paper_text: str
-    ) -> tuple[PaperVariantsExtraction, list[str], tuple[str, ...]]:
-        if getattr(self.settings, "llm_provider", "mock") == "mock":
-            return self._mock_extract(paper_text), [], ("mock_paper_variants_extractor",)
-
-        chain = self.chain or build_gateway_paper_variants_chain(self.settings)
-        if chain is None:
-            return (
-                PaperVariantsExtraction(),
-                ["paper_variants_unavailable"],
-                ("paper_variants_extractor",),
-            )
-        try:
-            extraction = PaperVariantsExtraction.model_validate(
-                chain.invoke({"paper_text": paper_text})
-            )
-        except Exception as exc:  # provider/parse boundary — never crash a request
-            logger.warning("paper variants extraction failed", exc_info=True)
-            return (
-                PaperVariantsExtraction(),
-                [f"paper_variants_failed:{type(exc).__name__}"],
-                ("live_paper_variants_extractor",),
-            )
-        return extraction, [], ("live_paper_variants_extractor",)
-
-    def _mock_extract(self, paper_text: str) -> PaperVariantsExtraction:
-        """Deterministic offline extractor: cDNA mentions plus single-/three-letter
-        protein substitutions, normalized + validated via the curated lexicon, each
-        tied to the nearest known gene. Best-effort for dev/tests — the gateway LLM is
-        the production extractor."""
-        context = self._context_hint(paper_text)
-        dominant = self._dominant_gene(paper_text)
-        candidates: list[PaperVariantCandidate] = []
-        seen_protein: set[str] = set()
-
-        for match in _CDNA_RE.finditer(paper_text):
-            window = paper_text[match.start() : match.start() + 80]
-            protein = _PROTEIN_RE.search(window)
-            protein_hgvs = protein.group(0) if protein else None
-            candidates.append(
-                PaperVariantCandidate(
-                    gene=self._gene_near(paper_text, match.start(), dominant),
-                    transcript_hgvs=match.group(0),
-                    protein_change=protein_hgvs,
-                    protein_hgvs=protein_hgvs,
-                    level="cdna",
-                    context=context,
-                )
-            )
-            if protein_hgvs:
-                seen_protein.add(protein_hgvs)
-
-        for regex in (_PROTEIN_SUB1_RE, _PROTEIN_SUB3_RE):
-            for match in regex.finditer(paper_text):
-                normalized = self._normalize_residue(*match.groups())
-                if normalized is None or normalized in seen_protein:
-                    continue
-                seen_protein.add(normalized)
-                candidates.append(
-                    PaperVariantCandidate(
-                        gene=self._gene_near(paper_text, match.start(), dominant),
-                        protein_change=match.group(0),
-                        protein_hgvs=normalized,
-                        level="protein",
-                        context=context,
-                    )
-                )
-        return PaperVariantsExtraction(variants=candidates)
+    def _candidate_from_record(self, record: DetectedMention) -> PaperVariantCandidate:
+        mention = record.mention
+        gene = mention.gene_evidence[0] if mention.gene_evidence else None
+        notation = record.canonical_notation
+        protein_hgvs: str | None = None
+        transcript_hgvs: str | None = None
+        if mention.notation_type == "protein":
+            protein_hgvs = notation
+        elif mention.notation_type == "legacy" and not notation.upper().startswith("IVS"):
+            legacy = re.fullmatch(r"([A-Za-z]{1,3})([0-9]{1,5})([A-Za-z*]{1,3})", notation)
+            if legacy:
+                protein_hgvs = self._normalize_residue(*legacy.groups())
+        else:
+            transcript_hgvs = notation
+        return PaperVariantCandidate(
+            gene=gene,
+            transcript_hgvs=transcript_hgvs,
+            protein_change=protein_hgvs,
+            protein_hgvs=protein_hgvs,
+            level=mention.notation_type,
+            context=mention.biological_context,
+            # The V2 evidence graph owns the bounded quote. The compatibility
+            # row deliberately carries no publication text.
+            evidence_quote=None,
+        )
 
     def _normalize_residue(self, ref: str, pos: str, alt: str) -> str | None:
         """Normalize a residue substitution to HGVS p. form via the curated lexicon.
@@ -183,40 +165,32 @@ class PaperVariantsService:
             return None
         return f"p.{ref_aa.three_letter}{pos}{alt3}"
 
-    @staticmethod
-    def _gene_near(text: str, pos: int, fallback: str | None) -> str | None:
-        # Gene-agnostic: nearest preceding gene-like symbol, no curated allowlist.
-        # Downstream coordinate/candidate resolution is MANE/RefSeq-backed and works
-        # for any gene, so the extractor must not be limited to a fixed gene set.
-        tokens = [
-            token
-            for token in _GENE_RE.findall(text[max(0, pos - 120) : pos])
-            if not _looks_like_protein_or_catalog_token(token)
-        ]
-        return tokens[-1] if tokens else fallback
-
-    @staticmethod
-    def _dominant_gene(text: str) -> str | None:
-        tokens = _GENE_RE.findall(text)
-        return Counter(tokens).most_common(1)[0][0] if tokens else None
-
-    @staticmethod
-    def _context_hint(text: str) -> str:
-        low = text.lower()
-        if any(hint in low for hint in _CONSTRUCT_HINTS):
-            return "experimental_construct"
-        if any(hint in low for hint in _CLINICAL_HINTS):
-            return "clinical_allele"
-        return "unknown"
-
     # -- resolution gate --------------------------------------------------
 
     def _gate(self, candidate: PaperVariantCandidate) -> ValidatedPaperVariant:
+        if candidate.context == "bibliography_only":
+            return _ungated(candidate, status="bibliography_only_excluded")
         if candidate.transcript_hgvs:
-            return self._resolve_cdna_or_genomic_candidate(candidate)
-        if candidate.protein_change or candidate.protein_hgvs:
-            return self._resolve_protein_candidate(candidate)
-        return _ungated(candidate, status="missing")
+            resolved = self._resolve_cdna_or_genomic_candidate(candidate)
+        elif candidate.protein_change or candidate.protein_hgvs:
+            resolved = self._resolve_protein_candidate(candidate)
+        else:
+            return _ungated(candidate, status="missing")
+        if candidate.context in _NON_ACTIONABLE_CONTEXTS:
+            status = f"{candidate.context}_non_actionable"
+            if "fixture_source_unavailable" in resolved.validation_status:
+                status = f"{candidate.context}_fixture_source_unavailable"
+            return resolved.model_copy(
+                update={
+                    "validated": False,
+                    "validation_status": status,
+                    "variant_id": None,
+                    "genomic_hgvs": None,
+                    "resolved_candidate_id": None,
+                    "source_support": [],
+                }
+            )
+        return resolved
 
     def _resolve_cdna_or_genomic_candidate(
         self,
@@ -229,31 +203,76 @@ class PaperVariantsService:
                 protein_change=candidate.protein_hgvs or candidate.protein_change,
             )
         except Exception as exc:  # resolver boundary - unvalidated, never crash
-            logger.warning("paper variant search-input resolution failed", exc_info=True)
+            logger.warning(
+                "paper variant search-input resolution failed (error_type=%s)",
+                type(exc).__name__,
+            )
             return _ungated(candidate, status=f"resolver_failed:{type(exc).__name__}")
 
         exact_candidate = self.candidate_resolver.exact_candidate(resolution)
         if exact_candidate is not None:
-            return _resolved_from_candidate(
-                candidate,
-                resolution=resolution,
-                resolved=exact_candidate,
-                status="resolved",
-            )
+            if self._is_fixture_candidate(exact_candidate):
+                if not _coordinate_source_support(resolution):
+                    return _ungated(
+                        candidate,
+                        status="fixture_source_unavailable",
+                        resolver_warnings=["fixture_candidate_blocked"],
+                        resolver_provenance=[
+                            "eamos_search_input_resolver",
+                            "fixture_candidate_blocked",
+                        ],
+                    )
+            else:
+                if not _candidate_has_source_support(exact_candidate):
+                    return _ungated(
+                        candidate,
+                        status="source_verification_required",
+                        source_inputs=_source_inputs_schema(resolution),
+                        resolver_warnings=list(resolution.warnings),
+                        resolver_provenance=[
+                            "eamos_search_input_resolver",
+                            "candidate_source_support_missing",
+                            *resolution.provenance,
+                        ],
+                    )
+                return _resolved_from_candidate(
+                    candidate,
+                    resolution=resolution,
+                    resolved=exact_candidate,
+                    status="resolved",
+                )
 
         if resolution.genomic_hg38 or resolution.genomic_hgvs:
+            source_support = _coordinate_source_support(resolution)
+            if not source_support:
+                return _ungated(
+                    candidate,
+                    status="source_verification_required",
+                    source_inputs=_source_inputs_schema(resolution),
+                    resolver_warnings=list(resolution.warnings),
+                    resolver_provenance=[
+                        "eamos_search_input_resolver",
+                        *resolution.provenance,
+                    ],
+                )
             return _resolved(
                 candidate,
                 validated=True,
                 status="resolved",
                 variant_id=resolution.genomic_hg38,
                 genomic_hgvs=resolution.genomic_hgvs,
+                resolved_candidate_id=f"coordinate:{resolution.genomic_hg38 or resolution.genomic_hgvs}",
+                source_support=source_support,
                 source_inputs=_source_inputs_schema(resolution),
                 resolver_warnings=list(resolution.warnings),
                 resolver_provenance=["eamos_search_input_resolver", *resolution.provenance],
             )
 
-        candidates = self.candidate_resolver.resolve_candidates(resolution)
+        candidates = [
+            item
+            for item in self.candidate_resolver.resolve_candidates(resolution)
+            if not self._is_fixture_candidate(item)
+        ]
         if candidates:
             return _ungated(
                 candidate,
@@ -284,11 +303,19 @@ class PaperVariantsService:
                 protein_change=protein_hgvs,
             )
         except Exception as exc:  # resolver boundary - unvalidated, never crash
-            logger.warning("paper protein search-input resolution failed", exc_info=True)
+            logger.warning(
+                "paper protein search-input resolution failed (error_type=%s)",
+                type(exc).__name__,
+            )
             return _ungated(candidate, status=f"resolver_failed:{type(exc).__name__}")
 
-        candidates = self.candidate_resolver.resolve_candidates(resolution)
-        high_confidence = [item for item in candidates if item.confidence == "high"]
+        all_candidates = self.candidate_resolver.resolve_candidates(resolution)
+        candidates = [item for item in all_candidates if not self._is_fixture_candidate(item)]
+        high_confidence = [
+            item
+            for item in candidates
+            if item.confidence == "high" and _candidate_has_source_support(item)
+        ]
         if (
             candidate.context != "experimental_construct"
             and len(candidates) == 1
@@ -302,8 +329,16 @@ class PaperVariantsService:
             )
 
         status = "protein_only_unresolved"
-        if candidates:
+        if (
+            len(candidates) == 1
+            and candidates[0].confidence == "high"
+            and not _candidate_has_source_support(candidates[0])
+        ):
+            status = "source_verification_required"
+        elif candidates:
             status = "candidates"
+        elif all_candidates and not candidates:
+            status = "fixture_source_unavailable"
         elif candidate.context == "experimental_construct":
             status = "experimental_construct"
 
@@ -316,13 +351,222 @@ class PaperVariantsService:
             resolver_provenance=["eamos_search_input_resolver", "search_candidate_resolver"],
         )
 
+    def _is_fixture_candidate(self, candidate: SearchInputCandidate) -> bool:
+        return candidate.candidate_id in _default_fixture_candidate_ids()
+
     def _search_input_resolver(self) -> EamosSearchInputResolver:
         if self.input_resolver is None:
             self.input_resolver = EamosSearchInputResolver(
-                settings=self.settings,
-                resolve_coordinates=bool(getattr(self.settings, "use_real_apis", False)),
+                # Paper L1-L3 is an offline capability. Composition may inject an
+                # approved source-backed/local resolver, but generic runtime API
+                # flags must never silently transmit publication-derived input.
+                settings=None,
+                resolve_coordinates=False,
             )
         return self.input_resolver
+
+
+def _resolution_for_record(
+    record: DetectedMention,
+    *,
+    variant: ValidatedPaperVariant,
+    validate: bool,
+) -> PaperMentionResolutionV2:
+    mention = record.mention
+    if mention.biological_context == "bibliography_only":
+        disclosure = CapabilityExecutionDisclosureV2(
+            capability_id="paper_allele_resolution",
+            claim="Resolve one deterministic publication mention to a source-backed allele.",
+            execution="unavailable",
+            input_scope=f"mention:{mention.mention_id}",
+            source_status="not_applicable",
+            applicability="not_applicable",
+            validation_status="not_applicable",
+            retention="request_lifetime",
+            consent_required=False,
+            warnings=["bibliography_only_mentions_are_not_actionable"],
+            requirements=[],
+        )
+        return PaperMentionResolutionV2(
+            mention_id=mention.mention_id,
+            status="excluded",
+            canonical_variant=None,
+            candidate_ids=[],
+            execution_disclosure=disclosure,
+            warnings=["Bibliography-only mention excluded from candidate resolution."],
+        )
+
+    candidate_ids = _opaque_candidate_ids(variant)
+    canonical = _canonical_variant(record, variant)
+    if variant.validated and canonical is not None:
+        source_ids = _opaque_source_ids(variant)
+        disclosure = _resolution_disclosure(
+            mention_id=mention.mention_id,
+            source_status="source_backed",
+            source_record_ids=source_ids,
+            validation_status="validated",
+        )
+        resolved_id = _opaque_id(
+            variant.resolved_candidate_id or variant.variant_id or mention.mention_id
+        )
+        return PaperMentionResolutionV2(
+            mention_id=mention.mention_id,
+            status="resolved",
+            canonical_variant=canonical,
+            candidate_ids=[resolved_id],
+            execution_disclosure=disclosure,
+            warnings=[],
+        )
+
+    if (
+        "fixture_source_unavailable" in variant.validation_status
+        or variant.validation_status == "source_verification_required"
+    ):
+        disclosure = CapabilityExecutionDisclosureV2(
+            capability_id="paper_allele_resolution",
+            claim="Resolve one deterministic publication mention to a source-backed allele.",
+            execution="unavailable",
+            input_scope=f"mention:{mention.mention_id}",
+            source_status="unavailable",
+            applicability="applicable",
+            validation_status="unvalidated",
+            retention="request_lifetime",
+            consent_required=False,
+            warnings=[variant.validation_status],
+            requirements=["source_backed_allele_resolver_or_mounted_artifact"],
+        )
+        return PaperMentionResolutionV2(
+            mention_id=mention.mention_id,
+            status="unresolved",
+            canonical_variant=None,
+            candidate_ids=[],
+            execution_disclosure=disclosure,
+            warnings=["Illustrative or unverified resolver data cannot enable actions."],
+        )
+
+    if not validate:
+        disclosure = CapabilityExecutionDisclosureV2(
+            capability_id="paper_allele_resolution",
+            claim="Resolve one deterministic publication mention to a source-backed allele.",
+            execution="unavailable",
+            input_scope=f"mention:{mention.mention_id}",
+            source_status="unavailable",
+            applicability="applicable",
+            validation_status="unvalidated",
+            retention="request_lifetime",
+            consent_required=False,
+            warnings=[],
+            requirements=["enable_source_backed_allele_resolution"],
+        )
+        status = "ambiguous" if candidate_ids else "unresolved"
+    else:
+        failed = variant.validation_status.startswith("resolver_failed:")
+        disclosure = _resolution_disclosure(
+            mention_id=mention.mention_id,
+            source_status=(
+                "unavailable" if failed else ("source_backed" if candidate_ids else "not_found")
+            ),
+            source_record_ids=candidate_ids,
+            validation_status="failed" if failed else "unvalidated",
+            warnings=[variant.validation_status] if failed else [],
+        )
+        status = "ambiguous" if candidate_ids else "unresolved"
+    context_warning = (
+        [f"{mention.biological_context}_mention_is_not_a_clinical_allele"]
+        if mention.biological_context in _NON_ACTIONABLE_CONTEXTS
+        else []
+    )
+    return PaperMentionResolutionV2(
+        mention_id=mention.mention_id,
+        status=status,
+        canonical_variant=None,
+        candidate_ids=candidate_ids,
+        execution_disclosure=disclosure,
+        warnings=context_warning,
+    )
+
+
+def _resolution_disclosure(
+    *,
+    mention_id: str,
+    source_status: str,
+    source_record_ids: list[str],
+    validation_status: str,
+    warnings: list[str] | None = None,
+) -> CapabilityExecutionDisclosureV2:
+    return CapabilityExecutionDisclosureV2(
+        capability_id="paper_allele_resolution",
+        claim="Resolve one deterministic publication mention to a source-backed allele.",
+        execution="eamos_local",
+        algorithm_id="eamos_search_input_resolver",
+        algorithm_version="2.0.0",
+        input_scope=f"mention:{mention_id}",
+        source_status=source_status,
+        source_record_ids=source_record_ids,
+        applicability="applicable",
+        validation_status=validation_status,
+        validation_matrix_id="paper-resolution-v2",
+        retention="request_lifetime",
+        consent_required=False,
+        warnings=warnings or [],
+        requirements=[],
+    )
+
+
+def _canonical_variant(
+    record: DetectedMention,
+    variant: ValidatedPaperVariant,
+) -> CanonicalVariantRefV1 | None:
+    selected = variant.candidates[0] if len(variant.candidates) == 1 else None
+    gene = (selected.gene if selected else None) or variant.gene
+    cdna = (selected.cdna if selected else None) or variant.transcript_hgvs
+    transcript = (selected.transcript if selected else None) or (
+        record.mention.transcript_evidence[0] if record.mention.transcript_evidence else None
+    )
+    if cdna and ":" in cdna:
+        prefix, cdna = cdna.split(":", 1)
+        transcript = transcript or re.sub(r"\([A-Z][A-Z0-9-]{1,14}\)$", "", prefix)
+    if not gene or not cdna or not variant.variant_id or not variant.source_support:
+        return None
+    protein = (selected.protein_change if selected else None) or variant.protein_hgvs
+    genomic_hg38 = (selected.genomic_hg38 if selected else None) or variant.variant_id
+    return CanonicalVariantRefV1(
+        schema_version="canonical_variant_ref.v1",
+        gene=gene,
+        cdna=cdna,
+        transcript=transcript,
+        protein_hgvs=protein,
+        genomic_hg38=genomic_hg38,
+        variant_key=variant.variant_id,
+        species="human",
+        genome_build="GRCh38",
+        resolution_status="resolved",
+        source_support=list(dict.fromkeys(variant.source_support)),
+        warnings=[],
+    )
+
+
+def _opaque_candidate_ids(variant: ValidatedPaperVariant) -> list[str]:
+    values = [candidate.candidate_id for candidate in variant.candidates]
+    if variant.resolved_candidate_id:
+        values.append(variant.resolved_candidate_id)
+    return list(dict.fromkeys(_opaque_id(value) for value in values))[:32]
+
+
+def _opaque_source_ids(variant: ValidatedPaperVariant) -> list[str]:
+    values = [*variant.source_support]
+    if variant.resolved_candidate_id:
+        values.append(variant.resolved_candidate_id)
+    if variant.variant_id:
+        values.append(variant.variant_id)
+    return list(dict.fromkeys(_opaque_id(value, prefix="source") for value in values))[:128]
+
+
+def _opaque_id(value: str, *, prefix: str = "candidate") -> str:
+    import hashlib
+
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+    return f"{prefix}-{digest}"
 
 
 def _resolved(
@@ -424,8 +668,21 @@ def _source_inputs_schema(resolution: SearchInputResolution) -> SearchInputSourc
     )
 
 
-def _looks_like_protein_or_catalog_token(token: str) -> bool:
-    if _PROTEIN_LIKE_TOKEN_RE.match(token):
-        return True
-    digits = sum(1 for char in token if char.isdigit())
-    return digits >= 3 and token[0] in "ACDEFGHIKLMNPQRSTVWY"
+def _coordinate_source_support(resolution: SearchInputResolution) -> list[str]:
+    support: list[str] = []
+    if "eamos_local_coordinate_resolver" in resolution.provenance:
+        support.append("Eamos local transcript-coordinate resolver")
+    if "variant_validator_grch38_vcf" in resolution.provenance:
+        support.append("VariantValidator GRCh38 coordinate response")
+    return support
+
+
+def _candidate_has_source_support(candidate: SearchInputCandidate) -> bool:
+    return bool(candidate.source_support) and candidate.source_count > 0
+
+
+@lru_cache(maxsize=1)
+def _default_fixture_candidate_ids() -> frozenset[str]:
+    return frozenset(
+        record.candidate_id for record in SearchCandidateResolver(settings=None).records
+    )
