@@ -25,36 +25,34 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED AT PR #18 MERGE APPROVAL GATE @ 2026-07-22 14:08 +0000.
-- **Serial contract gate:** PR #18 on `agent/product/contract-binding` is fully
-  green: all GitHub Actions
-  jobs, dependency security, Vercel, full local backend/web suites, structural
-  guards, and the frontend-contract canary passed. It remains unmerged pending
-  Steven's explicit approval.
-- **Lane B:** PR #16, `agent/product/workflow-backend@682048b`. The Library
-  legacy-replace regression and both structure-budget failures are fixed. Full
-  local backend and every branch-specific CI/Vercel check pass; dependency
-  security alone is red because this pre-contract branch still carries the old
-  lockfile. Rebase only after #18 merges.
-- **Lane C:** PR #17, `agent/product/surface-flow@fd5e4f3`. CompareClient was
-  split below its structure budget without UI behavior changes. Full local web
-  verification and every branch-specific CI/Vercel check pass; dependency
-  security has the same pre-contract-only failure. It remains downstream of B
-  and Task F.
-- **Task F:** no remote migration was applied. It remains a separate, fresh
-  founder-approved Supabase mutation checkpoint after B merges and before C.
-- **Phase-3c recovery/end:** the 2026-07-22 13:33 UTC public sample is green
-  across DNS/HTTP/TLS/headers/CORS/auth/health/provider parity, deterministic
-  parse, and two production report-performance runs. Independent read-only
-  host/container evidence is requested from Swordfish and still pending.
-  Render remains live as rollback; no Phase 4 action occurred.
+- **Codex:** STOPPED AT TASK F EXACT-MUTATION GATE @ 2026-07-22 14:30 +0000.
+- **Serial contract + backend:** PR #18 merged as `55300f4`; PR #16 merged as
+  `5c5a950`. Their PR and post-merge `main` CI runs passed every backend shard,
+  web/type/lint/build, structural/coordination guard, dependency audit,
+  container contract, Vercel, and immutable-image publication.
+- **Lane C:** PR #17, `agent/product/surface-flow@84c8655`, is rebased onto
+  `5c5a950`, mergeable, and fully green including dependency security and
+  Vercel. Steven pre-approved the code merges, but C remains held behind the
+  successful Task F checkpoint.
+- **Task F:** no remote migration was applied. Read-only `eamos-dev`
+  (`cpdjxsgasaesysvxkpmi`) inventory confirms both `user_library` and the two
+  `product_workflow_*` tables are absent; the migration ledger ends at the two
+  variant-library migrations, security advisors are clear, the source bucket
+  remains private, and performance findings are informational unused indexes.
+  Applying the two reviewed migrations remains a separate exact mutation-card
+  approval.
+- **Phase 3 / Render:** Phase 3 is closed. The 13:33 UTC public end sample and
+  Swordfish's independent 14:21 UTC syd2 host/container sample are green: exact
+  digest and 23-file/47,943,536,945-byte tree, no restart/5xx/429/OOM/cgroup
+  pressure since recovery, unchanged hardening, and healthy headroom. Phase 4
+  may retire the Render rollback; no Render disk or service was deleted here.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 14:08 +0000 · Codex
+UNLOCKED · 2026-07-22 14:30 +0000 · Codex
 
 ## Shared File Locks
 
@@ -63,27 +61,27 @@ UNLOCKED · 2026-07-22 14:08 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 14:08 +0000 · Codex Product Workflow serial merge gate
+# Resume prompt · 2026-07-22 14:30 +0000 · Codex Task F mutation gate
 Read CURRENT.md, COORDINATION.md, and plans/product-workflow-integration/{plan,spec}.md first.
-PR #18 is fully green and awaits Steven's explicit merge approval.
-Do not merge #18 unless Steven approves it by name; no other gate is waived.
-After approval, lead merges #18, verifies main, rebases PR #16, and watches fresh CI.
-PR #16 at 682048b passes every branch-specific check; only the pre-contract dependency lock is red.
-Once rebased CI is fully green, pause again for Steven's explicit Lane B merge approval.
-Task F remains a separate fresh Supabase mutation approval after B merges.
-PR #17 at fd5e4f3 stays downstream of successful Task F; do not merge it early.
-Check ASK-BACKS/FROM-SWORDFISH for the pending Phase-3c host/container evidence.
-No remote Supabase/cloud/deploy/provider/source/Phase-7 or Render action is authorized.
+PR #18 (55300f4) and PR #16 (5c5a950) are merged with green post-merge CI and image publication.
+PR #17 at 84c8655 is fully green and merge-pre-approved, but stays downstream of successful Task F.
+Task F read-only inventory is captured; no remote migration has been applied.
+Before mutation, present the filled exact card for eamos-dev cpdjxsgasaesysvxkpmi: user_library_document then product_workflow_runs, with rollback and redaction plan.
+Only an explicit Task F Supabase mutation approval authorizes those two apply_migration calls.
+After successful apply and verification, merge PR #17 under the existing code approval and verify main.
+Phase 3 is closed from public plus independent host evidence; Render Phase 4 is ready, but no provider deletion was performed.
+If Steven deletes Render, verify the old service/disk target and then recheck syd2/Vercel production health; deleting only the disk does not stop paid service compute.
+No other cloud/deploy/provider/source/Phase-7 action is authorized.
 Preserve watcher-owned FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Contract gate: PR #18, `agent/product/contract-binding`, worktree
+- Contract gate (merged): PR #18, `agent/product/contract-binding@85eb238`, worktree
   `.claude/worktrees/product-contract-binding`.
-- Lane B: PR #16, `agent/product/workflow-backend@682048b`, worktree
+- Lane B (merged): PR #16, `agent/product/workflow-backend@824fc0d`, worktree
   `.claude/worktrees/product-workflow-backend`.
-- Lane C: PR #17, `agent/product/surface-flow@fd5e4f3`, worktree
+- Lane C: PR #17, `agent/product/surface-flow@84c8655`, worktree
   `.claude/worktrees/product-surface-flow`.
 - Product contract/plan: `plans/product-workflow-integration/`.
 - Local-only migration: `supabase/migrations/20260719113620_product_workflow_runs.sql`.
@@ -95,7 +93,7 @@ Preserve watcher-owned FROM-SWORDFISH.md.
 ## Delta
 
 - GitHub Actions billing is restored and jobs execute normally.
-- PR #18 froze the additive Workbench design-context envelope, canonical
+- PR #18 merged the additive Workbench design-context envelope, canonical
   cross-language digest semantics, Pydantic/TypeScript canaries, and supported
   dependency overrides; its clean clone installs with zero vulnerabilities.
 - Lane B now preserves legacy whole-document Library clearing until v2 reserved
@@ -104,12 +102,16 @@ Preserve watcher-owned FROM-SWORDFISH.md.
 - Lane C's Compare run-output panels moved into a cohesive presentation module;
   the Impeccable product rules kept state, accessibility, and responsive
   behavior unchanged.
-- No merge, remote Supabase mutation, cloud/deploy/provider/source action,
-  Phase 4, or Phase 7 action occurred.
+- PR #16 merged the durable backend and its repaired Library/structure slices;
+  PR #17 is rebased and green but held behind Task F.
+- Phase 3 closed on independent evidence. No remote Supabase mutation,
+  Render deletion, deploy/provider/source action, or Phase 7 action occurred.
 
 ## Next Action
 
-- Wait for Steven's explicit approval to merge fully-green PR #18. On approval,
-  merge it as lead, verify `main`, then rebase PR #16 onto the new contract
-  base and run the serialized CI/review gate. Also ingest Swordfish's pending
-  Phase-3c host evidence when it arrives.
+- Present Task F's filled exact mutation approval card. On explicit approval,
+  apply `user_library_document` then `product_workflow_runs` once to the named
+  `eamos-dev` project, verify ledger/tables/RLS/grants/advisors/two-owner
+  isolation, then merge fully-green PR #17 and verify `main`. Phase 4 Render
+  retirement is founder-performed and remains destructive; verify production
+  immediately after Steven completes it.

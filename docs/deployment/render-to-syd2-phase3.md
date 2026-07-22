@@ -1,11 +1,11 @@
 # Render to syd2 Phase-3 Seed and Cutover
 
 Status: Phase 3a exact-manifest green; internal Phase 3b Compose proof and
-two-party tenant-grant verification green; Phase 3c public endpoint and Vercel
-traffic cutover live; recovery soak restarted after a shared-edge outage;
-Render rollback live; Phase 4 held
+two-party tenant-grant verification green; Phase 3c public endpoint, Vercel
+traffic cutover, recovery soak, and independent host/container end sample
+green; Phase 3 closed; Render rollback ready for a separate Phase-4 retirement
 
-Last verified: 2026-07-19 05:03 +0000 - Codex
+Last verified: 2026-07-22 14:25 +0000 - Codex + Swordfish
 
 Steven directly issued `phase 3 go` in the Eamos session at 2026-07-17
 08:10 UTC. That authorizes the coordinated Phase 3 sequence: bulk seed,
@@ -431,3 +431,37 @@ pass:
 A clean soak closes Phase 3 only. It does not authorize Render cancellation.
 Only Steven may separately open Phase 4 after the seed, preservation, and soak
 proofs are all green.
+
+#### Recovery end sample and Phase-3 closure - 2026-07-22 14:25 +0000
+
+The delayed recovery end sample is green. Eamos's public sample at 13:33 UTC
+reconfirmed DNS/TLS, direct and Vercel origin identity, Render rollback health,
+security headers/CORS/auth rejection, deterministic parse, and two complete
+production report/viewer passes. Swordfish then independently sampled syd2 at
+`2026-07-22T14:21:36Z` using read-only host and container inspection.
+
+- The container remained on the frozen image digest with `RestartCount=0` and
+  continuous uptime since before the `2026-07-19T01:46:12Z` recovery anchor.
+- Health probes were green; anchored application and Traefik tallies contained
+  zero 5xx, 429, traceback, ERROR/CRITICAL, or OOM events since recovery.
+- The runtime tree remained exactly 23 files / 47,943,536,945 bytes, and the
+  read-only mounts, numeric identity, capability drop, no-new-privileges,
+  CPU/memory/PID limits, two-network shape, and zero published ports remained
+  exact.
+- Cgroup `low/high/max/oom/oom_kill` stayed zero. Cache-inclusive memory peak
+  was about 1.70 GiB of the 2 GiB cap, while reclaimable-excluded live usage was
+  886.2 MiB; disk retained 34 GiB free.
+- Dokploy retained `autoDeploy=false`, one approved domain, and the exact
+  55-name injected environment boundary. Ten additional running-process names
+  were traced to the Python base image and Dockerfile path defaults, not
+  out-of-band injection.
+- Application rate limiting remained enabled. The edge retained its global
+  100-request in-flight bound and security headers; the intentionally
+  unattached IP-keyed 25/s router limiter remains a non-blocking future design
+  question because the Next proxy would collapse all users into one IP bucket.
+
+This closes every Phase-3c evidence gate above and therefore closes Phase 3.
+The exact-byte preservation and nothing-only-on-Render proofs were already
+green, so Phase 4 may now retire the Render rollback when Steven explicitly
+performs that destructive provider action. No Render disk or service was
+deleted by this verification.

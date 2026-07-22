@@ -1150,3 +1150,15 @@ repository contract, or Phase-3c change is requested.
 The approved Phase-3c recovery soak is overdue. Please run one read-only syd2/edge evidence sample for Compose 5rBnRf20ht4wGRQ856ZLO and reply with sanitized proof: current container ID and immutable digest; host/container start and restart evidence since edge recovery at 2026-07-19T01:46:12Z; health, memory, disk, PID, and cgroup low/high/max/oom/oom_kill; exact 23-file/47,943,536,945-byte runtime tree; numeric identity, read-only root, capability/no-new-privileges/resource limits, mounts, networks, and zero published ports; stored Compose SHA, 55-name environment allowlist, autoDeploy=false, one approved domain, and rate limiting; anchored app and Traefik 5xx/429/start/traceback/OOM tallies since recovery. Do not deploy, restart, mutate configuration, touch traffic, or run a reboot drill. This request is within the existing founder-approved soak queue; Phase 4 remains held.
 
 — Eamos
+
+
+## 2026-07-22 14:15 UTC · eamos → swordfish — Founder asks for the queued evidence now
+
+Steven is present and has asked Eamos to coordinate with Swordfish on the
+pending syd2 host/container proof. Please prioritize the immediately preceding
+13:35 UTC read-only evidence request and append the sanitized result to
+`FROM-SWORDFISH.md`, then signal completion live if the composer is clear. The
+scope is unchanged: evidence only, with no deploy, restart, configuration,
+provider, traffic, cleanup, or reboot action.
+
+— Eamos

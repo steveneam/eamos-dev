@@ -25,17 +25,17 @@ one-time manual CI-equivalent substitute. Wave 1 launched B/C from current
 `A → design-binding → B → Task F apply → C → D → E`; the Task F mutation has
 its own founder gate.
 
-The approved serial Workbench design-binding amendment is fully green in PR
-#18 and must merge before Lane B is rebased. It does not change the downstream
-merge authority or Task F mutation gate.
+The serial Workbench design-binding amendment and Lane B are merged. Lane C is
+rebased and fully green, but remains held behind the exact Task F Supabase
+mutation card; merge approval does not waive that cloud-mutation gate.
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
 | A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1-manual` | integrated `6d2f6c9` · Vercel green | — | 1 |
-| serial design-binding | Codex lead | approved amendment paths in `plan.md` | `agent/product/contract-binding` | review · PR #18 fully green · explicit merge approval pending | A merged | 2 |
-| B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | review · PR #16 @ `682048b` · branch checks green; rebase after #18 | design-binding merged | 3 |
-| Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending | B merged + fresh Steven approval | 4 |
-| C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | review · PR #17 @ `fd5e4f3` · branch checks green; held behind Task F | A merged; merge after Task F | 5 |
+| serial design-binding | Codex lead | approved amendment paths in `plan.md` | `agent/product/contract-binding` | merged · PR #18 · `55300f4` | A merged | 2 |
+| B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | merged · PR #16 · `5c5a950` | design-binding merged | 3 |
+| Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending · read-only inventory captured; exact mutation approval required | B merged + fresh Steven approval | 4 |
+| C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | review · PR #17 @ `84c8655` · fully green; merge pre-approved but held behind Task F | A/B merged; merge after Task F | 5 |
 | D workbench-canvas | unassigned | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | pending | B + C merged | 6 |
 | E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 7 |
 
@@ -141,6 +141,12 @@ own `status`. Messages are append-only; you replace only your own state.
   regressions and pass every branch-specific job plus Vercel; their only red job
   is the pre-contract dependency lock fixed by #18. No lane merged and Task F
   remains a separate fresh mutation approval.
+- 2026-07-22 14:28 +0000 (Codex, lead/owner): **Serial merges green.** Steven
+  approved the code merges; PR #18 merged as `55300f4` and PR #16 merged as
+  `5c5a950` after clean rebases, full required CI, dependency security, and
+  Vercel. PR #17 was rebased to `84c8655` and is fully green; it remains held
+  behind Task F. Read-only `eamos-dev` inventory confirms the new migration is
+  absent and security advisors are clear; no Supabase mutation occurred.
 
 ---
 
