@@ -25,22 +25,23 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED AT TASK F EXACT-MUTATION GATE @ 2026-07-22 14:30 +0000.
-- **Serial contract + backend:** PR #18 merged as `55300f4`; PR #16 merged as
-  `5c5a950`. Their PR and post-merge `main` CI runs passed every backend shard,
-  web/type/lint/build, structural/coordination guard, dependency audit,
-  container contract, Vercel, and immutable-image publication.
-- **Lane C:** PR #17, `agent/product/surface-flow@84c8655`, is rebased onto
-  `5c5a950`, mergeable, and fully green including dependency security and
-  Vercel. Steven pre-approved the code merges, but C remains held behind the
-  successful Task F checkpoint.
-- **Task F:** no remote migration was applied. Read-only `eamos-dev`
-  (`cpdjxsgasaesysvxkpmi`) inventory confirms both `user_library` and the two
-  `product_workflow_*` tables are absent; the migration ledger ends at the two
-  variant-library migrations, security advisors are clear, the source bucket
-  remains private, and performance findings are informational unused indexes.
-  Applying the two reviewed migrations remains a separate exact mutation-card
-  approval.
+- **Codex:** ACTIVE @ 2026-07-22 14:56 +0000 — landing-page variant-search
+  positioning slice requested by Steven; Task F and Lane C are complete.
+- **Product Workflow V1:** serial contract, B, and C are integrated. Steven
+  approved Task F's filled exact card; `user_library_document` and
+  `product_workflow_runs` applied to `eamos-dev` as remote ledger entries
+  `20260722144613` and `20260722144619`. Exact metadata, grants, RLS, advisors,
+  rollback-scoped two-owner isolation, and zero residual rows all verified.
+- **Lane C:** PR #17 merged as `0d52e11` (head `f880655`). Post-merge `main` CI
+  run `29930639353` passed all web, backend, security, container, coordination,
+  and immutable-image pull-back jobs. Lanes D/E remain pending and unlaunched.
+- **Landing exit contract:** remove the rendered founder photo; reposition Eamos
+  as a next-generation variant search engine around the wired 11-engine catalog,
+  release-labelled scores/status, and version-pinned ACMG/AMP criteria. Signal
+  readiness for forthcoming SVC v4 without calling the current ruleset v4.
+  Verify test/type/lint/build, web boundary, and responsive browser audit; then
+  commit/push a focused branch and open/watch its PR. No backend/ruleset change,
+  image-asset deletion, deploy, merge, or cloud/provider mutation is authorized.
 - **Phase 3 / Render:** Phase 3 is closed. The 13:33 UTC public end sample and
   Swordfish's independent 14:21 UTC syd2 host/container sample are green: exact
   digest and 23-file/47,943,536,945-byte tree, no restart/5xx/429/OOM/cgroup
@@ -52,7 +53,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 14:30 +0000 · Codex
+UNLOCKED · 2026-07-22 14:56 +0000 · Codex
 
 ## Shared File Locks
 
@@ -61,57 +62,49 @@ UNLOCKED · 2026-07-22 14:30 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 14:30 +0000 · Codex Task F mutation gate
-Read CURRENT.md, COORDINATION.md, and plans/product-workflow-integration/{plan,spec}.md first.
-PR #18 (55300f4) and PR #16 (5c5a950) are merged with green post-merge CI and image publication.
-PR #17 at 84c8655 is fully green and merge-pre-approved, but stays downstream of successful Task F.
-Task F read-only inventory is captured; no remote migration has been applied.
-Before mutation, present the filled exact card for eamos-dev cpdjxsgasaesysvxkpmi: user_library_document then product_workflow_runs, with rollback and redaction plan.
-Only an explicit Task F Supabase mutation approval authorizes those two apply_migration calls.
-After successful apply and verification, merge PR #17 under the existing code approval and verify main.
-Phase 3 is closed from public plus independent host evidence; Render Phase 4 is ready, but no provider deletion was performed.
-If Steven deletes Render, verify the old service/disk target and then recheck syd2/Vercel production health; deleting only the disk does not stop paid service compute.
-No other cloud/deploy/provider/source/Phase-7 action is authorized.
+# Resume prompt · 2026-07-22 14:56 +0000 · Codex landing positioning
+Read CURRENT.md, COORDINATION.md, PRODUCT.md, DESIGN.md, and the Impeccable skill first.
+Task F is applied and fully verified; its sanitized receipt is in docs/db/supabase-inventory.md.
+PR #17 merged as 0d52e11; post-merge main CI 29930639353 is fully green.
+Finish the requested landing copy/metadata pass and remove the rendered founder photo.
+Portray Eamos as next-generation variant search with 11 predictors, traceable release-labelled scores, and version-pinned ACMG/AMP criteria.
+Mention readiness for forthcoming SVC v4 only; never label the active ruleset v4 before final review/activation.
+Run web test/type/lint/build, boundary, and responsive browser audits.
+Commit/push the focused branch, open/update its PR, and watch CI/Vercel; do not merge without Steven approval.
+Lanes D/E need a fresh parallel-lane launch approval and are not part of this slice.
+No deploy/cloud/provider/source/Phase-7 action is authorized.
 Preserve watcher-owned FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Contract gate (merged): PR #18, `agent/product/contract-binding@85eb238`, worktree
-  `.claude/worktrees/product-contract-binding`.
-- Lane B (merged): PR #16, `agent/product/workflow-backend@824fc0d`, worktree
-  `.claude/worktrees/product-workflow-backend`.
-- Lane C: PR #17, `agent/product/surface-flow@84c8655`, worktree
-  `.claude/worktrees/product-surface-flow`.
-- Product contract/plan: `plans/product-workflow-integration/`.
-- Local-only migration: `supabase/migrations/20260719113620_product_workflow_runs.sql`.
-- Task F runbook:
+- Product workflow board: `COORDINATION.md`; plan:
+  `plans/product-workflow-integration/`; Lane C merge: PR #17 / `0d52e11`.
+- Task F durable receipt: `docs/db/supabase-inventory.md`; exact runbook:
   `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`.
+- Landing copy surfaces: `app/web/components/landing/{LandingClient,HowItWorks,FeaturesGrid,Faq,Testimonials,SiteFooter}.tsx`.
+- Landing metadata: `app/web/app/layout.tsx`; browser audit:
+  `scripts/eamos-capture-landing-features.mjs`.
+- ACMG/SVC v4 activation boundary: `plans/evidence-source-expansion/`.
+- Product contract/plan: `plans/product-workflow-integration/`.
 - Phase-3c evidence contract: `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- GitHub Actions billing is restored and jobs execute normally.
-- PR #18 merged the additive Workbench design-context envelope, canonical
-  cross-language digest semantics, Pydantic/TypeScript canaries, and supported
-  dependency overrides; its clean clone installs with zero vulnerabilities.
-- Lane B now preserves legacy whole-document Library clearing until v2 reserved
-  rows appear, while keeping the v2 tombstone merge ratchet sticky. Backend
-  hotspots were split without changing their APIs.
-- Lane C's Compare run-output panels moved into a cohesive presentation module;
-  the Impeccable product rules kept state, accessibility, and responsive
-  behavior unchanged.
-- PR #16 merged the durable backend and its repaired Library/structure slices;
-  PR #17 is rebased and green but held behind Task F.
-- Phase 3 closed on independent evidence. No remote Supabase mutation,
-  Render deletion, deploy/provider/source action, or Phase 7 action occurred.
+- Task F created the three reviewed account-owned workflow/library tables only;
+  it did not mutate Storage/source assets, provider/env state, or Phase 7.
+- The two-principal verification ran inside a rolled-back transaction and left
+  every new table empty. Security advisors remain clear.
+- Product Workflow V1 A/B/C are integrated; D/E are the next planned lanes but
+  require Steven's fresh named-lane launch approval.
+- The landing update is a coupled copy/metadata presentation slice. The founder
+  image file stays on disk; only its page rendering is removed.
+- Phase 3 remains closed on independent evidence. No Render deletion, deploy,
+  provider/source action, or Phase 7 action occurred.
 
 ## Next Action
 
-- Present Task F's filled exact mutation approval card. On explicit approval,
-  apply `user_library_document` then `product_workflow_runs` once to the named
-  `eamos-dev` project, verify ledger/tables/RLS/grants/advisors/two-owner
-  isolation, then merge fully-green PR #17 and verify `main`. Phase 4 Render
-  retirement is founder-performed and remains destructive; verify production
-  immediately after Steven completes it.
+- Finish the landing copy/metadata/photo-removal exit contract, verify it locally
+  including responsive browser evidence, then commit/push a focused branch,
+  open its PR, and watch CI/Vercel. Stop before merge for Steven's approval.

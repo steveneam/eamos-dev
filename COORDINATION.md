@@ -9,7 +9,7 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Product Workflow V1 ACTIVE — contract amendment and B/C in review._ Historical
+**Status:** _Product Workflow V1 ACTIVE — A/B/C integrated; D/E pending._ Historical
 Mode-A dogfood completed 2026-07-03; its record remains below.
 
 ---
@@ -25,17 +25,20 @@ one-time manual CI-equivalent substitute. Wave 1 launched B/C from current
 `A → design-binding → B → Task F apply → C → D → E`; the Task F mutation has
 its own founder gate.
 
-The serial Workbench design-binding amendment and Lane B are merged. Lane C is
-rebased and fully green, but remains held behind the exact Task F Supabase
-mutation card; merge approval does not waive that cloud-mutation gate.
+The serial Workbench design-binding amendment and Lane B are merged. Steven
+approved Task F's filled exact mutation card on 2026-07-22; the two reviewed
+`eamos-dev` migrations applied and passed ledger, RLS/grant/index, advisor, and
+transaction-scoped two-owner verification. Lane C was then rebased, passed the
+full required CI/Vercel gate, and merged as PR #17. Post-merge `main` CI run
+`29930639353` passed every job, including immutable-image pull-back verification.
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
 | A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1-manual` | integrated `6d2f6c9` · Vercel green | — | 1 |
 | serial design-binding | Codex lead | approved amendment paths in `plan.md` | `agent/product/contract-binding` | merged · PR #18 · `55300f4` | A merged | 2 |
 | B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | merged · PR #16 · `5c5a950` | design-binding merged | 3 |
-| Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending · read-only inventory captured; exact mutation approval required | B merged + fresh Steven approval | 4 |
-| C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | review · PR #17 @ `84c8655` · fully green; merge pre-approved but held behind Task F | A/B merged; merge after Task F | 5 |
+| Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | complete · remote ledger `20260722144613` + `20260722144619`; post-apply proof green | B merged + fresh Steven approval | 4 |
+| C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | merged · PR #17 · `0d52e11` (head `f880655`) | A/B merged; merge after Task F | 5 |
 | D workbench-canvas | unassigned | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | pending | B + C merged | 6 |
 | E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 7 |
 
