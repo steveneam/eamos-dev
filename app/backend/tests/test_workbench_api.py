@@ -509,7 +509,14 @@ def test_crispr_offtargets_route_forced_index_missing_fails_closed(
     assert detail["warnings"] == ["crispr_offtarget_index_unavailable"]
 
 
-def test_crispr_ssodn_route_is_unavailable_without_typed_hdr_state(client) -> None:
+def test_crispr_ssodn_route_rejects_fixture_only_mode_without_live_resolution(
+    client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_live_resolution(*_args, **_kwargs):
+        raise AssertionError("fixture mode must not call the live sequence resolver")
+
+    monkeypatch.setattr("app.services.sequence_context.httpx.get", fail_live_resolution)
     response = client.post(
         "/api/v1/crispr/ssodn",
         json={
@@ -519,17 +526,11 @@ def test_crispr_ssodn_route_is_unavailable_without_typed_hdr_state(client) -> No
         },
     )
 
-    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     assert response.json()["detail"] == {
-        "code": "crispr_ssodn_hdr_efficiency_contract_unavailable",
-        "message": (
-            "ssODN output is unavailable until the mandatory legacy HDR-efficiency "
-            "field is replaced by a typed not-assessed state."
-        ),
-        "warnings": [
-            "crispr_ssodn_hdr_efficiency_contract_unavailable",
-            "required_contract_amendment:ssodn_hdr_efficiency_optional",
-        ],
+        "code": "workbench_unsupported_input:ssodn_sequence_context",
+        "message": "ssODN donor design requires a source-backed resolved sequence context.",
+        "warnings": ["workbench_unsupported_input:ssodn_sequence_context"],
     }
 
 
@@ -537,17 +538,30 @@ def test_crispr_ssodn_route_is_unavailable_without_typed_hdr_state(client) -> No
     "cdna",
     ["c.247T>C", "c.419G>A", "c.65T>C", "c.675C>G", "c.260A>G"],
 )
-def test_crispr_ssodn_variant_classes_fail_closed_pending_contract(cdna: str) -> None:
+def test_crispr_ssodn_variant_classes_reject_fixture_only_context(
+    cdna: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.crispr_ssodn._local_transcript_window",
+        lambda _payload: None,
+    )
     service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
 
     with pytest.raises(WorkbenchDesignError) as captured:
         service.design_crispr_ssodn(CrisprSsodnRequest(gene="RPE65", cdna=cdna))
 
-    assert captured.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
+    assert captured.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert "hdr_efficiency" not in captured.value.code
 
 
-def test_crispr_ssodn_non_default_length_does_not_emit_fixed_efficiency() -> None:
+def test_crispr_ssodn_non_default_length_does_not_emit_fixed_efficiency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.crispr_ssodn._local_transcript_window",
+        lambda _payload: None,
+    )
     service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
 
     with pytest.raises(WorkbenchDesignError) as captured:
@@ -555,7 +569,8 @@ def test_crispr_ssodn_non_default_length_does_not_emit_fixed_efficiency() -> Non
             CrisprSsodnRequest(gene="RPE65", cdna="c.260A>G", oligo_length=100)
         )
 
-    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
+    assert captured.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert "hdr_efficiency" not in captured.value.code
 
 
 def test_crispr_ssodn_does_not_fall_back_to_synthesized_window(
@@ -584,11 +599,11 @@ def test_crispr_ssodn_does_not_fall_back_to_synthesized_window(
         json={"gene": "TEST", "cdna": "c.1A>G", "oligo_length": 100},
     )
 
-    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-    assert response.json()["detail"]["code"] == ("crispr_ssodn_hdr_efficiency_contract_unavailable")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.json()["detail"]["code"] == "crispr_ssodn_reference_window_unavailable"
 
 
-def test_crispr_ssodn_source_context_does_not_bypass_contract_gate() -> None:
+def test_crispr_ssodn_source_context_returns_design_with_unassessed_efficiency() -> None:
     query = normalize_sequence_query("TEST", "c.1A>G")
     context = _context()
     context.gene = "TEST"
@@ -608,12 +623,15 @@ def test_crispr_ssodn_source_context_does_not_bypass_contract_gate() -> None:
         primer_provider=FakePrimerProvider(),
     )
 
-    with pytest.raises(WorkbenchDesignError) as captured:
-        service.design_crispr_ssodn(
-            CrisprSsodnRequest(gene="TEST", cdna="c.1A>G", oligo_length=100)
-        )
+    response = service.design_crispr_ssodn(
+        CrisprSsodnRequest(gene="TEST", cdna="c.1A>G", oligo_length=100)
+    )
 
-    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
+    assert response.ssodn.oligo_sequence[49] == "G"
+    assert response.ssodn.estimated_hdr_efficiency is None
+    assert response.ssodn.hdr_efficiency_status == "not_assessed"
+    assert response.ssodn.hdr_efficiency_disclosure.execution == "unavailable"
+    assert "crispr_ssodn_hdr_efficiency_not_assessed" in response.warnings
 
 
 def test_crispr_offtargets_unsupported_enzyme_maps_to_422(client) -> None:

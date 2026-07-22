@@ -58,6 +58,7 @@ from app.schemas.workbench import (
     CrisprResponse,
     CrisprScoreV2,
     CrisprScreeningPrimerResponse,
+    CrisprSsodnDesign,
     CrisprSsodnResponse,
     CrisprTideResponse,
     CrisprVerifiedLocusV2,
@@ -505,6 +506,110 @@ def test_workbench_response_v2_envelope_is_atomic_and_digest_bound() -> None:
                 state="current",
             ),
         )
+
+
+def test_ssodn_hdr_efficiency_requires_explicit_executed_model_truth() -> None:
+    unavailable = _unavailable(capability_id="crispr.ssodn_hdr_efficiency")
+    payload = {
+        "reference_arm": "A" * 60,
+        "variant_arm": ("A" * 29) + "G" + ("A" * 30),
+        "repair_template": ("A" * 29) + "G" + ("A" * 30),
+        "edits_encoded": ["c.30A>G"],
+        "arm_lengths": {"left": 29, "right": 30},
+        "estimated_hdr_efficiency": None,
+        "hdr_efficiency_status": "not_assessed",
+        "hdr_efficiency_disclosure": unavailable,
+        "oligo_sequence": ("A" * 29) + "G" + ("A" * 30),
+        "oligo_length": 60,
+        "oligo_name": "ss oligo for c.30A>G",
+        "variant_offset": 29,
+        "intron_mask": [False] * 60,
+        "strand": "+",
+        "orientation": "sense",
+        "protocol": "lab_genomic",
+        "template_source": "resolver",
+        "genome_build": "GRCh38",
+    }
+    design = CrisprSsodnDesign(**payload)
+    assert design.estimated_hdr_efficiency is None
+
+    _assert_invalid(
+        CrisprSsodnDesign,
+        {**payload, "estimated_hdr_efficiency": 0.42},
+        "must not carry a numeric estimate",
+    )
+    _assert_invalid(
+        CrisprSsodnDesign,
+        {**payload, "hdr_efficiency_status": "executed"},
+        "requires a numeric value",
+    )
+
+    executed = CrisprSsodnDesign(
+        **{
+            **payload,
+            "estimated_hdr_efficiency": 0.42,
+            "hdr_efficiency_status": "executed",
+            "hdr_efficiency_disclosure": _capability(capability_id="crispr.ssodn_hdr_efficiency"),
+        }
+    )
+    assert executed.estimated_hdr_efficiency == 0.42
+
+
+def test_tide_and_descriptive_trace_fields_are_discriminated() -> None:
+    descriptive = CrisprTideResponse(
+        source_backed=True,
+        analysis_kind="descriptive_trace_comparison",
+        provider_label="Eamos descriptive consensus trace comparison",
+        analysis_disclosure=_capability(
+            capability_id="crispr.descriptive_trace_comparison",
+            validation_status="unvalidated",
+        ),
+        cut_site_index=100,
+        editing_efficiency=None,
+        r_squared=None,
+        spectrum=[],
+        comparison_window_start=70,
+        comparison_window_end=140,
+        consensus_difference_fraction=0.1,
+        sequence_identity=0.9,
+        differences=[],
+        notes="Descriptive comparison only.",
+    )
+    assert descriptive.editing_efficiency is None
+    _assert_invalid_update(
+        descriptive,
+        "must not claim TIDE efficiency",
+        editing_efficiency=0.25,
+    )
+
+    tide = CrisprTideResponse(
+        source_backed=True,
+        analysis_kind="tide",
+        provider_label="Validated TIDE decomposition",
+        analysis_disclosure=_capability(
+            capability_id="crispr.tide_signal_decomposition",
+            validation_status="validated",
+        ),
+        cut_site_index=100,
+        editing_efficiency=0.25,
+        r_squared=0.95,
+        spectrum=[{"size": 0, "observed": 0.75}],
+        comparison_window_start=None,
+        comparison_window_end=None,
+        consensus_difference_fraction=None,
+        sequence_identity=None,
+        differences=[],
+        notes="Validated signal decomposition.",
+    )
+    assert tide.analysis_kind == "tide"
+    _assert_invalid_update(
+        tide,
+        "requires validated signal-decomposition",
+        analysis_disclosure=_capability(
+            capability_id="crispr.tide_signal_decomposition",
+            validation_status="unvalidated",
+        ),
+    )
 
 
 def test_crispr_score_is_algorithm_explicit_finite_and_guide_bound() -> None:

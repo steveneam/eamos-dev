@@ -240,12 +240,18 @@ export function OutcomesTab({
             <div className="ic-stat">
               <span className="label">Editing efficiency</span>
               <span className="value">
-                {(res.editing_efficiency * 100).toFixed(0)}%
+                {typeof res.editing_efficiency === 'number'
+                  ? `${(res.editing_efficiency * 100).toFixed(0)}%`
+                  : 'Not reported'}
               </span>
             </div>
             <div className="ic-stat">
               <span className="label">{outcomeInfo.fitLabel}</span>
-              <span className="value">{res.r_squared.toFixed(2)}</span>
+              <span className="value">
+                {typeof res.r_squared === 'number'
+                  ? res.r_squared.toFixed(2)
+                  : 'Not reported'}
+              </span>
             </div>
             <div className="ic-stat">
               <span className="label">Cut index</span>

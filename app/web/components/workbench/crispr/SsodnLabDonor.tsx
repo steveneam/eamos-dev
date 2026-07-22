@@ -322,8 +322,10 @@ export function SsodnLabDonor({
               <i className="ssodn-key edit" /> changed base
             </span>
             <span className="ssodn-oligo-meta">
-              {ss.oligo_length} nt · {ss.strand} strand · {ss.orientation} · ~
-              {Math.round(ss.estimated_hdr_efficiency * 100)}% HDR
+              {ss.oligo_length} nt · {ss.strand} strand · {ss.orientation} ·{' '}
+              {typeof ss.estimated_hdr_efficiency === 'number'
+                ? `~${Math.round(ss.estimated_hdr_efficiency * 100)}% HDR`
+                : 'HDR efficiency not assessed'}
             </span>
           </div>
           <p className="ssodn-order-note">

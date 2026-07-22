@@ -145,12 +145,10 @@ def test_batch_workflow_is_durable_paged_exportable_and_owner_scoped(
     other_headers = _register_headers(auth_client, "workflow-batch-other")
     assert auth_client.get(f"/api/v1/batch/{run_id}", headers=other_headers).status_code == 404
     assert (
-        auth_client.post(f"/api/v1/batch/{run_id}/cancel", headers=other_headers).status_code
-        == 404
+        auth_client.post(f"/api/v1/batch/{run_id}/cancel", headers=other_headers).status_code == 404
     )
     assert (
-        auth_client.get(f"/api/v1/batch/{run_id}/export", headers=other_headers).status_code
-        == 404
+        auth_client.get(f"/api/v1/batch/{run_id}/export", headers=other_headers).status_code == 404
     )
     assert auth_client.delete(f"/api/v1/batch/{run_id}", headers=other_headers).status_code == 404
     other_history = auth_client.get("/api/v1/batch/runs", headers=other_headers)
@@ -184,10 +182,13 @@ def test_batch_upload_never_writes_plaintext_snapshot(auth_client) -> None:
         json={"upload_ref": upload.json()["upload_ref"]},
     )
     assert created.status_code == 200
-    assert auth_client.post(
-        "/api/v1/batch",
-        json={"upload_ref": upload.json()["upload_ref"]},
-    ).status_code == 404
+    assert (
+        auth_client.post(
+            "/api/v1/batch",
+            json={"upload_ref": upload.json()["upload_ref"]},
+        ).status_code
+        == 404
+    )
     result = _wait_for_batch(auth_client, created.json()["job_id"])
     assert secret_marker not in json.dumps(result)
 
@@ -220,9 +221,7 @@ def test_batch_cancel_is_owner_scoped_and_remains_terminal(auth_client, tmp_path
 
 
 def test_paper_workflow_disclosure_result_history_and_owner_isolation(auth_client) -> None:
-    disclosure = auth_client.get(
-        "/api/v1/paper-variants/disclosure?input_class=paper_text"
-    )
+    disclosure = auth_client.get("/api/v1/paper-variants/disclosure?input_class=paper_text")
     assert disclosure.status_code == 200
     assert disclosure.json()["raw_input_persisted"] is False
     assert disclosure.json()["retention"] == "request_lifetime"
@@ -285,23 +284,22 @@ def test_paper_workflow_disclosure_result_history_and_owner_isolation(auth_clien
     assert auth_client.get(f"/api/v1/paper-variants/runs/{run_id}").status_code == 404
 
 
-def test_paper_external_provider_requires_consent_before_reading_body(auth_client) -> None:
+def test_paper_deterministic_route_stays_local_under_gateway_config(auth_client) -> None:
     auth_client.app.state.settings.llm_provider = "gateway"
 
-    disclosure = auth_client.get(
-        "/api/v1/paper-variants/disclosure?input_class=pdf"
-    )
+    disclosure = auth_client.get("/api/v1/paper-variants/disclosure?input_class=pdf")
     assert disclosure.status_code == 200
-    assert disclosure.json()["execution"] == "external_provider"
-    assert disclosure.json()["consent_required"] is True
+    assert disclosure.json()["execution"] == "eamos_backend"
+    assert disclosure.json()["provider_id"] == "eamos_deterministic_extractor"
+    assert disclosure.json()["consent_required"] is False
 
     response = auth_client.post(
         "/api/v1/paper-variants/extract",
         content=b"this is deliberately not JSON",
         headers={"Content-Type": "application/json"},
     )
-    assert response.status_code == 428
-    assert "consent" in response.json()["detail"].lower()
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Request body must be valid JSON."
     assert auth_client.get("/api/v1/paper-variants/runs").json() == []
 
 
@@ -408,21 +406,24 @@ def test_workflow_kind_routes_cannot_mutate_another_kind(auth_client) -> None:
 
     assert auth_client.post(f"/api/v1/batch/{paper.run_id}/cancel").status_code == 404
     assert auth_client.delete(f"/api/v1/batch/{paper.run_id}").status_code == 404
-    assert (
-        auth_client.post(f"/api/v1/paper-variants/runs/{batch.run_id}/cancel").status_code
-        == 404
-    )
+    assert auth_client.post(f"/api/v1/paper-variants/runs/{batch.run_id}/cancel").status_code == 404
     assert auth_client.delete(f"/api/v1/paper-variants/runs/{batch.run_id}").status_code == 404
-    assert workflow.get_run(
-        run_id=paper.run_id,
-        user_id=user_id,
-        owner_provider="eamos",
-    ).status == "running"
-    assert workflow.get_run(
-        run_id=batch.run_id,
-        user_id=user_id,
-        owner_provider="eamos",
-    ).status == "draft"
+    assert (
+        workflow.get_run(
+            run_id=paper.run_id,
+            user_id=user_id,
+            owner_provider="eamos",
+        ).status
+        == "running"
+    )
+    assert (
+        workflow.get_run(
+            run_id=batch.run_id,
+            user_id=user_id,
+            owner_provider="eamos",
+        ).status
+        == "draft"
+    )
 
 
 def test_cancelled_paper_run_cannot_be_overwritten_by_late_result(auth_client) -> None:
@@ -634,11 +635,14 @@ def test_expired_workflows_and_items_are_purged_before_read(auth_client) -> None
     )
 
     workflow._last_expiry_sweep = 0.0
-    assert workflow.get_record(
-        run_id=run_id,
-        user_id=user_id,
-        owner_provider="eamos",
-    ) is None
+    assert (
+        workflow.get_record(
+            run_id=run_id,
+            user_id=user_id,
+            owner_provider="eamos",
+        )
+        is None
+    )
     assert repo.page_items(
         run_id=run_id,
         user_id=user_id,
@@ -649,9 +653,7 @@ def test_expired_workflows_and_items_are_purged_before_read(auth_client) -> None
 
 
 def test_batch_tsv_export_neutralizes_spreadsheet_formulas() -> None:
-    assert _tsv_line(["=1+1", "+cmd", "-2", "@payload"]) == (
-        "'=1+1\t'+cmd\t'-2\t'@payload\n"
-    )
+    assert _tsv_line(["=1+1", "+cmd", "-2", "@payload"]) == ("'=1+1\t'+cmd\t'-2\t'@payload\n")
 
 
 def test_supabase_workflow_repo_applies_owner_filters_and_keeps_service_key_server_only() -> None:

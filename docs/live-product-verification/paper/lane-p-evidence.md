@@ -125,10 +125,9 @@ These are requests for the composition/dependency owner, not changes made by Lan
   Wave integration must resolve upload refs under the authenticated owner, re-check size/hash, then
   build the internal main-plus-supplement document graph. The internal service already supports
   text/CSV supplements.
-- Existing gateway-configured disclosure/consent behavior is retained for compatibility even
-  though L1–L3 never calls the injected provider chain. A future L4 endpoint/flag needs a serial
-  contract/route decision so local deterministic extraction and optional external adjudication
-  have distinct disclosures.
+- The L1–L3 route always discloses local deterministic execution, even when an unrelated gateway
+  is configured elsewhere. A future L4 endpoint/flag needs a separate contract and consent gate;
+  it cannot reuse or relabel the local deterministic route.
 
 ## Verification commands
 

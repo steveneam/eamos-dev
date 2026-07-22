@@ -599,7 +599,7 @@ def test_context_v2_screening_and_alignment_use_verified_selection_only() -> Non
     assert alignment.sanger_read.replace("-", "") == REFERENCE[20:90]
 
 
-def test_context_v2_ssodn_is_typed_unavailable_after_context_verification() -> None:
+def test_context_v2_ssodn_binds_design_and_marks_efficiency_not_assessed() -> None:
     context = _context()
     sequence_service = _StaticSequenceContextService(_resolved())
     service = WorkbenchDesignService(
@@ -607,18 +607,23 @@ def test_context_v2_ssodn_is_typed_unavailable_after_context_verification() -> N
         primer_provider=_CapturingPrimerProvider(),
     )
 
-    with pytest.raises(WorkbenchDesignError) as captured:
-        service.design_crispr_ssodn(
-            CrisprSsodnRequest(
-                gene="TEST",
-                cdna="c.51A>G",
-                transcript="NM_TEST.1",
-                design_context_v2=context,
-            )
+    response = service.design_crispr_ssodn(
+        CrisprSsodnRequest(
+            gene="TEST",
+            cdna="c.51A>G",
+            transcript="NM_TEST.1",
+            oligo_length=60,
+            design_context_v2=context,
         )
+    )
 
-    assert captured.value.status_code == 503
-    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
+    assert response.context_binding is not None
+    assert response.context_binding.result_context_digest == context.context_digest
+    assert response.execution_disclosure is not None
+    assert response.execution_disclosure.execution == "eamos_local"
+    assert response.ssodn.estimated_hdr_efficiency is None
+    assert response.ssodn.hdr_efficiency_status == "not_assessed"
+    assert response.ssodn.hdr_efficiency_disclosure.execution == "unavailable"
     assert sequence_service.calls
 
 
