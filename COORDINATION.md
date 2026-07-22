@@ -9,12 +9,13 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Product Workflow V1 ACTIVE — A/B/C integrated; D in progress; E dependency-locked._ Historical
-Mode-A dogfood completed 2026-07-03; its record remains below.
+**Status:** _Live Product Completion ACTIVE — Lane D merged and locally verified;
+Contract V2 launching; engine lanes dependency-locked._ Historical Mode-A dogfood
+completed 2026-07-03; its record remains below.
 
 ---
 
-## Product Workflow V1 sprint (active)
+## Product Workflow V1 sprint (closed)
 
 _Launched: 2026-07-19 09:55 +0000 · Codex lead · Mode B · exact owned paths and frozen
 contract: `plans/product-workflow-integration/plan.md` + `spec.md`._
@@ -41,8 +42,27 @@ Steven approved Lanes D and E on 2026-07-22; D launched first from
 | B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | merged · PR #16 · `5c5a950` | design-binding merged | 3 |
 | Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | complete · remote ledger `20260722144613` + `20260722144619`; post-apply proof green | B merged + fresh Steven approval | 4 |
 | C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | merged · PR #17 · `0d52e11` (head `f880655`) | A/B merged; merge after Task F | 5 |
-| D workbench-canvas | Codex(wt) | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | review · local gates green | B + C merged | 6 |
-| E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 7 |
+| D workbench-canvas | Codex(wt) | `plan.md` Lane D web paths | `agent/product/workbench-canvas-review` | merged · PR #21 · `ec075a8` | B + C merged | 6 |
+| E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | closed:superseded by product-ratchets-v2 | D merged | — |
+
+---
+
+## Live Product Completion sprint (active)
+
+_Approved: 2026-07-22 · Codex lead · Mode B · exact owned paths, frozen
+contracts, gates, and kickoff prompts: `plans/live-product-completion/plan.md` +
+`spec.md`. Contract V2 is the sole serial writer before the four engine lanes.
+No lane owns source materialization, providers, cloud, Supabase, or deploys._
+
+| lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
+|------|-------|---------------------|--------|--------|------------|-------------|
+| Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | in_progress | Lane D merged + verified | 1 |
+| W workbench-engines | pending agent | `plan.md` Lane W paths | `agent/live/workbench-engines` | pending | Contract V2 merged | 2 |
+| R report-evidence | pending agent | `plan.md` Lane R paths | `agent/live/report-evidence` | pending | Contract V2 merged | 3 |
+| P paper-deterministic | pending agent | `plan.md` Lane P paths | `agent/live/paper-deterministic` | pending | Contract V2 merged | 4 |
+| B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | pending | Contract V2 merged | 5 |
+| runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | pending | W + R + P + B merged | 6 |
+| product-ratchets-v2 | Codex lead | `plan.md` final ratchet paths | `agent/live/product-ratchets-v2` | pending | composed product verified | final |
 
 ---
 
@@ -156,6 +176,13 @@ own `status`. Messages are append-only; you replace only your own state.
   fresh approval for named Lanes D and E. D starts alone from
   `origin/main@24ca1de` in its frozen Workbench globs; E remains dependency-
   locked until D is reviewed, explicitly approved, merged, and verified.
+- 2026-07-22 17:06 +0000 (Codex, lead/owner): **Lane D merged; Live Product
+  Completion launched.** PR #21 merged as `ec075a8` after full local, CI,
+  Vercel, source-backed API/browser, mobile-overflow, and keyboard proof. Steven
+  approved the four-wave continuation; serial Contract V2 starts first, with
+  W/R/P/B dependency-locked until its verified merge. Historical Lane E is
+  superseded by the re-chartered `product-ratchets-v2` final lane. Material,
+  provider, source, cloud, Supabase, and deploy gates remain separate.
 
 ---
 
