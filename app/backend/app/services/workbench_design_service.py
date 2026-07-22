@@ -26,28 +26,15 @@ from app.schemas.workbench import (
     SourceDisclosure,
 )
 from app.services.crispr_design import (
-    CRISPR_PROVIDER_CRISPRSCORE_R,
-    CRISPR_PROVIDER_LOCAL_DETERMINISTIC,
     CrisprDesignInputError,
-    CrisprScoreRAdapter,
-    CrisprScoreRBackedCrisprProvider,
     LocalDeterministicCrisprProvider,
 )
 from app.services.crispr_offtarget_screening import (
-    CRISPR_OFFTARGET_PROVIDER_AUTO,
-    CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE,
-    CRISPR_OFFTARGET_PROVIDER_MOCK,
     CrisprOffTargetScreeningInputError,
     CrisprOffTargetScreeningProviderUnavailable,
-    IndexedSqliteCrisprOffTargetProvider,
-    MOCK_SCREENING_TEMPLATE_WARNING,
-    MockCasOffinderOffTargetProvider,
-    SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING,
     ScreeningReferenceWindowProvider,
     design_screening_primers,
 )
-from app.services.crispr_ssodn import CrisprSsodnInputError, design_ssodn
-from app.services.crispr_tide import CrisprTideInputError, analyze_crispr_tide_observed
 from app.services.sequence_context import (
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     SequenceContext,
@@ -59,19 +46,32 @@ from app.services.trace_analysis import analyze_parsed_trace
 from app.services.workbench_design_alignment import (
     LocalSangerAlignmentProvider,
     _parse_ab1_trace,
-    _parse_ab1_trace_bytes,
 )
 from app.services.workbench_design_common import (
     HTTP_UNPROCESSABLE_ENTITY,
     WORKBENCH_PROVIDER_FAILED_PREFIX,
     WorkbenchDesignError,
-    WorkbenchModel,
-    _settings_path,
+)
+from app.services.workbench_design_context import (
+    VerifiedWorkbenchContext,
+    verify_workbench_design_context_v2,
+)
+from app.services.workbench_design_execution import (
+    bind_crispr_design_v2,
+    bind_crispr_offtarget_v2,
+    bind_workbench_response_v2,
+    executed_disclosure,
+    mounted_artifact_disclosure,
+    package_version,
+    unavailable_disclosure,
 )
 from app.services.workbench_design_fixture import WorkbenchFixtureProvider
 from app.services.workbench_design_primer import (
     Primer3PrimerProvider,
     _default_specificity_provider,
+)
+from app.services.workbench_design_primer_snp import (
+    default_snp_masking_provider as _default_snp_masking_provider,
 )
 from app.services.workbench_design_protocols import (
     AlignProvider,
@@ -79,184 +79,21 @@ from app.services.workbench_design_protocols import (
     CrisprOffTargetProvider,
     PrimerDesignProvider,
 )
-
-
-def _with_source_disclosure(
-    response: WorkbenchModel,
-    disclosure: SourceDisclosure,
-) -> WorkbenchModel:
-    if getattr(response, "source_disclosure", None) is not None:
-        return response
-    return response.model_copy(update={"source_disclosure": disclosure})
-
-
-def _primer_source_disclosure(
-    *,
-    warnings: list[str] | None = None,
-) -> SourceDisclosure:
-    return SourceDisclosure(
-        source_status="local_provider",
-        provider_id="primer3_template_specificity",
-        provider_label="Primer3 with template specificity screen",
-        cache_status="runtime",
-        warnings=list(warnings or []),
-        requirements=["primer3_py"],
-    )
-
-
-def _crispr_design_source_disclosure(provider: CrisprDesignProvider) -> SourceDisclosure:
-    if isinstance(provider, CrisprScoreRBackedCrisprProvider):
-        return SourceDisclosure(
-            source_status="local_provider",
-            provider_id="crisprscore_r",
-            provider_label="CRISPRScore R-backed provider",
-            cache_status="runtime",
-            requirements=["r_runtime", "crisprscore_model_assets"],
-        )
-    return SourceDisclosure(
-        source_status="local_provider",
-        provider_id="local_deterministic_spcas9",
-        provider_label="Local deterministic SpCas9 provider",
-        cache_status="runtime",
-        warnings=["advanced_crispr_scoring_gated"],
-        requirements=["spcas9_ngg"],
-    )
-
-
-def _screening_primer_source_disclosure(
-    primers: list[Any],
-    *,
-    warnings: list[str],
-) -> SourceDisclosure:
-    template_sources = {getattr(primer, "template_source", "") for primer in primers}
-    if MOCK_SCREENING_TEMPLATE_WARNING in warnings or "mock_screening_window" in template_sources:
-        return SourceDisclosure(
-            source_status="fallback",
-            provider_id="crispr_screening_mock_window",
-            provider_label="Mock screening-window fallback",
-            warnings=warnings,
-            requirements=["reference_window_provider"],
-        )
-    if (
-        SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING in warnings
-        or "reference_window" in template_sources
-    ):
-        return SourceDisclosure(
-            source_status="source_backed",
-            provider_id="crispr_screening_reference_window",
-            provider_label="Reference-window screening primers",
-            cache_status="resolved",
-            warnings=warnings,
-        )
-    return SourceDisclosure(
-        source_status="local_provider",
-        provider_id="crispr_screening_template_sequence",
-        provider_label="Template-sequence screening primers",
-        cache_status="runtime",
-        warnings=warnings,
-    )
-
-
-def _align_reference_source_disclosure(
-    *,
-    source: str,
-    warnings: list[str],
-) -> SourceDisclosure:
-    if source == "fixture":
-        return SourceDisclosure(
-            source_status="fixture",
-            provider_id="align_reference_fixture",
-            provider_label="Fixture alignment reference",
-            warnings=warnings,
-        )
-    return SourceDisclosure(
-        source_status="source_backed",
-        provider_id="sequence_context_alignment_reference",
-        provider_label="Sequence-context alignment reference",
-        cache_status="resolved",
-        warnings=warnings,
-    )
-
-
-def _align_source_disclosure(*, warnings: list[str] | None = None) -> SourceDisclosure:
-    return SourceDisclosure(
-        source_status="local_provider",
-        provider_id="local_sanger_aligner",
-        provider_label="Local Sanger alignment provider",
-        cache_status="runtime",
-        warnings=list(warnings or []),
-    )
-
-
-def _trace_source_disclosure(*, warnings: list[str] | None = None) -> SourceDisclosure:
-    return SourceDisclosure(
-        source_status="local_provider",
-        provider_id="ab1_trace_parser",
-        provider_label="Local AB1 trace parser",
-        cache_status="runtime",
-        warnings=list(warnings or []),
-        requirements=["ab1_input"],
-    )
-
-
-def _default_crispr_provider(settings: Settings | None) -> CrisprDesignProvider:
-    provider_name = (
-        (settings.crispr_provider if settings is not None else CRISPR_PROVIDER_LOCAL_DETERMINISTIC)
-        .strip()
-        .lower()
-    )
-    if provider_name == CRISPR_PROVIDER_LOCAL_DETERMINISTIC:
-        return LocalDeterministicCrisprProvider()
-    if provider_name == CRISPR_PROVIDER_CRISPRSCORE_R:
-        adapter_kwargs = {}
-        if settings is not None:
-            adapter_kwargs = {
-                "rscript_path": settings.crispr_rscript_path,
-                "rule_set3_conda_env": settings.crispr_ruleset3_conda_env,
-                "lindel_conda_env": settings.crispr_lindel_conda_env,
-            }
-        return CrisprScoreRBackedCrisprProvider(
-            scoring_adapter=CrisprScoreRAdapter(**adapter_kwargs)
-        )
-    raise ValueError(f"Unknown CRISPR provider: {provider_name}")
-
-
-def _default_crispr_offtarget_provider(
-    settings: Settings | None,
-    *,
-    live_design_enabled: bool,
-) -> CrisprOffTargetProvider:
-    provider_name = (
-        (
-            settings.crispr_offtarget_provider
-            if settings is not None
-            else CRISPR_OFFTARGET_PROVIDER_AUTO
-        )
-        .strip()
-        .lower()
-    )
-    if provider_name == CRISPR_OFFTARGET_PROVIDER_MOCK:
-        return MockCasOffinderOffTargetProvider()
-
-    if provider_name == CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE:
-        if settings is None:
-            raise ValueError("Indexed CRISPR off-target screening requires backend settings.")
-        return IndexedSqliteCrisprOffTargetProvider(
-            _settings_path(settings, settings.crispr_offtarget_index_path),
-            max_results=settings.crispr_offtarget_max_results,
-        )
-
-    if provider_name == CRISPR_OFFTARGET_PROVIDER_AUTO:
-        if settings is not None and live_design_enabled:
-            indexed_provider = IndexedSqliteCrisprOffTargetProvider(
-                _settings_path(settings, settings.crispr_offtarget_index_path),
-                max_results=settings.crispr_offtarget_max_results,
-            )
-            if indexed_provider.available():
-                return indexed_provider
-        return MockCasOffinderOffTargetProvider()
-
-    raise ValueError(f"Unknown CRISPR off-target provider: {provider_name}")
+from app.services.workbench_design_runtime import (
+    VerifiedReferenceWindowProvider as _VerifiedReferenceWindowProvider,
+    align_reference_source_disclosure as _align_reference_source_disclosure,
+    align_source_disclosure as _align_source_disclosure,
+    crispr_design_source_disclosure as _crispr_design_source_disclosure,
+    default_crispr_offtarget_provider as _default_crispr_offtarget_provider,
+    default_crispr_provider as _default_crispr_provider,
+    normalize_chromosome as _normalize_chromosome,
+    primer_execution_requirements as _primer_execution_requirements,
+    primer_execution_warnings as _primer_execution_warnings,
+    primer_source_disclosure as _primer_source_disclosure,
+    screening_primer_source_disclosure as _screening_primer_source_disclosure,
+    trace_source_disclosure as _trace_source_disclosure,
+    with_source_disclosure as _with_source_disclosure,
+)
 
 
 class WorkbenchDesignService:
@@ -283,7 +120,8 @@ class WorkbenchDesignService:
             settings=settings
         )
         self.primer_provider = primer_provider or Primer3PrimerProvider(
-            specificity_provider=_default_specificity_provider(settings)
+            specificity_provider=_default_specificity_provider(settings),
+            snp_masking_provider=_default_snp_masking_provider(settings),
         )
         self.crispr_provider = crispr_provider or _default_crispr_provider(settings)
         self.crispr_offtarget_provider = (
@@ -297,12 +135,12 @@ class WorkbenchDesignService:
         self.align_provider = align_provider or LocalSangerAlignmentProvider()
 
     def design_primers(self, payload: PrimerRequest) -> PrimerResponse:
-        if self.workbench_live_design_enabled:
+        if self.workbench_live_design_enabled or payload.design_context_v2 is not None:
             return self._design_real_primers(payload, prefer_resolver=True)
         return self.fixture_provider.primers(payload)
 
     def design_guides(self, payload: CrisprRequest) -> CrisprResponse:
-        if self.workbench_live_design_enabled:
+        if self.workbench_live_design_enabled or payload.design_context_v2 is not None:
             return self._design_real_guides(payload, prefer_resolver=True)
         return self.fixture_provider.crispr(payload)
 
@@ -310,6 +148,7 @@ class WorkbenchDesignService:
         self,
         payload: CrisprOffTargetRequest,
     ) -> CrisprOffTargetResponse:
+        verified = self._verified_context_for_offtarget(payload)
         if payload.genome_build.upper() != "GRCH38":
             code = unsupported_input_warning("crispr_offtarget_genome_build")
             raise WorkbenchDesignError(
@@ -329,8 +168,58 @@ class WorkbenchDesignService:
                 status_code=HTTP_UNPROCESSABLE_ENTITY,
                 warnings=[code],
             )
+        if verified is not None:
+            self._verify_guide_identity(payload, verified)
+            artifact_getter = getattr(
+                self.crispr_offtarget_provider,
+                "execution_artifact",
+                None,
+            )
+            artifact = artifact_getter() if callable(artifact_getter) else None
+            if artifact is None:
+                return self._unavailable_crispr_offtargets_v2(
+                    payload,
+                    verified,
+                    warning="crispr_offtarget_artifact_identity_unavailable",
+                    requirement="immutable_index_manifest_binding",
+                )
         try:
-            return self.crispr_offtarget_provider.enumerate(payload)
+            response = self.crispr_offtarget_provider.enumerate(payload)
+            if verified is None:
+                return response
+            if (
+                response.source_disclosure is None
+                or response.source_disclosure.source_status != "source_backed"
+            ):
+                return self._unavailable_crispr_offtargets_v2(
+                    payload,
+                    verified,
+                    warning="mock_offtarget_results_suppressed",
+                    requirement="grch38_crispr_offtarget_index",
+                )
+            disclosure = mounted_artifact_disclosure(
+                verified,
+                capability_id="crispr_offtarget_enumeration",
+                claim="Enumerated SpCas9 candidates from the configured GRCh38 index",
+                algorithm_id="indexed_spcas9_neighbor_search",
+                algorithm_version="1.0.0",
+                input_scope="verified_guide_identity",
+                artifact_manifest_id=artifact.manifest_id,
+                artifact_sha256=artifact.sha256,
+                source_release=artifact.source_release,
+                warnings=[
+                    f"enumeration_bound:max_mismatches={payload.max_mismatches}",
+                    "cfd_score_unavailable",
+                ],
+                requirements=["crisprscore_cfd_runtime"],
+            )
+            assert payload.guide_identity is not None
+            return bind_crispr_offtarget_v2(
+                response,
+                verified=verified,
+                identity=payload.guide_identity,
+                disclosure=disclosure,
+            )
         except CrisprOffTargetScreeningInputError as exc:
             raise WorkbenchDesignError(
                 code=exc.code,
@@ -339,6 +228,13 @@ class WorkbenchDesignService:
                 warnings=exc.warnings,
             ) from exc
         except CrisprOffTargetScreeningProviderUnavailable as exc:
+            if verified is not None:
+                return self._unavailable_crispr_offtargets_v2(
+                    payload,
+                    verified,
+                    warning=exc.code,
+                    requirement="grch38_crispr_offtarget_index",
+                )
             raise WorkbenchDesignError(
                 code=exc.code,
                 message=exc.message,
@@ -358,11 +254,17 @@ class WorkbenchDesignService:
         self,
         payload: CrisprScreeningPrimerRequest,
     ) -> CrisprScreeningPrimerResponse:
+        verified = self._verified_context_for_screening(payload)
+        reference_provider = (
+            _VerifiedReferenceWindowProvider(verified)
+            if verified is not None
+            else self.screening_reference_provider
+        )
         try:
             primers, warnings = design_screening_primers(
                 payload,
                 primer_provider=self.primer_provider,
-                reference_window_provider=self.screening_reference_provider,
+                reference_window_provider=reference_provider,
             )
         except CrisprOffTargetScreeningInputError as exc:
             raise WorkbenchDesignError(
@@ -370,6 +272,13 @@ class WorkbenchDesignService:
                 message=exc.message,
                 status_code=HTTP_UNPROCESSABLE_ENTITY,
                 warnings=exc.warnings,
+            ) from exc
+        except CrisprOffTargetScreeningProviderUnavailable as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                warnings=[exc.code],
             ) from exc
         except WorkbenchDesignError:
             raise
@@ -379,7 +288,7 @@ class WorkbenchDesignService:
                 message="CRISPR screening-primer provider failed for the selected sites.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             ) from exc
-        return CrisprScreeningPrimerResponse(
+        response = CrisprScreeningPrimerResponse(
             mode=payload.mode,
             primers=primers,
             warnings=warnings,
@@ -388,55 +297,41 @@ class WorkbenchDesignService:
                 warnings=warnings,
             ),
         )
+        if verified is None:
+            return response
+        disclosure = executed_disclosure(
+            verified,
+            capability_id="crispr_screening_primers",
+            claim="Designed screening primers from verified reference windows",
+            algorithm_id="primer3_screening_primer_design",
+            algorithm_version=package_version("primer3-py"),
+            warnings=_primer_execution_warnings(self.primer_provider, payload),
+            requirements=_primer_execution_requirements(self.primer_provider),
+        )
+        return bind_workbench_response_v2(
+            response,
+            verified=verified,
+            disclosure=disclosure,
+        )
 
     def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse:
-        try:
-            return design_ssodn(payload, None)
-        except CrisprSsodnInputError as local_exc:
-            if local_exc.code != unsupported_input_warning("ssodn_sequence_context"):
-                raise WorkbenchDesignError(
-                    code=local_exc.code,
-                    message=local_exc.message,
-                    status_code=HTTP_UNPROCESSABLE_ENTITY,
-                    warnings=local_exc.warnings,
-                ) from local_exc
-
-        try:
-            sequence_result = self.sequence_context_service.resolve(
-                gene=payload.gene,
-                cdna=payload.cdna,
-            )
-        except Exception as exc:
-            raise WorkbenchDesignError(
-                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
-                message="Sequence context provider failed while preparing ssODN design.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            ) from exc
-
-        try:
-            return design_ssodn(
-                payload,
-                sequence_result.context,
-                context_warnings=list(sequence_result.warnings),
-            )
-        except CrisprSsodnInputError as exc:
-            raise WorkbenchDesignError(
-                code=exc.code,
-                message=exc.message,
-                status_code=HTTP_UNPROCESSABLE_ENTITY,
-                warnings=exc.warnings,
-            ) from exc
-        except WorkbenchDesignError:
-            raise
-        except Exception as exc:
-            raise WorkbenchDesignError(
-                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
-                message="ssODN provider failed for the requested variant.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            ) from exc
+        if payload.design_context_v2 is not None:
+            self._resolve_payload_context(payload, purpose="ssODN design")
+        raise WorkbenchDesignError(
+            code="crispr_ssodn_hdr_efficiency_contract_unavailable",
+            message=(
+                "ssODN output is unavailable until the mandatory legacy HDR-efficiency "
+                "field is replaced by a typed not-assessed state."
+            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            warnings=[
+                "crispr_ssodn_hdr_efficiency_contract_unavailable",
+                "required_contract_amendment:ssodn_hdr_efficiency_optional",
+            ],
+        )
 
     def align(self, payload: AlignRequest) -> AlignResponse:
-        if self.workbench_live_design_enabled:
+        if self.workbench_live_design_enabled or payload.design_context_v2 is not None:
             return self._align_real(payload)
         return self.fixture_provider.align(payload)
 
@@ -444,26 +339,13 @@ class WorkbenchDesignService:
         self,
         payload: AlignReferenceRequest,
     ) -> AlignReferenceResponse:
-        try:
-            sequence_result = self.sequence_context_service.resolve(
-                gene=payload.gene,
-                cdna=payload.cdna,
-                transcript=payload.transcript,
-                species=payload.species,
-                prefer_resolver=True,
-            )
-        except Exception as exc:
-            raise WorkbenchDesignError(
-                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
-                message="Sequence context provider failed while resolving alignment reference.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            ) from exc
-
-        context = self._sequence_context_or_error(
-            sequence_result,
+        sequence_result, context, verified = self._resolve_payload_context(
+            payload,
             purpose="alignment reference resolution",
+            transcript=payload.transcript,
+            species=payload.species,
         )
-        return AlignReferenceResponse(
+        response = AlignReferenceResponse(
             gene=context.gene,
             cdna=context.cdna,
             transcript=context.transcript,
@@ -482,13 +364,46 @@ class WorkbenchDesignService:
                 warnings=list(sequence_result.warnings) + list(context.warnings),
             ),
         )
+        if verified is None:
+            return response
+        return bind_workbench_response_v2(
+            response,
+            verified=verified,
+            disclosure=executed_disclosure(
+                verified,
+                capability_id="align_reference_resolution",
+                claim="Resolved the exact verified Workbench selection reference",
+                algorithm_id="workbench_context_v2_replay",
+                algorithm_version="2.0.0",
+            ),
+        )
 
     def analyze_trace(self, payload: AlignTraceRequest) -> AlignTraceResponse:
+        verified: VerifiedWorkbenchContext | None = None
+        if payload.design_context_v2 is not None:
+            _result, _context, verified = self._resolve_payload_context(
+                payload,
+                purpose="AB1 trace analysis",
+            )
         trace = _parse_ab1_trace(payload.ab1_blob_base64)
         response = analyze_parsed_trace(trace)
-        return _with_source_disclosure(
+        response = _with_source_disclosure(
             response,
             _trace_source_disclosure(warnings=response.warnings),
+        )
+        if verified is None:
+            return response
+        return bind_workbench_response_v2(
+            response,
+            verified=verified,
+            disclosure=executed_disclosure(
+                verified,
+                capability_id="ab1_trace_analysis",
+                claim="Parsed and quality-analyzed an AB1 trace in request memory",
+                algorithm_id="biopython_ab1_mott_trace_analysis",
+                algorithm_version=package_version("biopython"),
+                input_scope="request_lifetime_ab1_bound_to_verified_context",
+            ),
         )
 
     def analyze_crispr_tide(
@@ -498,21 +413,19 @@ class WorkbenchDesignService:
         edited_bytes: bytes,
         cut_site_index: int,
     ) -> CrisprTideResponse:
-        try:
-            control_trace = _parse_ab1_trace_bytes(control_bytes)
-            edited_trace = _parse_ab1_trace_bytes(edited_bytes)
-            return analyze_crispr_tide_observed(
-                control_trace=control_trace,
-                edited_trace=edited_trace,
-                cut_site_index=cut_site_index,
-            )
-        except CrisprTideInputError as exc:
-            raise WorkbenchDesignError(
-                code=exc.code,
-                message=exc.message,
-                status_code=HTTP_UNPROCESSABLE_ENTITY,
-                warnings=exc.warnings,
-            ) from exc
+        del control_bytes, edited_bytes, cut_site_index
+        raise WorkbenchDesignError(
+            code="crispr_tide_decomposition_unavailable",
+            message=(
+                "TIDE chromatogram-signal decomposition is not installed; the former "
+                "consensus-string proxy is no longer returned as TIDE."
+            ),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            warnings=[
+                "crispr_tide_decomposition_unavailable",
+                "requirement:validated_tide_signal_decomposition",
+            ],
+        )
 
     def _design_real_primers(
         self,
@@ -520,22 +433,33 @@ class WorkbenchDesignService:
         *,
         prefer_resolver: bool = False,
     ) -> PrimerResponse:
-        try:
-            sequence_result = self.sequence_context_service.resolve(
-                gene=payload.gene,
-                cdna=payload.cdna,
-                prefer_resolver=prefer_resolver,
-            )
-        except Exception as exc:
-            raise WorkbenchDesignError(
-                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
-                message="Sequence context provider failed while preparing primer design.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            ) from exc
-
-        context = self._sequence_context_or_error(sequence_result)
+        _sequence_result, context, verified = self._resolve_payload_context(
+            payload,
+            purpose="primer design",
+            prefer_resolver=prefer_resolver,
+        )
         response = self.primer_provider.design(payload, context)
-        return _with_source_disclosure(response, _primer_source_disclosure())
+        response = _with_source_disclosure(
+            response,
+            _primer_source_disclosure(
+                warnings=_primer_execution_warnings(self.primer_provider, payload),
+            ),
+        )
+        if verified is None:
+            return response
+        return bind_workbench_response_v2(
+            response,
+            verified=verified,
+            disclosure=executed_disclosure(
+                verified,
+                capability_id="primer_design",
+                claim="Ran Primer3 over the exact verified Workbench selection",
+                algorithm_id="primer3",
+                algorithm_version=package_version("primer3-py"),
+                warnings=_primer_execution_warnings(self.primer_provider, payload),
+                requirements=_primer_execution_requirements(self.primer_provider),
+            ),
+        )
 
     def _design_real_guides(
         self,
@@ -543,26 +467,36 @@ class WorkbenchDesignService:
         *,
         prefer_resolver: bool = False,
     ) -> CrisprResponse:
-        try:
-            sequence_result = self.sequence_context_service.resolve(
-                gene=payload.gene,
-                cdna=payload.cdna,
-                prefer_resolver=prefer_resolver,
-            )
-        except Exception as exc:
+        _sequence_result, context, verified = self._resolve_payload_context(
+            payload,
+            purpose="CRISPR design",
+            prefer_resolver=prefer_resolver,
+        )
+        if verified is not None and not isinstance(
+            self.crispr_provider,
+            LocalDeterministicCrisprProvider,
+        ):
             raise WorkbenchDesignError(
-                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
-                message="Sequence context provider failed while preparing CRISPR design.",
+                code="crispr_v2_score_provenance_unavailable",
+                message=(
+                    "Context V2 CRISPR scoring requires structured per-score provenance "
+                    "from the configured scoring adapter."
+                ),
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            ) from exc
-
-        context = self._sequence_context_or_error(sequence_result, purpose="CRISPR design")
+                warnings=[
+                    "crispr_v2_score_provenance_unavailable",
+                    "requirement:structured_crispr_score_adapter",
+                ],
+            )
         try:
             response = self.crispr_provider.design(payload, context)
-            return _with_source_disclosure(
+            response = _with_source_disclosure(
                 response,
                 _crispr_design_source_disclosure(self.crispr_provider),
             )
+            if verified is None:
+                return response
+            return bind_crispr_design_v2(response, verified=verified)
         except CrisprDesignInputError as exc:
             raise WorkbenchDesignError(
                 code=exc.code,
@@ -580,22 +514,28 @@ class WorkbenchDesignService:
             ) from exc
 
     def _align_real(self, payload: AlignRequest) -> AlignResponse:
-        try:
-            sequence_result = self.sequence_context_service.resolve(
-                gene=payload.gene,
-                cdna=payload.cdna,
-            )
-        except Exception as exc:
-            raise WorkbenchDesignError(
-                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
-                message="Sequence context provider failed while preparing Sanger alignment.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            ) from exc
-
-        context = self._sequence_context_or_error(sequence_result, purpose="Sanger alignment")
+        _sequence_result, context, verified = self._resolve_payload_context(
+            payload,
+            purpose="Sanger alignment",
+            prefer_resolver=False,
+        )
         try:
             response = self.align_provider.align(payload, context)
-            return _with_source_disclosure(response, _align_source_disclosure())
+            response = _with_source_disclosure(response, _align_source_disclosure())
+            if verified is None:
+                return response
+            return bind_workbench_response_v2(
+                response,
+                verified=verified,
+                disclosure=executed_disclosure(
+                    verified,
+                    capability_id="sanger_alignment",
+                    claim="Aligned the request-lifetime read to the verified selection",
+                    algorithm_id="biopython_pairwise_aligner",
+                    algorithm_version=package_version("biopython"),
+                    input_scope="request_lifetime_read_and_verified_context",
+                ),
+            )
         except WorkbenchDesignError:
             raise
         except Exception as exc:
@@ -604,6 +544,158 @@ class WorkbenchDesignService:
                 message="Sanger alignment provider failed for the requested context.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             ) from exc
+
+    def _resolve_payload_context(
+        self,
+        payload: Any,
+        *,
+        purpose: str,
+        transcript: str | None = None,
+        species: str = "human",
+        prefer_resolver: bool = True,
+    ) -> tuple[SequenceContextResult, SequenceContext, VerifiedWorkbenchContext | None]:
+        declared_v2 = getattr(payload, "design_context_v2", None)
+        declared_v1 = getattr(payload, "design_context", None)
+        if transcript is None:
+            declared = declared_v2 or declared_v1
+            if declared is not None:
+                transcript = declared.variant.transcript
+        if declared_v2 is not None:
+            gene = declared_v2.variant.gene
+            cdna = declared_v2.variant.cdna
+            transcript = declared_v2.variant.transcript
+        else:
+            gene = getattr(payload, "gene", None)
+            cdna = getattr(payload, "cdna", None)
+        if not gene or not cdna:
+            raise WorkbenchDesignError(
+                code="workbench_context_identity_mismatch",
+                message="A variant-bound context is required for this Workbench operation.",
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=["workbench_context_identity_mismatch"],
+            )
+        try:
+            resolve_kwargs: dict[str, Any] = {"gene": gene, "cdna": cdna}
+            if transcript is not None:
+                resolve_kwargs["transcript"] = transcript
+            if species != "human" or getattr(payload, "species", None) is not None:
+                resolve_kwargs["species"] = species
+            if prefer_resolver:
+                resolve_kwargs["prefer_resolver"] = True
+            sequence_result = self.sequence_context_service.resolve(**resolve_kwargs)
+        except WorkbenchDesignError:
+            raise
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message=f"Sequence context provider failed while preparing {purpose}.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+        if declared_v2 is not None:
+            verified = verify_workbench_design_context_v2(declared_v2, sequence_result)
+            return sequence_result, verified.engine_context, verified
+        context = self._sequence_context_or_error(sequence_result, purpose=purpose)
+        return sequence_result, context, None
+
+    def _verified_context_for_offtarget(
+        self,
+        payload: CrisprOffTargetRequest,
+    ) -> VerifiedWorkbenchContext | None:
+        if payload.design_context_v2 is None:
+            return None
+        _result, _context, verified = self._resolve_payload_context(
+            payload,
+            purpose="CRISPR off-target enumeration",
+        )
+        return verified
+
+    def _verified_context_for_screening(
+        self,
+        payload: CrisprScreeningPrimerRequest,
+    ) -> VerifiedWorkbenchContext | None:
+        if payload.design_context_v2 is None:
+            return None
+        _result, _context, verified = self._resolve_payload_context(
+            payload,
+            purpose="CRISPR screening-primer design",
+        )
+        return verified
+
+    def _verify_guide_identity(
+        self,
+        payload: CrisprOffTargetRequest,
+        verified: VerifiedWorkbenchContext,
+    ) -> None:
+        identity = payload.guide_identity
+        locus = payload.on_target_locus
+        if identity is None or locus is None:
+            raise WorkbenchDesignError(
+                code="crispr_guide_identity_required",
+                message="Context V2 off-target screening requires a verified guide identity.",
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=["crispr_guide_identity_required"],
+            )
+        expected_chrom = _normalize_chromosome(identity.locus.chromosome)
+        if (
+            _normalize_chromosome(locus.chromosome) != expected_chrom
+            or locus.position != identity.locus.cut_position
+            or locus.strand != identity.locus.strand
+        ):
+            raise WorkbenchDesignError(
+                code="crispr_guide_locus_mismatch",
+                message="The requested on-target locus does not match the verified guide identity.",
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=["crispr_guide_locus_mismatch"],
+            )
+        observed_guide = verified.sequence_at_genomic_interval(
+            identity.locus.protospacer_start,
+            identity.locus.protospacer_end,
+            strand=identity.locus.strand,
+        )
+        observed_pam = verified.sequence_at_genomic_interval(
+            identity.locus.pam_start,
+            identity.locus.pam_end,
+            strand=identity.locus.strand,
+        )
+        if observed_guide != identity.guide or observed_pam != identity.pam:
+            raise WorkbenchDesignError(
+                code="crispr_guide_sequence_mismatch",
+                message="The verified guide/PAM is not present at its declared context locus.",
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=["crispr_guide_sequence_mismatch"],
+            )
+
+    def _unavailable_crispr_offtargets_v2(
+        self,
+        payload: CrisprOffTargetRequest,
+        verified: VerifiedWorkbenchContext,
+        *,
+        warning: str,
+        requirement: str,
+    ) -> CrisprOffTargetResponse:
+        response = CrisprOffTargetResponse(
+            genome_build=payload.genome_build,
+            sites=[],
+            source_disclosure=SourceDisclosure(
+                source_status="unavailable",
+                provider_id="crispr_offtarget_index",
+                provider_label="GRCh38 CRISPR off-target index",
+                warnings=[warning],
+                requirements=[requirement],
+            ),
+            guide_identity=payload.guide_identity,
+        )
+        return bind_workbench_response_v2(
+            response,
+            verified=verified,
+            disclosure=unavailable_disclosure(
+                capability_id="crispr_offtarget_enumeration",
+                claim="Genome-wide CRISPR off-target enumeration is unavailable",
+                input_scope="verified_guide_identity",
+                requirements=[requirement],
+                warnings=[warning],
+            ),
+        )
 
     def _sequence_context_or_error(
         self,

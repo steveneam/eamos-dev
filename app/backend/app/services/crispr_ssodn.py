@@ -8,7 +8,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.schemas.workbench import (
-    CrisprSsodnDesign,
     CrisprSsodnRequest,
     CrisprSsodnResponse,
     SourceDisclosure,
@@ -17,7 +16,6 @@ from app.services.crispr_design import reverse_complement
 from app.services.reference_genome import ReferenceGenomeStoreError, TwoBitReferenceGenomeStore
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 
-SSODN_MOCK_GENOMIC_WINDOW_WARNING = "crispr_ssodn_mock_genomic_window"
 SSODN_LOCAL_TRANSCRIPT_UNAVAILABLE_WARNING = "crispr_ssodn_local_transcript_unavailable"
 SSODN_PAM_BLOCK_REVIEW_WARNING = "crispr_ssodn_pam_block_review_required"
 SSODN_PAM_BLOCK_NOT_APPLIED_PREFIX = "crispr_ssodn_pam_block_not_applied"
@@ -92,85 +90,20 @@ def design_ssodn(
     *,
     context_warnings: list[str] | None = None,
 ) -> CrisprSsodnResponse:
+    del payload, context
     warnings = list(context_warnings or [])
-    resolved_window = _local_transcript_window(payload)
-    if resolved_window is None:
-        if context is None:
-            code = unsupported_input_warning("ssodn_sequence_context")
-            raise CrisprSsodnInputError(
-                code=code,
-                message="ssODN donor design requires a resolved sequence context.",
-                warnings=warnings or [code],
-            )
-        resolved_window = _context_window(payload, context, warnings=warnings)
-
-    reference_bases = list(resolved_window.reference_sequence.upper())
-    variant_bases = list(resolved_window.variant_sequence.upper())
-    edits_encoded = [payload.cdna]
-
-    if payload.pam_blocking_enabled:
-        pam_warning = _apply_pam_blocking_edit(
-            variant_bases,
-            variant_offset=resolved_window.variant_offset,
-            payload=payload,
-        )
-        warnings.append(pam_warning)
-        if pam_warning == SSODN_PAM_BLOCK_REVIEW_WARNING:
-            edits_encoded.append("candidate PAM-blocking edit")
-
-    reference_sequence = "".join(reference_bases)
-    variant_sequence = "".join(variant_bases)
-    output_offset = resolved_window.variant_offset
-    output_mask = resolved_window.intron_mask
-
-    if payload.orientation == "antisense":
-        reference_sequence, output_mask = _reverse_complement_with_mask(
-            reference_sequence,
-            output_mask,
-            apply_intron_case=False,
-        )
-        variant_sequence, output_mask = _reverse_complement_with_mask(
-            variant_sequence,
-            resolved_window.intron_mask,
-            apply_intron_case=False,
-        )
-        output_offset = payload.oligo_length - 1 - resolved_window.variant_offset
-
-    strand = _output_strand(payload, resolved_window.strand)
-    ssodn = CrisprSsodnDesign(
-        reference_arm=reference_sequence,
-        variant_arm=variant_sequence,
-        repair_template=variant_sequence,
-        edits_encoded=edits_encoded,
-        arm_lengths={
-            "left": output_offset,
-            "right": payload.oligo_length - output_offset - 1,
-        },
-        estimated_hdr_efficiency=0.12,
-        oligo_sequence=variant_sequence,
-        oligo_length=payload.oligo_length,
-        oligo_name=_oligo_name(
-            payload,
-            codon_ref=resolved_window.codon_ref,
-            codon_alt=resolved_window.codon_alt,
+    code = "crispr_ssodn_hdr_efficiency_contract_unavailable"
+    raise CrisprSsodnInputError(
+        code=code,
+        message=(
+            "ssODN output is unavailable until HDR efficiency can be represented "
+            "as a typed not-assessed state."
         ),
-        variant_offset=output_offset,
-        variant_genomic=resolved_window.variant_genomic,
-        intron_mask=output_mask,
-        strand=strand,
-        orientation=payload.orientation,
-        protocol=payload.protocol,
-        template_source=resolved_window.template_source,
-        genome_build=resolved_window.genome_build,
-    )
-    return CrisprSsodnResponse(
-        genome_build=ssodn.genome_build,
-        ssodn=ssodn,
-        warnings=_dedupe_warnings(warnings),
-        source_disclosure=_ssodn_source_disclosure(
-            ssodn.template_source,
-            warnings=_dedupe_warnings(warnings),
-        ),
+        warnings=[
+            *warnings,
+            code,
+            "required_contract_amendment:ssodn_hdr_efficiency_optional",
+        ],
     )
 
 
@@ -179,15 +112,6 @@ def _ssodn_source_disclosure(
     *,
     warnings: list[str],
 ) -> SourceDisclosure:
-    if template_source.startswith("mock"):
-        return SourceDisclosure(
-            source_status="fallback",
-            provider_id="crispr_ssodn_mock_window",
-            provider_label="Mock genomic-window fallback",
-            warnings=warnings,
-            requirements=["resolved_sequence_context"],
-        )
-
     if template_source == "local_mane_hg38_transcript":
         return SourceDisclosure(
             source_status="source_backed",
@@ -212,6 +136,7 @@ def _context_window(
     *,
     warnings: list[str],
 ) -> _ResolvedSsodnWindow:
+    del warnings
     reference = (context.reference_base or "").upper()
     alternate = (context.alternate_base or "").upper()
     if (
@@ -239,19 +164,15 @@ def _context_window(
         reference=reference,
     )
     if source_window is None:
-        raw_reference, intron_mask = _mock_genomic_window(
-            oligo_length=payload.oligo_length,
-            variant_offset=desired_offset,
-            reference=reference,
+        code = "crispr_ssodn_reference_window_unavailable"
+        raise CrisprSsodnInputError(
+            code=code,
+            message="ssODN design requires a source-backed reference window.",
+            warnings=[code],
         )
-        variant_offset = desired_offset
-        template_source = "mock_genomic_window"
-        variant_genomic = None
-        warnings.append(SSODN_MOCK_GENOMIC_WINDOW_WARNING)
-    else:
-        raw_reference, intron_mask, variant_offset = source_window
-        template_source = "sequence_context"
-        variant_genomic = _variant_genomic_from_hg38(context.genomic_hg38)
+    raw_reference, intron_mask, variant_offset = source_window
+    template_source = "sequence_context"
+    variant_genomic = _variant_genomic_from_hg38(context.genomic_hg38)
 
     reference_bases = list(raw_reference.upper())
     variant_bases = reference_bases.copy()
@@ -654,24 +575,6 @@ def _source_context_window(
     if window[variant_offset].upper() != reference:
         return None
     return window, [base.islower() for base in window], variant_offset
-
-
-def _mock_genomic_window(
-    *,
-    oligo_length: int,
-    variant_offset: int,
-    reference: str,
-) -> tuple[str, list[bool]]:
-    motif = "ACGTTGCAAGTCGATCGTACGATGCTAGCTAGCATCGATGCGTAC"
-    bases = list((motif * ((oligo_length // len(motif)) + 1))[:oligo_length])
-    bases[variant_offset] = reference
-    intron_mask = [False] * oligo_length
-    edge = min(12, max(4, oligo_length // 10))
-    for index in range(edge):
-        intron_mask[index] = True
-    for index in range(oligo_length - edge, oligo_length):
-        intron_mask[index] = True
-    return _apply_intron_case(bases, intron_mask), intron_mask
 
 
 def _apply_pam_blocking_edit(

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import NoReturn, Protocol
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
-from starlette.datastructures import UploadFile as StarletteUploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
 from app.core.rate_limit import RATE_LIMIT_WORKBENCH, enforce_rate_limit
@@ -27,7 +26,6 @@ from app.schemas.workbench import (
     PrimerRequest,
     PrimerResponse,
 )
-from app.services.trace_parser import TRACE_MAX_DECODED_BYTES
 from app.services.workflow import ProductWorkflowService
 from app.services.workbench_design import (
     WORKBENCH_SERVICE_UNAVAILABLE,
@@ -83,10 +81,6 @@ def _raise_workbench_error(error: WorkbenchDesignError) -> NoReturn:
         status_code=error.status_code,
         detail=error.to_http_detail(),
     ) from error
-
-
-async def _read_trace_upload(file: UploadFile) -> bytes:
-    return await file.read(TRACE_MAX_DECODED_BYTES + 1)
 
 
 @router.post("/primer", response_model=PrimerResponse)
@@ -175,10 +169,14 @@ def delete_workbench_workspace(
         user_id=principal.user_id,
         owner_provider=principal.provider,
     )
-    if record is None or record.kind != "workbench" or not workflow.delete_run(
-        run_id=workspace_id,
-        user_id=principal.user_id,
-        owner_provider=principal.provider,
+    if (
+        record is None
+        or record.kind != "workbench"
+        or not workflow.delete_run(
+            run_id=workspace_id,
+            user_id=principal.user_id,
+            owner_provider=principal.provider,
+        )
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -251,31 +249,22 @@ async def analyze_crispr_tide(
     cut_site_index: int = Query(..., ge=1),
     principal: AuthenticatedPrincipal = Depends(require_authenticated_principal),
 ) -> CrisprTideResponse:
+    del cut_site_index
     enforce_rate_limit(request, RATE_LIMIT_WORKBENCH, subject=principal.user_id)
-    form = await request.form()
-    control_file = form.get("control_file")
-    edited_file = form.get("edited_file")
-    if not isinstance(control_file, StarletteUploadFile) or not isinstance(
-        edited_file, StarletteUploadFile
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Multipart upload requires control_file and edited_file trace files.",
-        )
-    try:
-        control_bytes = await _read_trace_upload(control_file)
-        edited_bytes = await _read_trace_upload(edited_file)
-    finally:
-        await control_file.close()
-        await edited_file.close()
-    try:
-        return _workbench_service(request).analyze_crispr_tide(
-            control_bytes=control_bytes,
-            edited_bytes=edited_bytes,
-            cut_site_index=cut_site_index,
-        )
-    except WorkbenchDesignError as exc:
-        _raise_workbench_error(exc)
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={
+            "code": "crispr_tide_decomposition_unavailable",
+            "message": (
+                "TIDE chromatogram-signal decomposition is unavailable; Eamos does not "
+                "substitute consensus-string comparison for TIDE."
+            ),
+            "warnings": [
+                "crispr_tide_decomposition_unavailable",
+                "requirement:validated_tide_signal_decomposition",
+            ],
+        },
+    )
 
 
 def _workflow_service(request: Request) -> ProductWorkflowService:

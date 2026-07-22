@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -22,7 +21,6 @@ from app.schemas.workbench import (
     CrisprRequest,
     CrisprResponse,
     CrisprSsodnRequest,
-    CrisprTideResponse,
     PrimerPair,
     PrimerRequest,
     PrimerResponse,
@@ -46,8 +44,10 @@ from app.services.workbench_design import (
     ALIGN_MAX_MATRIX_CELLS,
     ALIGN_MAX_SEQUENCE_BASES,
     PRIMER_SPECIFICITY_UCSC_ISPCR,
+    PRIMER_MAX_TEMPLATE_BASES,
     WORKBENCH_PROVIDER_MALFORMED,
     WORKBENCH_PROVIDER_UNAVAILABLE,
+    IndexedDbSnpPrimerSnpMaskingProvider,
     LocalDbSnpPrimerSnpMaskingProvider,
     LocalIsPcrSpecificityProvider,
     PrimerSpecificityResult,
@@ -56,12 +56,11 @@ from app.services.workbench_design import (
     WorkbenchDesignError,
     WorkbenchDesignService,
     _align_sequences,
+    _primer3_global_args,
 )
 from app.services.crispr_offtarget_screening import (
-    MOCK_SCREENING_TEMPLATE_WARNING,
     IndexedSqliteCrisprOffTargetProvider,
 )
-from app.services.crispr_ssodn import SSODN_MOCK_GENOMIC_WINDOW_WARNING
 from app.services.trace_parser import (
     TRACE_MAX_BASE_CALLS,
     TRACE_MAX_CHANNEL_SAMPLES,
@@ -76,25 +75,6 @@ from app.services.trace_parser import (
 )
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
-LOCAL_HG38_2BIT_PATH = (
-    Path(__file__).resolve().parents[1] / "data" / "bio_assets" / "genomes" / "hg38.2bit"
-)
-LOCAL_MANE_GFF_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "data"
-    / "bio_assets"
-    / "transcripts"
-    / "MANE.GRCh38.v1.5.refseq_genomic.gff.gz"
-)
-RPE65_SSODN_PUBLIC_FINGERPRINTS = {
-    "c.247T>C": (57, 56, "6c46cf72520215eea658884e717ff5734011e9b386128128188b2b2edf665718"),
-    "c.419G>A": (61, 0, "11d3503e6bfb8b040fdba34b5d42a959d00a2a72105eb6f5a8f74cee11ef4b4b"),
-    "c.65T>C": (61, 37, "2c300ad88a378d16d1d070d54103360bfa2c5d55111242fe7f72a07837956f71"),
-    "c.675C>G": (62, 38, "094f579c803ccec699ffce58134ce8fac0b4d2e4be33d997d6b685db9edce4cc"),
-    "c.881A>C": (61, 39, "3decd801aa812943ad7881b5fb6bdf695a1973cacac4807694a164a1f0e80662"),
-    "c.1301C>T": (61, 25, "2939082cd5fbe5d2fe0317453488aaf4a22f91ea0966a85cb0003794dfc9072b"),
-    "c.260A>G": (61, 47, "5496370ed7a8d38bceaf7fb6b6e7bc850717829338e77648b492890b4532e69d"),
-}
 
 
 class FailingWorkbenchService:
@@ -201,12 +181,6 @@ class QueuedSpecificityProvider:
 
 def _fixture(name: str) -> dict:
     return json.loads((FIXTURES_DIR / name).read_text(encoding="utf-8"))
-
-
-def _require_local_ssodn_assets() -> None:
-    missing = [path for path in (LOCAL_HG38_2BIT_PATH, LOCAL_MANE_GFF_PATH) if not path.is_file()]
-    if missing:
-        pytest.skip(f"local ssODN runtime asset(s) absent: {', '.join(map(str, missing))}")
 
 
 def _settings(**overrides) -> Settings:
@@ -341,14 +315,19 @@ def test_crispr_offtargets_route_returns_deidentified_fixture_shape(client) -> N
     assert all(site["mismatches"] <= 2 for site in body["sites"])
 
 
-def test_crispr_offtargets_service_is_deterministic_against_fixture() -> None:
+def test_crispr_offtargets_service_is_deterministic_in_explicit_fixture_mode() -> None:
     payload = CrisprOffTargetRequest(
         guide="GAGTCCGAGCAGAAGAAGAT",
         pam="NGG",
         max_mismatches=2,
         on_target_locus={"chromosome": "7", "position": 117509080, "strand": "+"},
     )
-    service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
+    service = WorkbenchDesignService(
+        settings=_settings(
+            use_real_apis=False,
+            workbench_live_design_enabled=False,
+        )
+    )
 
     first = service.enumerate_crispr_offtargets(payload)
     second = service.enumerate_crispr_offtargets(payload)
@@ -443,7 +422,7 @@ def test_crispr_offtargets_route_indexed_provider_returns_index_hits(tmp_path: P
     assert all(site["gene"] != "OTSG1" for site in body["sites"])
 
 
-def test_crispr_offtargets_route_auto_missing_index_uses_mock_fallback(
+def test_crispr_offtargets_route_auto_missing_index_fails_closed(
     tmp_path: Path,
 ) -> None:
     from fastapi.testclient import TestClient
@@ -468,12 +447,12 @@ def test_crispr_offtargets_route_auto_missing_index_uses_mock_fallback(
             },
         )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["genome_build"] == "GRCh38"
-    assert body["sites"][0]["on_target"] is True
-    assert body["sites"][0]["chromosome"] == "chr7"
-    assert any(site["gene"] == "OTSG1" for site in body["sites"])
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == {
+        "code": "crispr_offtarget_index_unavailable",
+        "message": "The verified GRCh38 CRISPR off-target index is unavailable.",
+        "warnings": ["crispr_offtarget_index_unavailable"],
+    }
 
 
 def test_crispr_offtargets_forced_index_missing_maps_to_503(tmp_path: Path) -> None:
@@ -530,9 +509,7 @@ def test_crispr_offtargets_route_forced_index_missing_fails_closed(
     assert detail["warnings"] == ["crispr_offtarget_index_unavailable"]
 
 
-def test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor(client) -> None:
-    _require_local_ssodn_assets()
-
+def test_crispr_ssodn_route_is_unavailable_without_typed_hdr_state(client) -> None:
     response = client.post(
         "/api/v1/crispr/ssodn",
         json={
@@ -542,76 +519,46 @@ def test_crispr_ssodn_route_returns_lab_ordered_rpe65_donor(client) -> None:
         },
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    ssodn = body["ssodn"]
-    assert body["genome_build"] == "GRCh38"
-    assert body["warnings"] == []
-    assert ssodn["template_source"] == "local_mane_hg38_transcript"
-    assert ssodn["oligo_length"] == 120
-    assert ssodn["variant_offset"] == 61
-    assert ssodn["arm_lengths"] == {"left": 61, "right": 58}
-    assert ssodn["reference_arm"][61] == "A"
-    assert ssodn["oligo_sequence"][61] == "G"
-    assert ssodn["repair_template"] == ssodn["oligo_sequence"]
-    assert ssodn["strand"] == "-"
-    assert ssodn["orientation"] == "sense"
-    assert ssodn["protocol"] == "lab_genomic"
-    assert ssodn["oligo_name"] == "ss oligo for c.260A>G; p.Asp87Gly; GAT > GGT"
-    assert ssodn["variant_genomic"] == "chr1:68444869"
-    assert len(ssodn["intron_mask"]) == 120
-    assert sum(ssodn["intron_mask"]) == 47
-    assert ssodn["oligo_sequence"].isupper()
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == {
+        "code": "crispr_ssodn_hdr_efficiency_contract_unavailable",
+        "message": (
+            "ssODN output is unavailable until the mandatory legacy HDR-efficiency "
+            "field is replaced by a typed not-assessed state."
+        ),
+        "warnings": [
+            "crispr_ssodn_hdr_efficiency_contract_unavailable",
+            "required_contract_amendment:ssodn_hdr_efficiency_optional",
+        ],
+    }
 
 
 @pytest.mark.parametrize(
-    "cdna,expected_offset,expected_intron_count,expected_sha256",
-    [
-        (cdna, offset, intron_count, digest)
-        for cdna, (offset, intron_count, digest) in RPE65_SSODN_PUBLIC_FINGERPRINTS.items()
-    ],
+    "cdna",
+    ["c.247T>C", "c.419G>A", "c.65T>C", "c.675C>G", "c.260A>G"],
 )
-def test_crispr_ssodn_public_rpe65_examples_match_expected_ordered_donor(
-    cdna: str,
-    expected_offset: int,
-    expected_intron_count: int,
-    expected_sha256: str,
-) -> None:
-    _require_local_ssodn_assets()
+def test_crispr_ssodn_variant_classes_fail_closed_pending_contract(cdna: str) -> None:
     service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
 
-    response = service.design_crispr_ssodn(CrisprSsodnRequest(gene="RPE65", cdna=cdna))
+    with pytest.raises(WorkbenchDesignError) as captured:
+        service.design_crispr_ssodn(CrisprSsodnRequest(gene="RPE65", cdna=cdna))
 
-    assert response.warnings == []
-    assert response.ssodn.template_source == "local_mane_hg38_transcript"
-    assert response.ssodn.oligo_length == 120
-    assert response.ssodn.variant_offset == expected_offset
-    if cdna == "c.260A>G":
-        assert response.ssodn.variant_genomic == "chr1:68444869"
-    assert sum(response.ssodn.intron_mask) == expected_intron_count
-    assert hashlib.sha256(response.ssodn.oligo_sequence.encode("ascii")).hexdigest() == (
-        expected_sha256
-    )
+    assert captured.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
 
 
-def test_crispr_ssodn_non_default_length_recalculates_centered_offset() -> None:
-    _require_local_ssodn_assets()
+def test_crispr_ssodn_non_default_length_does_not_emit_fixed_efficiency() -> None:
     service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
 
-    response = service.design_crispr_ssodn(
-        CrisprSsodnRequest(gene="RPE65", cdna="c.260A>G", oligo_length=100)
-    )
+    with pytest.raises(WorkbenchDesignError) as captured:
+        service.design_crispr_ssodn(
+            CrisprSsodnRequest(gene="RPE65", cdna="c.260A>G", oligo_length=100)
+        )
 
-    assert response.ssodn.oligo_length == 100
-    assert response.ssodn.variant_offset == 51
-    assert response.ssodn.arm_lengths == {"left": 51, "right": 48}
-    assert len(response.ssodn.oligo_sequence) == 100
-    assert len(response.ssodn.intron_mask) == 100
-    assert response.ssodn.reference_arm[51] == "A"
-    assert response.ssodn.oligo_sequence[51] == "G"
+    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
 
 
-def test_crispr_ssodn_falls_back_to_sequence_context_mock_when_local_assets_do_not_apply(
+def test_crispr_ssodn_does_not_fall_back_to_synthesized_window(
     client,
 ) -> None:
     query = normalize_sequence_query("TEST", "c.1A>G")
@@ -637,17 +584,11 @@ def test_crispr_ssodn_falls_back_to_sequence_context_mock_when_local_assets_do_n
         json={"gene": "TEST", "cdna": "c.1A>G", "oligo_length": 100},
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["warnings"] == [SSODN_MOCK_GENOMIC_WINDOW_WARNING]
-    assert body["ssodn"]["template_source"] == "mock_genomic_window"
-    assert body["ssodn"]["variant_offset"] == 49
-    assert body["ssodn"]["variant_genomic"] is None
-    assert body["ssodn"]["reference_arm"][49] == "A"
-    assert body["ssodn"]["oligo_sequence"][49] == "G"
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"]["code"] == ("crispr_ssodn_hdr_efficiency_contract_unavailable")
 
 
-def test_crispr_ssodn_sequence_context_window_reports_variant_genomic() -> None:
+def test_crispr_ssodn_source_context_does_not_bypass_contract_gate() -> None:
     query = normalize_sequence_query("TEST", "c.1A>G")
     context = _context()
     context.gene = "TEST"
@@ -667,14 +608,12 @@ def test_crispr_ssodn_sequence_context_window_reports_variant_genomic() -> None:
         primer_provider=FakePrimerProvider(),
     )
 
-    response = service.design_crispr_ssodn(
-        CrisprSsodnRequest(gene="TEST", cdna="c.1A>G", oligo_length=100)
-    )
+    with pytest.raises(WorkbenchDesignError) as captured:
+        service.design_crispr_ssodn(
+            CrisprSsodnRequest(gene="TEST", cdna="c.1A>G", oligo_length=100)
+        )
 
-    assert response.ssodn.template_source == "sequence_context"
-    assert response.ssodn.variant_genomic == "chr7:117509080"
-    assert response.ssodn.reference_arm[49] == "A"
-    assert response.ssodn.oligo_sequence[49] == "G"
+    assert captured.value.code == "crispr_ssodn_hdr_efficiency_contract_unavailable"
 
 
 def test_crispr_offtargets_unsupported_enzyme_maps_to_422(client) -> None:
@@ -781,7 +720,7 @@ def test_crispr_screening_primers_route_maps_primer_pair(client) -> None:
     assert context.genomic_hg38 == "7-117509080-N-N"
 
 
-def test_crispr_screening_primers_region_without_template_uses_mock_window(client) -> None:
+def test_crispr_screening_primers_region_without_reference_fails_closed(client) -> None:
     client.app.state.workbench_design_service = WorkbenchDesignService(
         settings=_settings(use_real_apis=False),
         primer_provider=FakeScreeningPrimerProvider(),
@@ -802,13 +741,12 @@ def test_crispr_screening_primers_region_without_template_uses_mock_window(clien
         },
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["primers"] == []
-    assert body["warnings"] == [
-        MOCK_SCREENING_TEMPLATE_WARNING,
-        "crispr_screening_primer_unavailable:site_1",
-    ]
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == {
+        "code": "crispr_screening_reference_window_unavailable",
+        "message": ("A source-backed reference-window provider is required for screening primers."),
+        "warnings": ["crispr_screening_reference_window_unavailable"],
+    }
 
 
 def test_crispr_screening_primers_region_uses_reference_window_provider(client) -> None:
@@ -955,7 +893,7 @@ def test_align_trace_endpoint_analyzes_rpe65_vus1_ab1_in_fixture_mode(
     assert all(call["main_ratio"] >= 0.5 for call in body["het"])
 
 
-def test_crispr_tide_endpoint_returns_observed_only_source_backed_spectrum(
+def test_crispr_tide_endpoint_reports_decomposition_unavailable(
     auth_client,
 ) -> None:
     trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
@@ -968,39 +906,36 @@ def test_crispr_tide_endpoint_returns_observed_only_source_backed_spectrum(
         },
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["source_backed"] is True
-    assert body["analysis_kind"] == "tide"
-    assert body["provider_label"] == "Eamos observed-only TIDE-style analyzer"
-    assert body["cut_site_index"] == 100
-    assert body["editing_efficiency"] == 0.0
-    assert body["r_squared"] == 1.0
-    assert body["spectrum"] == [{"size": 0, "observed": 1.0, "predicted": None}]
-    assert body["predicted_available"] is False
-    assert "observed-only" in body["notes"].lower()
-    assert "crispr_tide_consensus_only" in body["warnings"]
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == {
+        "code": "crispr_tide_decomposition_unavailable",
+        "message": (
+            "TIDE chromatogram-signal decomposition is unavailable; Eamos does not "
+            "substitute consensus-string comparison for TIDE."
+        ),
+        "warnings": [
+            "crispr_tide_decomposition_unavailable",
+            "requirement:validated_tide_signal_decomposition",
+        ],
+    }
 
 
-def test_workbench_service_crispr_tide_is_always_on_without_real_apis() -> None:
+def test_workbench_service_does_not_return_consensus_proxy_as_tide() -> None:
     service = WorkbenchDesignService(settings=_settings(use_real_apis=False))
     trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
 
-    response = service.analyze_crispr_tide(
-        control_bytes=trace_bytes,
-        edited_bytes=trace_bytes,
-        cut_site_index=100,
-    )
+    with pytest.raises(WorkbenchDesignError) as captured:
+        service.analyze_crispr_tide(
+            control_bytes=trace_bytes,
+            edited_bytes=trace_bytes,
+            cut_site_index=100,
+        )
 
-    assert isinstance(response, CrisprTideResponse)
-    assert response.source_backed is True
-    assert response.analysis_kind == "tide"
-    assert response.editing_efficiency == 0.0
-    assert response.spectrum[0].size == 0
-    assert response.spectrum[0].observed == 1.0
+    assert captured.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert captured.value.code == "crispr_tide_decomposition_unavailable"
 
 
-def test_crispr_tide_unsupported_trace_upload_maps_to_422(auth_client) -> None:
+def test_crispr_tide_unavailable_gate_precedes_trace_parsing(auth_client) -> None:
     trace_bytes = (FIXTURES_DIR / "rpe65_vus1.ab1").read_bytes()
 
     response = auth_client.post(
@@ -1011,17 +946,17 @@ def test_crispr_tide_unsupported_trace_upload_maps_to_422(auth_client) -> None:
         },
     )
 
-    warning = unsupported_input_warning("ab1")
-    assert response.status_code == 422
-    assert response.json()["detail"] == {
-        "code": warning,
-        "message": "AB1 trace payload could not be parsed.",
-        "warnings": [warning, TRACE_UNSUPPORTED_FORMAT],
-    }
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"]["code"] == "crispr_tide_decomposition_unavailable"
+    assert "not-an-ab1" not in response.text
 
 
 def test_crispr_tide_parser_unavailable_maps_to_503(auth_client, monkeypatch) -> None:
+    parser_called = False
+
     def missing_parser(_data):
+        nonlocal parser_called
+        parser_called = True
         raise TraceParseError(
             code=TRACE_PARSER_UNAVAILABLE,
             message="Biopython is required to parse AB1 trace files.",
@@ -1040,11 +975,18 @@ def test_crispr_tide_parser_unavailable_maps_to_503(auth_client, monkeypatch) ->
         },
     )
 
-    assert response.status_code == 503
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert parser_called is False
     assert response.json()["detail"] == {
-        "code": WORKBENCH_PROVIDER_UNAVAILABLE,
-        "message": "Biopython is required to parse AB1 trace files.",
-        "warnings": [WORKBENCH_PROVIDER_UNAVAILABLE, TRACE_PARSER_UNAVAILABLE],
+        "code": "crispr_tide_decomposition_unavailable",
+        "message": (
+            "TIDE chromatogram-signal decomposition is unavailable; Eamos does not "
+            "substitute consensus-string comparison for TIDE."
+        ),
+        "warnings": [
+            "crispr_tide_decomposition_unavailable",
+            "requirement:validated_tide_signal_decomposition",
+        ],
     }
 
 
@@ -1299,7 +1241,7 @@ def test_real_mode_crispr_route_returns_local_deterministic_guides(client) -> No
     assert body["cas"] == "SpCas9"
     assert body["guides"]
     assert body["guides"][0]["notes"].startswith("Local deterministic SpCas9")
-    assert body["ssodn"]["edits_encoded"] == ["c.260A>G"]
+    assert body["ssodn"] is None
 
 
 def test_real_mode_align_route_aligns_user_sequence_to_sequence_context(client) -> None:
@@ -1700,7 +1642,7 @@ def test_trace_parser_rejects_non_finite_channel_values() -> None:
     assert error.value.code == TRACE_INVALID_SIGNAL
 
 
-def test_large_alignment_skips_pairwise_matrix(monkeypatch) -> None:
+def test_large_alignment_returns_typed_matrix_limit(monkeypatch) -> None:
     sequence_length = int(ALIGN_MAX_MATRIX_CELLS**0.5) + 1
 
     def fail_pairwise(**_kwargs):
@@ -1710,10 +1652,11 @@ def test_large_alignment_skips_pairwise_matrix(monkeypatch) -> None:
         "app.services.workbench_design_alignment._bio_pairwise_alignment", fail_pairwise
     )
 
-    cells = _align_sequences(reference="A" * sequence_length, read="A" * sequence_length)
+    with pytest.raises(WorkbenchDesignError) as captured:
+        _align_sequences(reference="A" * sequence_length, read="A" * sequence_length)
 
-    assert len(cells) == sequence_length
-    assert all(cell.reference_base == "A" and cell.read_base == "A" for cell in cells[:5])
+    assert captured.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert captured.value.code == "workbench_unsupported_input:alignment_matrix"
 
 
 def test_primer3_provider_maps_engine_output() -> None:
@@ -1773,8 +1716,7 @@ def test_primer3_provider_maps_engine_output() -> None:
     assert pair.specificity_hits == 1
     assert pair.secondary_structure_risk == "moderate"
     assert pair.secondary_structure_notes == (
-        "Primer3 thermodynamic secondary-structure screen moderate; "
-        "max pair complement-end 38.2."
+        "Primer3 thermodynamic secondary-structure screen moderate; max pair complement-end 38.2."
     )
     assert pair.self_any_forward == 22.5
     assert pair.self_any_reverse == 31.2
@@ -1809,6 +1751,67 @@ def test_primer3_provider_maps_engine_output() -> None:
     assert Primer3Module.bindings.seq_args["SEQUENCE_TARGET"] == [500, 1]
     assert Primer3Module.bindings.global_args["PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT"] == 1
     assert Primer3Module.bindings.global_args["PRIMER_PRODUCT_SIZE_RANGE"] == [[300, 700]]
+
+
+def test_primer3_sanger_constraint_profile_is_exact() -> None:
+    payload = PrimerRequest(
+        gene="RPE65",
+        cdna="c.260A>G",
+        mode="sanger",
+        tm_min=57.0,
+        tm_max=63.0,
+        product_size_min=250,
+        product_size_max=800,
+    )
+
+    assert _primer3_global_args(payload, product_min=250, product_max=800) == {
+        "PRIMER_TASK": "generic",
+        "PRIMER_NUM_RETURN": 3,
+        "PRIMER_OPT_SIZE": 20,
+        "PRIMER_MIN_SIZE": 18,
+        "PRIMER_MAX_SIZE": 25,
+        "PRIMER_MIN_TM": 57.0,
+        "PRIMER_OPT_TM": 60.0,
+        "PRIMER_MAX_TM": 63.0,
+        "PRIMER_MIN_GC": 35.0,
+        "PRIMER_MAX_GC": 70.0,
+        "PRIMER_MAX_NS_ACCEPTED": 0,
+        "PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT": 1,
+        "PRIMER_PRODUCT_SIZE_RANGE": [[250, 800]],
+        "PRIMER_MAX_POLY_X": 5,
+        "PRIMER_GC_CLAMP": 0,
+    }
+
+
+def test_primer3_qpcr_constraint_profile_is_exact() -> None:
+    payload = PrimerRequest(
+        gene="RPE65",
+        cdna="c.260A>G",
+        mode="qpcr",
+        tm_min=59.0,
+        tm_max=61.0,
+        product_size_min=70,
+        product_size_max=200,
+    )
+
+    assert _primer3_global_args(payload, product_min=70, product_max=200) == {
+        "PRIMER_TASK": "generic",
+        "PRIMER_NUM_RETURN": 3,
+        "PRIMER_OPT_SIZE": 20,
+        "PRIMER_MIN_SIZE": 18,
+        "PRIMER_MAX_SIZE": 25,
+        "PRIMER_MIN_TM": 59.0,
+        "PRIMER_OPT_TM": 60.0,
+        "PRIMER_MAX_TM": 61.0,
+        "PRIMER_MIN_GC": 35.0,
+        "PRIMER_MAX_GC": 70.0,
+        "PRIMER_MAX_NS_ACCEPTED": 0,
+        "PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT": 1,
+        "PRIMER_PRODUCT_SIZE_RANGE": [[70, 200]],
+        "PRIMER_MAX_POLY_X": 4,
+        "PRIMER_GC_CLAMP": 1,
+        "PRIMER_MAX_END_GC": 3,
+    }
 
 
 def test_primer3_provider_warns_when_snp_masking_requested_without_provider() -> None:
@@ -2070,6 +2073,65 @@ def test_local_ispcr_specificity_provider_requires_local_assets(tmp_path: Path) 
     assert error.value.status_code == 503
 
 
+def test_primer3_provider_rejects_oversized_design_template() -> None:
+    context = _context().model_copy(
+        update={
+            "window_sequence": "A" * (PRIMER_MAX_TEMPLATE_BASES + 1),
+            "target_offset": PRIMER_MAX_TEMPLATE_BASES // 2,
+        }
+    )
+    provider = Primer3PrimerProvider(primer3_module=SimpleNamespace())
+
+    with pytest.raises(WorkbenchDesignError) as captured:
+        provider.design(
+            PrimerRequest(gene="RPE65", cdna="c.260A>G"),
+            context,
+        )
+
+    assert captured.value.code == unsupported_input_warning("primer_template_length")
+    assert captured.value.status_code == 422
+
+
+def test_local_ispcr_specificity_provider_does_not_expose_stderr_or_sequences(
+    tmp_path: Path,
+) -> None:
+    binary_path = tmp_path / "isPcr"
+    genome_path = tmp_path / "hg38.2bit"
+    binary_path.write_text("stub", encoding="utf-8")
+    genome_path.write_text("stub", encoding="utf-8")
+    forward = "AACCGGTTAACCGGTTAA"
+
+    def runner(command, **kwargs):
+        del kwargs
+        return subprocess.CompletedProcess(
+            command,
+            2,
+            stdout="",
+            stderr=f"failed for {forward} at {tmp_path / 'private-query.fa'}",
+        )
+
+    provider = LocalIsPcrSpecificityProvider(
+        _settings(),
+        binary_path=binary_path,
+        genome_path=genome_path,
+        runner=runner,
+    )
+
+    with pytest.raises(WorkbenchDesignError) as captured:
+        provider.check(
+            forward=forward,
+            reverse="TTGGAACCTTGGAACCTT",
+            product_min=300,
+            product_max=700,
+            context=_context(),
+        )
+
+    rendered = json.dumps(captured.value.to_http_detail())
+    assert forward not in rendered
+    assert str(tmp_path) not in rendered
+    assert "private-query" not in rendered
+
+
 def test_workbench_service_can_opt_into_local_ispcr_specificity_provider() -> None:
     service = WorkbenchDesignService(
         settings=_settings(primer_specificity_provider=PRIMER_SPECIFICITY_UCSC_ISPCR)
@@ -2077,6 +2139,26 @@ def test_workbench_service_can_opt_into_local_ispcr_specificity_provider() -> No
 
     assert isinstance(service.primer_provider, Primer3PrimerProvider)
     assert isinstance(service.primer_provider.specificity_provider, LocalIsPcrSpecificityProvider)
+
+
+def test_workbench_service_wires_mounted_indexed_dbsnp_masking(tmp_path: Path) -> None:
+    vcf_path = tmp_path / "dbsnp.vcf.gz"
+    index_path = tmp_path / "dbsnp.vcf.gz.tbi"
+    vcf_path.write_bytes(b"mounted-vcf-placeholder")
+    index_path.write_bytes(b"mounted-index-placeholder")
+
+    service = WorkbenchDesignService(
+        settings=_settings(
+            dbsnp_runtime_vcf_path=vcf_path,
+            dbsnp_runtime_index_path=index_path,
+        )
+    )
+
+    assert isinstance(service.primer_provider, Primer3PrimerProvider)
+    assert isinstance(
+        service.primer_provider.snp_masking_provider,
+        IndexedDbSnpPrimerSnpMaskingProvider,
+    )
 
 
 def test_workbench_service_uses_local_deterministic_crispr_provider_by_default() -> None:

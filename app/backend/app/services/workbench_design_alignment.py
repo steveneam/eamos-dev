@@ -161,10 +161,9 @@ def _parse_alignment_sequence(raw_sequence: str) -> str:
 
     if invalid:
         code = unsupported_input_warning("alignment_sequence")
-        invalid_text = " ".join(sorted(invalid))
         raise WorkbenchDesignError(
             code=code,
-            message=f"Alignment read contains unsupported characters: {invalid_text}.",
+            message="Alignment read contains one or more unsupported characters.",
             status_code=HTTP_UNPROCESSABLE_ENTITY,
             warnings=[code],
         )
@@ -182,15 +181,20 @@ def _parse_alignment_sequence(raw_sequence: str) -> str:
 
 
 def _validate_alignment_size(*, reference: str, read: str) -> None:
-    if len(reference) <= ALIGN_MAX_SEQUENCE_BASES and len(read) <= ALIGN_MAX_SEQUENCE_BASES:
+    if (
+        len(reference) <= ALIGN_MAX_SEQUENCE_BASES
+        and len(read) <= ALIGN_MAX_SEQUENCE_BASES
+        and _alignment_matrix_cells(reference=reference, read=read) <= ALIGN_MAX_MATRIX_CELLS
+    ):
         return
 
     code = unsupported_input_warning("alignment_length")
     raise WorkbenchDesignError(
         code=code,
         message=(
-            "Alignment input is too long for the local Workbench aligner "
-            f"({ALIGN_MAX_SEQUENCE_BASES} bp limit per sequence)."
+            "Alignment input exceeds the bounded pairwise-aligner envelope "
+            f"({ALIGN_MAX_SEQUENCE_BASES} bp per sequence and "
+            f"{ALIGN_MAX_MATRIX_CELLS} matrix cells)."
         ),
         status_code=HTTP_UNPROCESSABLE_ENTITY,
         warnings=[code],
@@ -199,7 +203,13 @@ def _validate_alignment_size(*, reference: str, read: str) -> None:
 
 def _align_sequences(*, reference: str, read: str) -> tuple[AlignmentCell, ...]:
     if _alignment_matrix_cells(reference=reference, read=read) > ALIGN_MAX_MATRIX_CELLS:
-        return _positional_alignment(reference=reference, read=read)
+        code = unsupported_input_warning("alignment_matrix")
+        raise WorkbenchDesignError(
+            code=code,
+            message="Alignment input exceeds the bounded pairwise-alignment matrix.",
+            status_code=HTTP_UNPROCESSABLE_ENTITY,
+            warnings=[code],
+        )
 
     bio_cells = _bio_pairwise_alignment(reference=reference, read=read)
     if bio_cells:
@@ -362,34 +372,29 @@ def _alignment_blocks(blocks: Any) -> list[tuple[int, int]]:
 
 
 def _fallback_alignment(*, reference: str, read: str) -> tuple[AlignmentCell, ...]:
-    if len(reference) == len(read):
-        return _positional_alignment(reference=reference, read=read)
-
     if _alignment_matrix_cells(reference=reference, read=read) > ALIGN_MAX_MATRIX_CELLS:
-        return _positional_alignment(reference=reference, read=read)
+        code = unsupported_input_warning("alignment_matrix")
+        raise WorkbenchDesignError(
+            code=code,
+            message="Alignment input exceeds the bounded pairwise-alignment matrix.",
+            status_code=HTTP_UNPROCESSABLE_ENTITY,
+            warnings=[code],
+        )
 
     cells, score = _smith_waterman_alignment(reference=reference, read=read)
     if score > 0 and cells:
         return cells
-    return _positional_alignment(reference=reference, read=read)
+    code = unsupported_input_warning("alignment_no_supported_match")
+    raise WorkbenchDesignError(
+        code=code,
+        message="The bounded local aligner found no supported alignment.",
+        status_code=HTTP_UNPROCESSABLE_ENTITY,
+        warnings=[code],
+    )
 
 
 def _alignment_matrix_cells(*, reference: str, read: str) -> int:
     return (len(reference) + 1) * (len(read) + 1)
-
-
-def _positional_alignment(*, reference: str, read: str) -> tuple[AlignmentCell, ...]:
-    cells: list[AlignmentCell] = []
-    for index in range(max(len(reference), len(read))):
-        cells.append(
-            AlignmentCell(
-                reference_base=reference[index] if index < len(reference) else "-",
-                read_base=read[index] if index < len(read) else "-",
-                reference_index=index if index < len(reference) else None,
-                read_index=index if index < len(read) else None,
-            )
-        )
-    return tuple(cells)
 
 
 def _smith_waterman_alignment(

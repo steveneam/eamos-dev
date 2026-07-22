@@ -6,13 +6,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.services.crispr_tide import CrisprTideInputError, analyze_crispr_tide_observed
+from app.services.crispr_tide import (
+    CrisprTideInputError,
+    analyze_descriptive_trace_comparison,
+)
 from app.services.trace_parser import TraceParseError, parse_ab1_bytes
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run the local observed-only CRISPR TIDE-style analyzer on two AB1 traces."
+        description="Compare two AB1 consensus traces without claiming TIDE decomposition."
     )
     parser.add_argument("--control", type=Path, required=True, help="control AB1 trace path")
     parser.add_argument("--edited", type=Path, required=True, help="edited AB1 trace path")
@@ -30,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
         edited_bytes = _read_trace(args.edited)
         control_trace = parse_ab1_bytes(control_bytes)
         edited_trace = parse_ab1_bytes(edited_bytes)
-        result = analyze_crispr_tide_observed(
+        result = analyze_descriptive_trace_comparison(
             control_trace=control_trace,
             edited_trace=edited_trace,
             cut_site_index=args.cut_site_index,
@@ -46,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     report = {
-        "mode": "local_observed_tide",
+        "mode": "descriptive_trace_comparison",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "guardrails": {
             "network": "not_used",
@@ -61,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
             "control_base_calls": len(control_trace.sequence),
             "edited_base_calls": len(edited_trace.sequence),
         },
-        "result": result.model_dump(mode="json"),
+        "result": result.to_dict(),
     }
     print(json.dumps(report, indent=None if args.compact else 2, sort_keys=True))
     return 0
@@ -93,7 +96,7 @@ def _error_report(exc: BaseException) -> dict[str, Any]:
         warnings = [code]
 
     return {
-        "mode": "local_observed_tide",
+        "mode": "descriptive_trace_comparison",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "error",
         "error": {
