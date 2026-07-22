@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
@@ -21,6 +23,10 @@ DEFAULT_LIBRARY_VARIANT_LIMIT = 500
 MAX_LIBRARY_VARIANT_LIMIT = 500
 DEFAULT_LIBRARY_FOLDER_LIMIT = 500
 MAX_LIBRARY_FOLDER_LIMIT = 500
+LIBRARY_TOMBSTONE_PREFIX = "__eamos_tombstone__:"
+LIBRARY_SCHEMA_MARKER_ID = "__eamos_schema__:v2"
+LIBRARY_SCHEMA_MARKER_QUERY = "library.v2"
+SUPABASE_LIBRARY_MAX_WRITE_ATTEMPTS = 4
 
 
 class VariantLibraryRepoError(RuntimeError):
@@ -91,7 +97,10 @@ class VariantLibraryRepo:
             record = session.get(UserLibraryRecord, user_id)
             if record is None:
                 record = UserLibraryRecord(user_id=user_id)
-            record.variants = variants
+            record.variants = reconcile_library_variant_documents(
+                list(record.variants or []),
+                variants,
+            )
             record.folders = folders
             record.updated_at = now
             session.add(record)
@@ -377,21 +386,43 @@ class SupabaseVariantLibraryRepo:
         variants: list[dict[str, Any]],
         folders: list[dict[str, Any]],
     ) -> UserLibraryDocumentRecord:
-        updated_at = datetime.now(timezone.utc).isoformat()
-        rows = self._post_rows(
-            "user_library",
-            json={
+        for _attempt in range(SUPABASE_LIBRARY_MAX_WRITE_ATTEMPTS):
+            existing = self.get_document(user_id=user_id)
+            merged_variants = reconcile_library_variant_documents(
+                existing.variants if existing is not None else [],
+                variants,
+            )
+            payload = {
                 "user_id": user_id,
-                "variants": variants,
+                "variants": merged_variants,
                 "folders": folders,
-                "updated_at": updated_at,
-            },
-            params={"on_conflict": "user_id"},
-            prefer="resolution=merge-duplicates,return=representation",
-        )
-        if not rows:
-            raise VariantLibraryWriteError("user library upsert returned no row")
-        return _library_document_from_row(rows[0])
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if existing is None:
+                # Insert only. If another writer created the row after our GET,
+                # PostgREST returns no representation and the next attempt
+                # re-reads and deterministically merges its document.
+                rows = self._post_rows(
+                    "user_library",
+                    json=payload,
+                    params={"on_conflict": "user_id"},
+                    prefer="resolution=ignore-duplicates,return=representation",
+                )
+            else:
+                # Compare-and-swap on the version already merged. A concurrent
+                # writer changes updated_at, yielding zero rows and a retry
+                # against the newer tombstone/active state.
+                rows = self._patch_rows(
+                    "user_library",
+                    json=payload,
+                    params={
+                        "user_id": f"eq.{user_id}",
+                        "updated_at": f"eq.{existing.updated_at.isoformat()}",
+                    },
+                )
+            if rows:
+                return _library_document_from_row(rows[0])
+        raise VariantLibraryWriteError("user library changed during every merge attempt")
 
     def list_variants(
         self,
@@ -876,3 +907,168 @@ def _list_of_dicts(value: object) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [dict(item) for item in value if isinstance(item, dict)]
+
+
+def make_library_tombstone(variant_id: str, *, saved_at: int) -> dict[str, Any]:
+    """Encode a deletion without widening the frozen SavedVariant contract."""
+
+    target_id = _normalized_document_id(variant_id)
+    digest = hashlib.sha256(target_id.encode("utf-8")).hexdigest()
+    return {
+        "id": f"{LIBRARY_TOMBSTONE_PREFIX}{digest}",
+        "gene": None,
+        "variant": None,
+        "query": target_id,
+        "raw": "",
+        "savedAt": max(0, int(saved_at)),
+        "folderId": None,
+        "classification": None,
+        "hgvs_full": None,
+    }
+
+
+def is_library_reserved_variant(item: dict[str, Any] | object) -> bool:
+    if not isinstance(item, dict):
+        return False
+    variant_id = str(item.get("id") or "").strip().lower()
+    return variant_id == LIBRARY_SCHEMA_MARKER_ID or variant_id.startswith(LIBRARY_TOMBSTONE_PREFIX)
+
+
+def merge_library_variant_documents(
+    *documents: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Deterministically merge SavedVariant rows using v2 tombstone semantics.
+
+    The largest ``savedAt`` wins for each normalized variant id. A valid
+    tombstone wins an exact timestamp tie, preventing a stale client from
+    resurrecting a deleted item. A final JSON tie-break keeps the operation
+    commutative when two active writes share a timestamp.
+    """
+
+    marker: dict[str, Any] | None = None
+    winners: dict[str, tuple[dict[str, Any], bool]] = {}
+    for document in documents:
+        for raw_item in document:
+            item = _validated_document_variant(raw_item)
+            if item["id"] == LIBRARY_SCHEMA_MARKER_ID:
+                marker = _choose_schema_marker(marker, item)
+                continue
+            target_id, tombstone = _document_variant_identity(item)
+            current = winners.get(target_id)
+            if current is None or _document_variant_rank(item, tombstone) > (
+                _document_variant_rank(current[0], current[1])
+            ):
+                winners[target_id] = (item, tombstone)
+
+    merged = [item for item, _tombstone in winners.values()]
+    merged.sort(
+        key=lambda item: (
+            -int(item["savedAt"]),
+            _document_variant_identity(item)[0],
+            str(item["id"]),
+        )
+    )
+    return ([marker] if marker is not None else []) + merged
+
+
+def reconcile_library_variant_documents(
+    existing: Iterable[dict[str, Any]],
+    incoming: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Preserve legacy whole-document PUT until an account adopts v2 rows.
+
+    A v2 marker or tombstone in either document makes the merge ratchet sticky,
+    so an older client cannot erase deletion history and resurrect stale data.
+    Accounts that have never emitted a reserved v2 row retain the original
+    replacement behavior, including clearing the library with an empty list.
+    """
+
+    existing_rows = list(existing)
+    incoming_rows = list(incoming)
+    if any(is_library_reserved_variant(item) for item in (*existing_rows, *incoming_rows)):
+        return merge_library_variant_documents(existing_rows, incoming_rows)
+    return [_validated_document_variant(item) for item in incoming_rows]
+
+
+def _validated_document_variant(raw_item: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(raw_item, dict):
+        raise VariantLibraryWriteError("library variant document row must be an object")
+    item = dict(raw_item)
+    variant_id = _normalized_document_id(item.get("id"))
+    query = item.get("query")
+    raw = item.get("raw", "")
+    saved_at = item.get("savedAt")
+    if not isinstance(query, str) or not query.strip():
+        raise VariantLibraryWriteError("library variant document row requires query")
+    if not isinstance(raw, str):
+        raise VariantLibraryWriteError("library variant document row raw must be text")
+    if isinstance(saved_at, bool):
+        raise VariantLibraryWriteError("library variant document row savedAt is invalid")
+    try:
+        normalized_saved_at = int(saved_at)
+    except (TypeError, ValueError) as exc:
+        raise VariantLibraryWriteError("library variant document row savedAt is invalid") from exc
+    if normalized_saved_at < 0:
+        raise VariantLibraryWriteError("library variant document row savedAt is invalid")
+    item["id"] = variant_id
+    item["query"] = query.strip()
+    item["raw"] = raw.strip()
+    item["savedAt"] = normalized_saved_at
+    return item
+
+
+def _document_variant_identity(item: dict[str, Any]) -> tuple[str, bool]:
+    variant_id = str(item["id"])
+    if variant_id == LIBRARY_SCHEMA_MARKER_ID:
+        if item["query"].strip().lower() != LIBRARY_SCHEMA_MARKER_QUERY or item["raw"]:
+            raise VariantLibraryWriteError("library v2 schema marker is malformed")
+        _assert_reserved_optional_fields_empty(item)
+        return variant_id, False
+    if variant_id.startswith(LIBRARY_TOMBSTONE_PREFIX):
+        target_id = _normalized_document_id(item["query"])
+        expected_id = (
+            f"{LIBRARY_TOMBSTONE_PREFIX}" f"{hashlib.sha256(target_id.encode('utf-8')).hexdigest()}"
+        )
+        if variant_id != expected_id or item["raw"]:
+            raise VariantLibraryWriteError("library v2 tombstone is malformed")
+        _assert_reserved_optional_fields_empty(item)
+        return target_id, True
+    if variant_id.startswith("__eamos_"):
+        raise VariantLibraryWriteError("library variant uses a reserved id namespace")
+    return variant_id, False
+
+
+def _assert_reserved_optional_fields_empty(item: dict[str, Any]) -> None:
+    for key in ("gene", "variant", "folderId", "classification", "hgvs_full"):
+        if item.get(key) is not None:
+            raise VariantLibraryWriteError(f"library reserved row field {key} must be null")
+
+
+def _document_variant_rank(item: dict[str, Any], tombstone: bool) -> tuple[int, int, str]:
+    return (
+        int(item["savedAt"]),
+        1 if tombstone else 0,
+        json.dumps(item, sort_keys=True, separators=(",", ":"), ensure_ascii=True),
+    )
+
+
+def _choose_schema_marker(
+    current: dict[str, Any] | None,
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    _document_variant_identity(candidate)
+    if current is None:
+        return candidate
+    return max(
+        (current, candidate),
+        key=lambda item: _document_variant_rank(item, False),
+    )
+
+
+def _normalized_document_id(value: object) -> str:
+    if not isinstance(value, str):
+        raise VariantLibraryWriteError("library variant document row requires id")
+    normalized = value.strip().lower()
+    if not normalized or len(normalized) > 512:
+        raise VariantLibraryWriteError("library variant document row id is invalid")
+    return normalized

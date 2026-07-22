@@ -308,6 +308,81 @@ class MockGenericGeneViewerSourceClient:
         ]
 
 
+class MockFullGeneSourceClient:
+    locus_sequence = "TTATGCCCCCCCGCAATTTT"
+
+    def __init__(self) -> None:
+        self.sequence_calls: list[dict[str, object]] = []
+
+    def resolve_variant(self, *, query, genome_build: str) -> VariantProjection:
+        variant = VariantProjection.from_hgvs_c(query.hgvs)
+        return VariantProjection(
+            hgvs_c=variant.hgvs_c,
+            cds_pos=variant.cds_pos,
+            ref=variant.ref,
+            alt=variant.alt,
+            genomic_hg38="7-112-G-A",
+            codon_number=variant.codon_number,
+            codon_offset=variant.codon_offset,
+        )
+
+    def fetch_transcript(self, *, query, variant, genome_build: str) -> SourceTranscriptModel:
+        return SourceTranscriptModel(
+            gene=query.gene,
+            transcript=query.resolver_transcript or "NM_TINY.1",
+            chrom="7",
+            strand="+",
+            exons=(
+                SourceTranscriptExon(
+                    number=1,
+                    cds_start=1,
+                    cds_end=4,
+                    genomic_start=102,
+                    genomic_end=105,
+                ),
+                SourceTranscriptExon(
+                    number=2,
+                    cds_start=5,
+                    cds_end=8,
+                    genomic_start=112,
+                    genomic_end=115,
+                ),
+            ),
+            introns=(SourceTranscriptIntron(number=1, genomic_start=106, genomic_end=111),),
+            total_exons=2,
+            ensembl_gene_id="ENSGTINY",
+            transcript_aliases=("NM_TINY.1", "ENSTTINY.1"),
+            gene_start=100,
+            gene_end=119,
+            gene_length=20,
+            cds_length=8,
+            protein_length=2,
+            utr5_length=2,
+            utr3_length=4,
+            mrna_length=14,
+            translation_id="ENSPTINY",
+            warnings=("mocked_complete_source",),
+        )
+
+    def fetch_sequence(self, *, chrom: str, start: int, end: int, strand: str) -> str:
+        call = {"chrom": chrom, "start": start, "end": end, "strand": strand}
+        self.sequence_calls.append(call)
+        assert call == {"chrom": "7", "start": 100, "end": 119, "strand": "+"}
+        return self.locus_sequence
+
+    def fetch_protein_features(self, *, transcript: SourceTranscriptModel) -> ProteinFeatures:
+        return ProteinFeatures()
+
+    def provenance_sources(self, *, query, transcript, variant) -> list[ViewerProvenanceSource]:
+        return [
+            ViewerProvenanceSource(
+                name="official_test_source",
+                identifier=transcript.transcript,
+                url="https://example.test/full-gene",
+            )
+        ]
+
+
 class ExplodingGeneViewerSourceClient(MockOfficialGeneViewerSourceClient):
     def resolve_variant(self, *, query, genome_build: str) -> VariantProjection:
         raise RuntimeError("boom")
@@ -1166,24 +1241,58 @@ def test_source_backed_provider_builds_rpe65_viewer_from_mocked_official_sources
     )
 
 
-def test_source_backed_provider_uses_curated_fixture_for_full_gene_until_live_hydration() -> None:
+def test_source_backed_provider_full_gene_failure_does_not_fall_back_to_fixture() -> None:
     provider = SourceBackedGeneViewerProvider(source_client=ExplodingGeneViewerSourceClient())
+
+    with pytest.raises(GeneViewerError) as error:
+        provider.viewer(
+            GeneViewerRequest(
+                gene="ABCA4",
+                cdna="c.5435T>A",
+                transcript="NM_000350.3",
+                window=ViewerWindowRequest(kind="full_gene"),
+            )
+        )
+
+    assert error.value.code == f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:RuntimeError"
+    assert error.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+def test_source_backed_provider_hydrates_complete_full_gene_from_source() -> None:
+    source_client = MockFullGeneSourceClient()
+    provider = SourceBackedGeneViewerProvider(source_client=source_client)
 
     response = provider.viewer(
         GeneViewerRequest(
-            gene="ABCA4",
-            cdna="c.5435T>A",
-            transcript="NM_000350.3",
+            gene="TINY",
+            cdna="c.5G>A",
+            transcript="NM_TINY.1",
             window=ViewerWindowRequest(kind="full_gene"),
         )
     )
 
-    assert response.identity.gene == "ABCA4"
+    assert response.identity.gene == "TINY"
     assert response.window.kind == "full_gene"
     assert response.window.basis == "genomic_locus"
     assert response.full_locus is not None
-    assert response.window.total_locus_bases == 128315
-    assert "full_gene_fixture_hydrated" in response.provenance.warnings
+    assert response.full_locus.locus.sequence == source_client.locus_sequence
+    assert response.window.total_locus_bases == len(source_client.locus_sequence)
+    assert response.summary.total_exons == 2
+    assert [interval.kind for interval in response.full_locus.transcript_projection.intervals] == [
+        "utr5",
+        "exon",
+        "cds",
+        "exon",
+        "cds",
+        "intron",
+        "utr3",
+    ]
+    assert response.provenance.sources[0].name == "official_test_source"
+    assert "full_gene_source_hydrated" in response.provenance.warnings
+    assert "full_gene_fixture_hydrated" not in response.provenance.warnings
+    assert source_client.sequence_calls == [
+        {"chrom": "7", "start": 100, "end": 119, "strand": "+"}
+    ]
 
 
 def test_source_backed_provider_uses_ensembl_transcript_for_non_rpe65_request() -> None:
@@ -1642,7 +1751,7 @@ def test_viewer_endpoint_real_mode_falls_back_to_curated_abca4_fixture(client) -
     assert seeded["uniprot-seed:P78363:domain:1938-2170:abc-transporter-2"]["short_label"] == "ABC2"
 
 
-def test_viewer_endpoint_full_gene_uses_fixture_fallback_in_real_mode(client) -> None:
+def test_viewer_endpoint_full_gene_fails_closed_in_real_mode(client) -> None:
     client.app.state.gene_viewer_service = GeneViewerService(
         settings=Settings(jwt_secret="test-secret", use_real_apis=True),
         live_provider=SourceBackedGeneViewerProvider(
@@ -1660,12 +1769,10 @@ def test_viewer_endpoint_full_gene_uses_fixture_fallback_in_real_mode(client) ->
         },
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["window"]["kind"] == "full_gene"
-    assert body["window"]["basis"] == "genomic_locus"
-    assert body["full_locus"]["basis"] == "genomic_locus"
-    assert "full_gene_fixture_hydrated" in body["provenance"]["warnings"]
+    assert response.status_code == 503
+    body = response.json()["detail"]
+    assert body["code"] == f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:RuntimeError"
+    assert body["warnings"] == [body["code"]]
 
 
 def test_window_builder_reference_mode_preserves_reference_sequence() -> None:

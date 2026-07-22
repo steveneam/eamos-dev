@@ -25,6 +25,10 @@ from app.repos.evidence_submissions_repo import (
     SupabaseEvidenceSubmissionsRepo,
 )
 from app.repos.protein_annotation_cache_repo import ProteinAnnotationCacheRepo
+from app.repos.product_workflow_repo import (
+    ProductWorkflowRepo,
+    SupabaseProductWorkflowRepo,
+)
 from app.repos.report_cache_repo import ReportCacheRepo
 from app.repos.run_repo import RunRepo
 from app.repos.search_repo import SearchRepo
@@ -82,7 +86,7 @@ from app.services.search_input_resolver import build_runtime_coordinate_resolver
 from app.services.source_cache import HeroExampleSourceCacheWarmer
 from app.services.variant_library import VariantLibraryService
 from app.services.workbench_design import WorkbenchDesignService
-from app.services.workflow import WorkflowService
+from app.services.workflow import ProductWorkflowService, WorkflowService
 from app.tools.registry import build_tool_registry
 from app.tools.report_pdf import ReportPdfTool
 
@@ -113,6 +117,7 @@ def create_app(settings=None) -> FastAPI:
                 "seed and verify with explicit CLI"
             )
         initialize_database(db_session_factory)
+        product_workflow_repo.initialize()
         logger.info("Eamos backend ready at %s:%s", settings.host, settings.port)
         yield
 
@@ -133,6 +138,8 @@ def create_app(settings=None) -> FastAPI:
     variant_cache_repo = VariantCacheRepo(db_session_factory)
     report_cache_repo = ReportCacheRepo(db_session_factory)
     variant_library_repo = _build_variant_library_repo(settings, db_session_factory)
+    product_workflow_repo = _build_product_workflow_repo(settings, db_session_factory)
+    product_workflow_service = ProductWorkflowService(product_workflow_repo)
     source_cache_repo = SourceCacheRepo(db_session_factory)
     search_repo = SearchRepo(db_session_factory)
     protein_annotation_cache_repo = ProteinAnnotationCacheRepo(db_session_factory)
@@ -206,6 +213,7 @@ def create_app(settings=None) -> FastAPI:
         max_upload_entries=settings.batch_upload_registry_max_entries,
         max_job_entries=settings.batch_job_registry_max_entries,
         entry_ttl_seconds=settings.batch_registry_ttl_seconds,
+        workflow_service=product_workflow_service,
     )
     search_service = SearchService(search_repo)
     search_index_service = SearchIndexService(search_repo, reports_repo, run_repo)
@@ -225,6 +233,8 @@ def create_app(settings=None) -> FastAPI:
     app.state.users_repo = users_repo
     app.state.variant_cache_repo = variant_cache_repo
     app.state.variant_library_repo = variant_library_repo
+    app.state.product_workflow_repo = product_workflow_repo
+    app.state.product_workflow_service = product_workflow_service
     app.state.source_cache_repo = source_cache_repo
     app.state.search_repo = search_repo
     app.state.protein_annotation_cache_repo = protein_annotation_cache_repo
@@ -342,3 +352,13 @@ def _build_variant_library_repo(settings, db_session_factory):
             timeout_seconds=settings.supabase_rest_timeout_seconds,
         )
     return VariantLibraryRepo(db_session_factory)
+
+
+def _build_product_workflow_repo(settings, db_session_factory):
+    if settings.supabase_url and settings.supabase_service_role_key:
+        return SupabaseProductWorkflowRepo(
+            supabase_url=settings.supabase_url,
+            service_role_key=settings.supabase_service_role_key,
+            timeout_seconds=settings.supabase_rest_timeout_seconds,
+        )
+    return ProductWorkflowRepo(db_session_factory)

@@ -8,6 +8,9 @@ import httpx
 from app.repos.variant_library_repo import (
     SavedVariantRecord,
     SupabaseVariantLibraryRepo,
+    make_library_tombstone,
+    merge_library_variant_documents,
+    reconcile_library_variant_documents,
 )
 
 
@@ -129,6 +132,9 @@ def test_supabase_variant_library_replaces_whole_document_with_owner_from_backen
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
+        if request.method == "GET":
+            assert "user_id=eq.23fc93e9-d351-4a9f-b5a7-f23dd7ceab11" in str(request.url)
+            return httpx.Response(status_code=200, json=[])
         body = json.loads(request.content.decode("utf-8"))
         assert body["user_id"] == "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11"
         assert body["variants"] == [
@@ -172,14 +178,110 @@ def test_supabase_variant_library_replaces_whole_document_with_owner_from_backen
 
     assert row.user_id == "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11"
     assert row.variants[0]["id"] == "rpe65:c.938a>g"
-    assert len(requests) == 1
-    request = requests[0]
+    assert len(requests) == 2
+    request = requests[1]
     assert str(request.url) == (
         "https://cpdjxsgasaesysvxkpmi.supabase.co/rest/v1/" "user_library?on_conflict=user_id"
     )
     assert request.headers["apikey"] == "service-role-key"
     assert request.headers["authorization"] == "Bearer service-role-key"
-    assert request.headers["prefer"] == "resolution=merge-duplicates,return=representation"
+    assert request.headers["prefer"] == "resolution=ignore-duplicates,return=representation"
+
+
+def test_variant_library_document_merge_is_commutative_and_tombstone_safe() -> None:
+    active = {
+        "id": "RPE65:C.260A>G",
+        "gene": "RPE65",
+        "variant": "c.260A>G",
+        "query": "RPE65 c.260A>G",
+        "raw": "RPE65 c.260A>G",
+        "savedAt": 100,
+        "folderId": None,
+    }
+    tombstone = make_library_tombstone("rpe65:c.260a>g", saved_at=100)
+
+    left_to_right = merge_library_variant_documents([active], [tombstone])
+    right_to_left = merge_library_variant_documents([tombstone], [active])
+
+    assert left_to_right == right_to_left == [tombstone]
+    newer_active = {**active, "savedAt": 101}
+    assert merge_library_variant_documents([tombstone], [newer_active]) == [
+        {**newer_active, "id": "rpe65:c.260a>g"}
+    ]
+
+
+def test_legacy_library_document_keeps_whole_document_replace_semantics() -> None:
+    active = {
+        "id": "rpe65:c.260a>g",
+        "gene": "RPE65",
+        "variant": "c.260A>G",
+        "query": "RPE65 c.260A>G",
+        "raw": "RPE65 c.260A>G",
+        "savedAt": 100,
+        "folderId": None,
+    }
+
+    assert reconcile_library_variant_documents([active], []) == []
+
+
+def test_supabase_document_replace_retries_concurrent_write_without_resurrection() -> None:
+    user_id = "23fc93e9-d351-4a9f-b5a7-f23dd7ceab11"
+    active = {
+        "id": "rpe65:c.260a>g",
+        "gene": "RPE65",
+        "variant": "c.260A>G",
+        "query": "RPE65 c.260A>G",
+        "raw": "RPE65 c.260A>G",
+        "savedAt": 150,
+        "folderId": None,
+    }
+    tombstone = make_library_tombstone(active["id"], saved_at=200)
+    requests: list[httpx.Request] = []
+
+    def document(variants: list[dict], updated_at: str) -> dict:
+        return {
+            "user_id": user_id,
+            "variants": variants,
+            "folders": [],
+            "updated_at": updated_at,
+        }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        request_number = len(requests)
+        if request_number == 1:
+            return httpx.Response(
+                status_code=200,
+                json=[document([{**active, "savedAt": 100}], "2026-07-19T12:00:00Z")],
+            )
+        if request_number == 2:
+            assert request.method == "PATCH"
+            assert request.url.params["user_id"] == f"eq.{user_id}"
+            assert request.url.params["updated_at"] == "eq.2026-07-19T12:00:00+00:00"
+            return httpx.Response(status_code=200, json=[])
+        if request_number == 3:
+            return httpx.Response(
+                status_code=200,
+                json=[document([tombstone], "2026-07-19T12:00:01Z")],
+            )
+        if request_number == 4:
+            body = json.loads(request.content.decode("utf-8"))
+            assert request.method == "PATCH"
+            assert request.url.params["updated_at"] == "eq.2026-07-19T12:00:01+00:00"
+            assert body["variants"] == [tombstone]
+            return httpx.Response(status_code=200, json=[body])
+        raise AssertionError(f"unexpected request {request.method} {request.url}")
+
+    repo = SupabaseVariantLibraryRepo(
+        supabase_url="https://cpdjxsgasaesysvxkpmi.supabase.co",
+        service_role_key="service-role-key",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    row = repo.replace_document(user_id=user_id, variants=[active], folders=[])
+
+    assert row.variants == [tombstone]
+    assert len(requests) == 4
 
 
 def test_supabase_variant_library_gets_whole_document_by_owner() -> None:

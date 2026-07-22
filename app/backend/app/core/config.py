@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     supabase_jwks_url: str | None = None
     supabase_jwt_public_key: str | None = None
     supabase_url: str | None = None
+    supabase_jwt_issuer: str | None = None
     supabase_service_role_key: str | None = None
     supabase_rest_timeout_seconds: float = 10.0
     supabase_storage_s3_endpoint_url: str | None = None
@@ -140,6 +141,7 @@ class Settings(BaseSettings):
     workflow_draft_timeout_seconds: float = 10.0
     paper_variants_pdf_timeout_seconds: float = 10.0
     paper_variants_extract_timeout_seconds: float = 20.0
+    paper_variants_max_concurrency: int = 2
 
     # --- AI gateway (variant chat) — docs/ai-gateway/plan.md ---
     # Activated when llm_provider == "gateway"; key env var AI_GATEWAY_API_KEY.
@@ -207,6 +209,7 @@ class Settings(BaseSettings):
 
     use_real_apis: bool = False
     workbench_live_design_enabled: bool = True
+    gene_viewer_full_locus_max_bases: int = 750_000
     local_evidence_enabled: bool = False
     local_evidence_allowed_flows_raw: str = ""
     local_evidence_require_real_apis: bool = True
@@ -397,6 +400,8 @@ class Settings(BaseSettings):
         return self.backend_root / "app" / "fixtures"
 
     def model_post_init(self, __context: object) -> None:
+        if self.supabase_jwt_issuer is None and self.supabase_url:
+            self.supabase_jwt_issuer = f"{self.supabase_url.rstrip('/')}/auth/v1"
         if not _running_on_render():
             return
         env_keys = {key.upper() for key in os.environ}

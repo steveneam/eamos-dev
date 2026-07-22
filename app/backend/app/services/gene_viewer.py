@@ -177,11 +177,19 @@ class GeneViewerService:
             try:
                 return self.live_provider.viewer(payload)
             except GeneViewerError as exc:
+                if payload.window.kind == "full_gene":
+                    raise
                 fallback = self._fixture_fallback(payload, reason=exc.code)
                 if fallback is not None:
                     return fallback
                 raise
             except Exception as exc:
+                if payload.window.kind == "full_gene":
+                    raise GeneViewerError(
+                        code=f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                        message="Complete source-backed gene locus is unavailable.",
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    ) from exc
                 fallback = self._fixture_fallback(payload, reason=type(exc).__name__)
                 if fallback is not None:
                     return fallback

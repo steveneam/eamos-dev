@@ -6,10 +6,7 @@ from app.core.config import Settings
 from app.schemas.gene_viewer import (
     GeneViewerRequest,
     GeneViewerResponse,
-    ViewerCoordinateMapRange,
     ViewerProvenance,
-    ViewerTranscriptProjection,
-    ViewerTranscriptProjectionInterval,
     ViewerWindowRequest,
 )
 from app.services.alphamissense_local import AlphaMissenseLocalAdapter
@@ -31,7 +28,14 @@ from app.services.gene_viewer_protein_tracks import (
     hydrate_response_with_alphamissense_heatmap,
     hydrate_response_with_source_protein_track,
 )
+from app.services.gene_viewer_full_locus import _full_gene_response_from_record
 from app.services.gene_viewer_source_client import HttpGeneViewerSourceClient
+from app.services.gene_viewer_source_projection import (
+    _source_full_gene_record,
+    query_with_source_transcript,
+    source_transcript_projection,
+    source_window_bounds,
+)
 from app.services.gene_viewer_utils import clean_dna as _clean_dna
 from app.services.gene_viewer_variants import VariantProjection
 from app.services.gene_viewer_window import (
@@ -39,8 +43,6 @@ from app.services.gene_viewer_window import (
     TranscriptIntron,
     TranscriptModel,
     TranscriptWindowBuilder,
-    _raise_full_gene_not_hydrated,
-    _schema_strand,
 )
 from app.services.protein_annotation import ProteinAnnotationService
 from app.services.sequence_context import (
@@ -75,8 +77,130 @@ class SourceBackedGeneViewerProvider:
 
     def viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
         if payload.window.kind == "full_gene":
-            return self.fixture_provider.viewer(payload)
+            return self._full_gene_viewer(payload)
         return self.viewer_bundle(payload).response
+
+    def _full_gene_viewer(self, payload: GeneViewerRequest) -> GeneViewerResponse:
+        query = normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
+        self._validate_query(payload=payload, query=query)
+        try:
+            variant_seed = VariantProjection.from_hgvs_c(query.hgvs)
+            if query.resolver_transcript:
+                variant = self.source_client.resolve_variant(
+                    query=query,
+                    genome_build=payload.genome_build,
+                )
+                transcript_source = self.source_client.fetch_transcript(
+                    query=query,
+                    variant=variant,
+                    genome_build=payload.genome_build,
+                )
+            else:
+                transcript_source = self.source_client.fetch_transcript(
+                    query=query,
+                    variant=variant_seed,
+                    genome_build=payload.genome_build,
+                )
+                query = query_with_source_transcript(query, transcript_source)
+                variant = self.source_client.resolve_variant(
+                    query=query,
+                    genome_build=payload.genome_build,
+                )
+            self._validate_complete_locus(transcript_source)
+            gene_start = int(transcript_source.gene_start or 0)
+            gene_end = int(transcript_source.gene_end or 0)
+            locus_sequence = _clean_dna(
+                self.source_client.fetch_sequence(
+                    chrom=transcript_source.chrom,
+                    start=gene_start,
+                    end=gene_end,
+                    strand="+",
+                )
+            )
+            if len(locus_sequence) != gene_end - gene_start + 1:
+                raise GeneViewerError(
+                    code=GENE_VIEWER_PROVIDER_MALFORMED,
+                    message="Full-gene source sequence did not cover the declared gene bounds.",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                )
+            response = _full_gene_response_from_record(
+                payload=payload,
+                record=_source_full_gene_record(
+                    transcript=transcript_source,
+                    variant=variant,
+                    locus_sequence=locus_sequence,
+                ),
+                fixture_version="",
+                provenance_sources=self.source_client.provenance_sources(
+                    query=query,
+                    transcript=transcript_source,
+                    variant=variant,
+                ),
+                provenance_warnings=[
+                    *transcript_source.warnings,
+                    "full_gene_source_hydrated",
+                ],
+                source_label="source_backed_full_gene",
+            )
+            protein_features = self.source_client.fetch_protein_features(
+                transcript=transcript_source
+            )
+            if protein_features is not None:
+                response.tracks.protein_features = protein_features
+            return response
+        except GeneViewerError:
+            raise
+        except Exception as exc:
+            raise GeneViewerError(
+                code=f"{GENE_VIEWER_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="Gene viewer source provider failed while building the full locus.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+
+    def _validate_complete_locus(self, source: SourceTranscriptModel) -> None:
+        if (
+            source.gene_start is None
+            or source.gene_end is None
+            or source.gene_start < 1
+            or source.gene_end < source.gene_start
+        ):
+            raise GeneViewerError(
+                code=unsupported_input_warning("full_gene_source_bounds"),
+                message="A complete source-backed gene locus is unavailable.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        locus_length = source.gene_end - source.gene_start + 1
+        max_bases = max(
+            1,
+            int(getattr(self.settings, "gene_viewer_full_locus_max_bases", 750_000)),
+        )
+        if locus_length > max_bases:
+            raise GeneViewerError(
+                code=unsupported_input_warning("full_gene_response_budget"),
+                message="The complete gene locus exceeds the configured response budget.",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        expected_exons = source.total_exons or len(source.exons)
+        if not source.exons or len(source.exons) != expected_exons:
+            raise GeneViewerError(
+                code=unsupported_input_warning("full_gene_exon_annotation"),
+                message="Complete source-backed exon annotation is unavailable for this transcript.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if len(source.exons) > 1 and len(source.introns) != len(source.exons) - 1:
+            raise GeneViewerError(
+                code=unsupported_input_warning("full_gene_intron_annotation"),
+                message="Complete source-backed intron annotation is unavailable for this transcript.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        for exon in source.exons:
+            start, end = sorted((exon.genomic_start, exon.genomic_end))
+            if start < source.gene_start or end > source.gene_end:
+                raise GeneViewerError(
+                    code=GENE_VIEWER_PROVIDER_MALFORMED,
+                    message="Source transcript exon lies outside the declared gene locus.",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                )
 
     def viewer_bundle(self, payload: GeneViewerRequest) -> SourceBackedViewerBundle:
         query = normalize_sequence_query(payload.gene, payload.cdna, payload.transcript)
@@ -190,8 +314,6 @@ class SourceBackedGeneViewerProvider:
                 "genome_build",
                 "Gene viewer currently supports GRCh38/hg38 only.",
             )
-        if payload.window.kind == "full_gene":
-            _raise_full_gene_not_hydrated()
         if query.kind != "cdna":
             _raise_unsupported(
                 query.kind,
@@ -363,109 +485,3 @@ class SourceBackedGeneViewerProvider:
                 status_code=status.HTTP_502_BAD_GATEWAY,
             )
         return sequence
-
-
-def query_with_source_transcript(
-    query: NormalizedVariantQuery,
-    source: SourceTranscriptModel,
-) -> NormalizedVariantQuery:
-    resolver_transcript = source_resolver_transcript(source)
-    return query.model_copy(
-        update={
-            "resolver_transcript": resolver_transcript,
-            "resolver_transcript_hgvs": f"{resolver_transcript}:{query.hgvs}",
-        }
-    )
-
-
-def source_resolver_transcript(source: SourceTranscriptModel) -> str:
-    candidates = [*source.transcript_aliases, source.transcript]
-    for candidate in candidates:
-        if candidate.startswith(("NM_", "NR_")):
-            return candidate
-    for candidate in candidates:
-        if candidate.startswith("ENST"):
-            return candidate
-    if source.transcript:
-        return source.transcript
-    _raise_unsupported(
-        "transcript",
-        f"Could not choose a source-backed transcript for {source.gene}.",
-    )
-
-
-def source_window_bounds(
-    *,
-    window: ViewerWindowRequest,
-    variant: VariantProjection,
-    source: SourceTranscriptModel,
-) -> tuple[int, int]:
-    min_cds = min(exon.cds_start for exon in source.exons)
-    max_cds = max(exon.cds_end for exon in source.exons)
-    if window.kind == "full_gene":
-        _raise_full_gene_not_hydrated()
-    if window.kind == "cds_range":
-        start = window.cds_start if window.cds_start is not None else min_cds
-        end = window.cds_end if window.cds_end is not None else max_cds
-    else:
-        start = variant.cds_pos - window.cds_flank_bp
-        end = variant.cds_pos + window.cds_flank_bp
-    start = max(min_cds, start)
-    end = min(max_cds, end)
-    if start > end:
-        raise GeneViewerError(
-            code=unsupported_input_warning("window"),
-            message="Viewer window does not overlap the transcript CDS.",
-            status_code=HTTP_UNPROCESSABLE_ENTITY,
-        )
-    return start, end
-
-
-def source_transcript_projection(source: SourceTranscriptModel) -> ViewerTranscriptProjection:
-    introns_by_number = {intron.number: intron for intron in source.introns}
-    intervals: list[ViewerTranscriptProjectionInterval] = []
-    coordinate_map: list[ViewerCoordinateMapRange] = []
-
-    for exon in source.exons:
-        intervals.append(
-            ViewerTranscriptProjectionInterval(
-                id=f"exon-{exon.number}",
-                kind="exon",
-                label=f"Exon {exon.number}",
-                genomic_start=exon.genomic_start,
-                genomic_end=exon.genomic_end,
-                strand=_schema_strand(source.strand),
-                exon_number=exon.number,
-                cds_start=exon.cds_start,
-                cds_end=exon.cds_end,
-            )
-        )
-        coordinate_map.append(
-            ViewerCoordinateMapRange(
-                genomic_start=exon.genomic_start,
-                genomic_end=exon.genomic_end,
-                cds_start=exon.cds_start,
-                cds_end=exon.cds_end,
-            )
-        )
-        intron = introns_by_number.get(exon.number)
-        if intron is None:
-            continue
-        intervals.append(
-            ViewerTranscriptProjectionInterval(
-                id=f"intron-{intron.number}",
-                kind="intron",
-                label=f"Intron {intron.number}",
-                genomic_start=intron.genomic_start,
-                genomic_end=intron.genomic_end,
-                strand=_schema_strand(source.strand),
-                intron_number=intron.number,
-            )
-        )
-
-    return ViewerTranscriptProjection(
-        transcript=source.transcript,
-        strand=_schema_strand(source.strand),
-        intervals=intervals,
-        coordinate_map=coordinate_map,
-    )
