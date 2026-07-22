@@ -41,7 +41,7 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 17:09 +0000 · Codex
+LOCKED · 2026-07-22 18:18 +0000 · Codex — Contract V2 merge checkpoint and Wave 1 launch record
 
 ## Shared File Locks
 
