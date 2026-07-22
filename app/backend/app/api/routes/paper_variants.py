@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import re
+import hashlib
+import json
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
 from app.core.rate_limit import RATE_LIMIT_CHAT, enforce_rate_limit
@@ -19,11 +21,11 @@ from app.schemas.paper_variants import (
     PaperVariantsExtractResponse,
     PaperVariantsPdfMeta,
     PaperVariantsResult,
-    PaperSourceMetadata,
 )
 from app.schemas.workflow import ProcessingDisclosureV1, WorkflowRunV1
-from app.services.paper_variants import PaperVariantsService
-from app.services.pdf_text import extract_pdf_text
+from app.services.paper_extract.document import PaperInputDocument, pdf_document, text_document
+from app.services.paper_variants import PaperDocumentRunResult, PaperVariantsService
+from app.services.pdf_text import PdfTextLimits, extract_pdf_text
 from app.services.workflow import ProductWorkflowService, ProductWorkflowStateError
 
 router = APIRouter(prefix="/api/v1/paper-variants", tags=["paper-variants"])
@@ -37,9 +39,9 @@ _ALLOWED_PDF_CONTENT_TYPES = {
 }
 _T = TypeVar("_T")
 _CONSENT_HEADER = "X-Eamos-Processing-Consent"
-_DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
-_PMID_RE = re.compile(r"\bPMID\s*[:#]?\s*(\d{6,9})\b", re.IGNORECASE)
-_YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
+_UPLOAD_CHUNK_BYTES = 64 * 1024
+_MULTIPART_OVERHEAD_BYTES = 1024 * 1024
+_MAX_JSON_BODY_BYTES = 4_100_000
 
 
 @router.get("/disclosure", response_model=ProcessingDisclosureV1)
@@ -67,8 +69,7 @@ async def extract_paper_variants(
             status_code=428,
             detail="Explicit processing consent is required before sending publication input.",
         )
-    paper_text, pdf_meta = await _paper_text_from_request(request)
-    source_metadata = _source_metadata(paper_text)
+    paper_document, pdf_meta = await _paper_text_from_request(request)
     workflow = _workflow_service(request)
     run = workflow.create_run(
         kind="paper",
@@ -82,18 +83,21 @@ async def extract_paper_variants(
     )
     response.headers["X-Workflow-Run-Id"] = run.run_id
     try:
+        service = PaperVariantsService(settings)
         result = await _run_with_deadline(
             request,
-            lambda: PaperVariantsService(settings).extract(paper_text, validate=True),
+            lambda: service.extract(paper_document, validate=True),
             timeout_attr="paper_variants_extract_timeout_seconds",
             timeout_detail="Paper variant extraction timed out.",
             bounded=True,
         )
+        document_run = service.last_document_run
+        if document_run is None:
+            raise RuntimeError("paper_document_extraction_missing")
         extraction_response = _response(
-            settings,
             result=result,
             pdf_meta=pdf_meta,
-            source_metadata=source_metadata,
+            document_run=document_run,
         )
         run_status = "completed"
         if result.warnings and result.variants:
@@ -158,7 +162,7 @@ def list_paper_runs(
         )
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     if next_cursor:
@@ -241,10 +245,14 @@ def delete_paper_run(
         user_id=principal.user_id,
         owner_provider=principal.provider,
     )
-    if record is None or record.kind != "paper" or not workflow.delete_run(
-        run_id=run_id,
-        user_id=principal.user_id,
-        owner_provider=principal.provider,
+    if (
+        record is None
+        or record.kind != "paper"
+        or not workflow.delete_run(
+            run_id=run_id,
+            user_id=principal.user_id,
+            owner_provider=principal.provider,
+        )
     ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Paper run not found.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -252,7 +260,7 @@ def delete_paper_run(
 
 async def _paper_text_from_request(
     request: Request,
-) -> tuple[str, PaperVariantsPdfMeta | None]:
+) -> tuple[PaperInputDocument, PaperVariantsPdfMeta | None]:
     content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
     if content_type == "application/json":
         return await _text_from_json(request), None
@@ -264,59 +272,122 @@ async def _paper_text_from_request(
     )
 
 
-async def _text_from_json(request: Request) -> str:
+async def _text_from_json(request: Request) -> PaperInputDocument:
     try:
-        payload = PaperVariantsExtractRequest.model_validate(await request.json())
+        raw_payload = await _read_json_body_bounded(request)
+    except HTTPException:
+        raise
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Request body must be valid JSON.",
+        ) from exc
+    try:
+        payload = PaperVariantsExtractRequest.model_validate(raw_payload)
     except ValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=[
                 {key: value for key, value in error.items() if key != "input"}
                 for error in exc.errors(include_context=False)
             ],
         ) from exc
-    except Exception as exc:
+    document = text_document(payload.text)
+    if document.pages[0].quality == "garbled":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Request body must be valid JSON.",
-        ) from exc
-    return payload.text
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "paper_text_ambiguous",
+                "requirement": "clean_selectable_text_or_human_review",
+            },
+        )
+    return document
+
+
+async def _read_json_body_bounded(request: Request) -> Any:
+    declared_length = _declared_content_length(request)
+    if declared_length is not None and declared_length > _MAX_JSON_BODY_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="JSON body exceeds configured size limit.",
+        )
+    payload = bytearray()
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > _MAX_JSON_BODY_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail="JSON body exceeds configured size limit.",
+            )
+        payload.extend(chunk)
+    return json.loads(payload)
 
 
 async def _text_from_pdf_upload(
     request: Request,
-) -> tuple[str, PaperVariantsPdfMeta]:
-    form = await request.form()
+) -> tuple[PaperInputDocument, PaperVariantsPdfMeta]:
+    size_limit = int(request.app.state.settings.max_upload_mb * 1024 * 1024)
+    declared_length = _declared_content_length(request)
+    if declared_length is not None and declared_length > size_limit + _MULTIPART_OVERHEAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="Uploaded file exceeds configured size limit.",
+        )
+    try:
+        form = await request.form(
+            max_files=1,
+            max_fields=2,
+            max_part_size=_UPLOAD_CHUNK_BYTES,
+        )
+    except StarletteHTTPException as exc:
+        if exc.status_code != status.HTTP_400_BAD_REQUEST:
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Malformed multipart upload.",
+        ) from exc
     upload = form.get("file") or form.get("pdf")
     if not isinstance(upload, StarletteUploadFile):
+        await form.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Multipart upload must include a PDF file field named 'file' or 'pdf'.",
         )
 
-    _validate_pdf_upload_metadata(upload)
-    content = await upload.read()
     temp_path: Path | None = None
     try:
-        _validate_pdf_upload_content(request, content)
+        _validate_pdf_upload_metadata(upload)
         with tempfile.NamedTemporaryFile(
             suffix=".pdf",
             dir=request.app.state.settings.upload_dir,
             delete=False,
         ) as handle:
-            handle.write(content)
             temp_path = Path(handle.name)
+            size_bytes, source_sha256 = await _copy_upload_bounded(
+                upload,
+                handle,
+                size_limit=size_limit,
+            )
         extracted = await _run_with_deadline(
             request,
             lambda: extract_pdf_text(
                 temp_path,
                 engine=request.app.state.settings.pdf_text_engine,
+                limits=PdfTextLimits(max_file_bytes=size_limit),
             ),
             timeout_attr="paper_variants_pdf_timeout_seconds",
             timeout_detail="PDF text extraction timed out.",
+            bounded=True,
+        )
+        _validate_pdf_extraction(extracted)
+        document = pdf_document(
+            extracted,
+            size_bytes=size_bytes,
+            sha256=source_sha256,
         )
     finally:
-        await upload.close()
+        await form.close()
         if temp_path is not None:
             try:
                 temp_path.unlink(missing_ok=True)
@@ -328,7 +399,26 @@ async def _text_from_pdf_upload(
         engine=str(extracted.get("engine") or request.app.state.settings.pdf_text_engine),
         warnings=list(extracted.get("warnings", [])),
     )
-    return str(extracted.get("text") or ""), pdf_meta
+    return document, pdf_meta
+
+
+def _declared_content_length(request: Request) -> int | None:
+    value = request.headers.get("content-length")
+    if value is None:
+        return None
+    try:
+        declared = int(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Content-Length header.",
+        ) from exc
+    if declared < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Content-Length header.",
+        )
+    return declared
 
 
 def _validate_pdf_upload_metadata(upload: StarletteUploadFile) -> None:
@@ -346,43 +436,108 @@ def _validate_pdf_upload_metadata(upload: StarletteUploadFile) -> None:
         )
 
 
-def _validate_pdf_upload_content(request: Request, content: bytes) -> None:
-    if not content:
+async def _copy_upload_bounded(
+    upload: StarletteUploadFile,
+    handle,
+    *,
+    size_limit: int,
+) -> tuple[int, str]:
+    total = 0
+    digest = hashlib.sha256()
+    prefix = b""
+    while True:
+        chunk = await upload.read(_UPLOAD_CHUNK_BYTES)
+        if not chunk:
+            break
+        if not prefix:
+            prefix = chunk[: len(_PDF_MAGIC)]
+        total += len(chunk)
+        if total > size_limit:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail="Uploaded file exceeds configured size limit.",
+            )
+        digest.update(chunk)
+        handle.write(chunk)
+    if total == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty.",
         )
-    size_limit = request.app.state.settings.max_upload_mb * 1024 * 1024
-    if len(content) > size_limit:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Uploaded file exceeds configured size limit.",
-        )
-    if not content.startswith(_PDF_MAGIC):
+    if prefix != _PDF_MAGIC:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Uploaded file is not a valid PDF.",
         )
+    return total, digest.hexdigest()
+
+
+def _validate_pdf_extraction(extracted: dict[str, Any]) -> None:
+    warnings = [str(item) for item in extracted.get("warnings", ())]
+    page_count = int(extracted.get("page_count") or 0)
+    pages = list(extracted.get("pages") or ())
+    fatal_prefixes = (
+        "pdf_engine_prohibited:",
+        "pdf_engine_unavailable:",
+        "unsupported_pdf_engine:",
+        "pdf_parse_failed:",
+        "pdf_page_parse_failed:",
+        "pdf_page_limit_exceeded",
+        "pdf_object_limit_exceeded",
+        "pdf_stream_limit_exceeded:",
+        "pdf_image_count_limit_exceeded:",
+        "pdf_character_limit_exceeded:",
+        "pdf_encrypted",
+        "pdf_has_no_pages",
+    )
+    fatal = next((item for item in warnings if item.startswith(fatal_prefixes)), None)
+    if fatal or page_count < 1 or len(pages) != page_count:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "paper_pdf_unavailable",
+                "requirement": fatal or "complete_page_preserving_extraction",
+            },
+        )
+    quality = {str(page.get("quality")) for page in pages}
+    if quality and quality <= {"empty", "image_only"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "ocr_required",
+                "requirement": "local_ocr_or_selectable_text",
+            },
+        )
+    if quality and quality <= {"garbled", "empty", "image_only"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "paper_text_ambiguous",
+                "requirement": "local_ocr_or_human_review",
+            },
+        )
 
 
 def _response(
-    settings: Any,
     *,
     result: PaperVariantsResult,
     pdf_meta: PaperVariantsPdfMeta | None,
-    source_metadata: PaperSourceMetadata | None,
+    document_run: PaperDocumentRunResult,
 ) -> PaperVariantsExtractResponse:
-    validated_count = sum(1 for variant in result.variants if variant.validated)
+    extraction = document_run.document_extraction
+    validated_count = sum(resolution.status == "resolved" for resolution in extraction.resolutions)
     return PaperVariantsExtractResponse(
         generated_at=datetime.now(timezone.utc),
-        llm_provider=str(getattr(settings, "llm_provider", "mock")),
+        llm_provider="eamos_deterministic",
         pdf=pdf_meta,
-        source_metadata=source_metadata,
-        candidate_count=len(result.variants),
+        source_metadata=document_run.source_metadata,
+        candidate_count=len(extraction.mentions),
         validated_count=validated_count,
         variants=result.variants,
         warnings=result.warnings,
         provenance=result.provenance,
+        document_extraction=extraction,
+        execution_disclosure=extraction.execution_disclosure,
     )
 
 
@@ -466,49 +621,16 @@ def _processing_disclosure(
     )
 
 
-def _paper_source_disclosure(settings: Any) -> dict[str, Any]:
-    provider = str(getattr(settings, "llm_provider", "mock") or "mock").lower()
-    if provider == "gateway":
-        return {
-            "source_status": "local_provider",
-            "provider_id": "vercel_ai_gateway",
-            "provider_label": "Vercel AI Gateway extraction",
-            "source_version": str(getattr(settings, "ai_gateway_model", "configured-model")),
-            "cache_status": None,
-            "warnings": [],
-            "requirements": [],
-        }
+def _paper_source_disclosure(_settings: Any) -> dict[str, Any]:
     return {
         "source_status": "local_provider",
         "provider_id": "eamos_deterministic_extractor",
         "provider_label": "Eamos deterministic paper extractor",
-        "source_version": "paper-variants-v1",
+        "source_version": "paper-variants-v2",
         "cache_status": None,
         "warnings": [],
         "requirements": [],
     }
-
-
-def _source_metadata(text: str) -> PaperSourceMetadata | None:
-    bounded = text[:20_000]
-    lines = [line.strip() for line in bounded.splitlines() if line.strip()]
-    doi_match = _DOI_RE.search(bounded)
-    pmid_match = _PMID_RE.search(bounded)
-    year_match = _YEAR_RE.search(bounded)
-    title = None
-    if (
-        len(lines) >= 2
-        and 8 <= len(lines[0]) <= 500
-        and not re.search(r"\b[cpgrmno]\.", lines[0], flags=re.IGNORECASE)
-    ):
-        title = lines[0]
-    metadata = PaperSourceMetadata(
-        title=title,
-        year=year_match.group(0) if year_match else None,
-        doi=doi_match.group(0).rstrip(".,;)") if doi_match else None,
-        pmid=pmid_match.group(1) if pmid_match else None,
-    )
-    return metadata if any((metadata.title, metadata.year, metadata.doi, metadata.pmid)) else None
 
 
 def _sanitized_paper_result(response: PaperVariantsExtractResponse) -> dict[str, Any]:

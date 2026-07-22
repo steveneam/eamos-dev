@@ -1,0 +1,41 @@
+{
+  "corpus_id": "eamos-paper-synthetic-v2",
+  "license": "Eamos-owned synthetic test data",
+  "purpose": "Deterministic parser, context, recovery, and exclusion regression fixtures only",
+  "documents": [
+    {
+      "path": "clinical-contexts.txt",
+      "sha256": "483679d31f87015113010579910b9b6b6fe2a20b2c190a14a660b359cbc765f2",
+      "expected_mentions": [
+        "NM_000329.3:c.260A>G",
+        "p.Asp87Gly",
+        "p.His313Ala",
+        "c.5882G>A"
+      ],
+      "expected_exclusions": [
+        "c.5882G>A"
+      ],
+      "mutation_cases": [
+        "move References heading after bibliography mention",
+        "replace proband with construct",
+        "remove transcript accession"
+      ]
+    },
+    {
+      "path": "recovery-contexts.txt",
+      "sha256": "7087ffb28aed0625ca1c3dbae6a66c067d339639df132a8f49a66ba694fa6dbd",
+      "expected_mentions": [
+        "c. 2276 G >\nT",
+        "c.68_69delAG",
+        "rs121918127",
+        "p.Arg72Pro"
+      ],
+      "expected_exclusions": [],
+      "mutation_cases": [
+        "join the split substitution",
+        "replace del with delins",
+        "move rescue mention into Results"
+      ]
+    }
+  ]
+}

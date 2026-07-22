@@ -1,0 +1,10 @@
+Results
+The RPE65 proband carried NM_000329.3:c.260A>G (p.Asp87Gly).
+The variant segregated with disease in the family.
+
+Experimental validation
+Site-directed mutagenesis produced an RPE65 p.His313Ala construct.
+Wild-type RPE65 was compared with p.His313Ala.
+
+References
+Smith et al. discussed ABCA4 c.5882G>A in a review.

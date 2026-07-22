@@ -5,8 +5,10 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
+from app.api.routes import paper_variants as paper_routes
 from app.cli import eamos_paper_variants as cli
 from app.core.config import Settings
+from app.schemas.lookup import SearchInputCandidate
 from app.schemas.paper_variants import PaperVariantsResult
 from app.services.clingen_local import materialize_clingen_local_store
 from app.services.paper_variants import PaperVariantsService
@@ -27,14 +29,44 @@ def _settings(**overrides) -> Settings:
 class FakeChain:
     def __init__(self, payload: dict) -> None:
         self.payload = payload
+        self.calls = 0
 
     def invoke(self, _payload: dict) -> dict:
+        self.calls += 1
         return self.payload
 
 
 class BoomChain:
     def invoke(self, _payload: dict) -> dict:
         raise RuntimeError("provider down")
+
+
+class SourceBackedCandidateResolver:
+    records: tuple[object, ...] = ()
+
+    @staticmethod
+    def _candidate() -> SearchInputCandidate:
+        return SearchInputCandidate(
+            candidate_id="clinvar-live-1421454",
+            display_label="RPE65 NM_000329.3:c.260A>G",
+            gene="RPE65",
+            cdna="c.260A>G",
+            transcript="NM_000329.3",
+            protein_change="p.Asp87Gly",
+            genomic_hg38="1-68444869-T-C",
+            genomic_hgvs="NC_000001.11:g.68444869T>C",
+            match_reason="Exact source-backed cDNA match.",
+            source_support=["ClinVar release 2026-07 VCV001421454"],
+            source_count=1,
+            confidence="high",
+        )
+
+    def exact_candidate(self, resolution):
+        return self._candidate() if resolution.hgvs == "c.260A>G" else None
+
+    def resolve_candidates(self, resolution):
+        candidate = self.exact_candidate(resolution)
+        return [candidate] if candidate is not None else []
 
 
 class FakeValidator:
@@ -69,34 +101,32 @@ def _resolved(variant_id: str) -> ToolResult:
 # --- mock extraction + real VariantValidator fixture gate ------------------
 
 
-def test_mock_extract_validates_fixture_variant_and_rejects_unknown() -> None:
+def test_deterministic_extract_blocks_fixture_resolution_and_unknown() -> None:
     text = (
         "We identified RPE65 c.260A>G (p.Asp87Gly) in two probands. "
         "A separate ABCA4 c.9999A>T mention was a typo."
     )
     result = PaperVariantsService(_settings()).extract(text)
 
-    by_gene = {v.gene: v for v in result.variants}
-    assert by_gene["RPE65"].validated is True
-    assert by_gene["RPE65"].validation_status == "resolved"
-    assert by_gene["RPE65"].variant_id == "1-68444869-T-C"  # fixture resolves to GRCh38
-    assert by_gene["RPE65"].resolved_candidate_id == "clinvar:VCV001421454"
-    assert "ClinVar VCV001421454" in by_gene["RPE65"].source_support
-    assert "eamos_search_input_resolver" in by_gene["RPE65"].resolver_provenance
-    assert (
-        by_gene["ABCA4"].validated is False
-    )  # no VariantValidator match → dropped from "validated"
+    by_hgvs = {v.transcript_hgvs: v for v in result.variants if v.transcript_hgvs}
+    assert by_hgvs["c.260A>G"].validated is False
+    assert by_hgvs["c.260A>G"].validation_status == "fixture_source_unavailable"
+    assert by_hgvs["c.260A>G"].variant_id is None
+    assert by_hgvs["c.260A>G"].candidates == []
+    assert "fixture_candidate_blocked" in by_hgvs["c.260A>G"].resolver_provenance
+    assert by_hgvs["c.9999A>T"].validated is False
 
 
 def test_mock_extract_pairs_gene_cdna_and_protein() -> None:
     result = PaperVariantsService(_settings()).extract("RPE65 c.260A>G (p.Asp87Gly)")
-    assert len(result.variants) == 1
-    v = result.variants[0]
+    assert len(result.variants) == 2
+    v = next(item for item in result.variants if item.level == "cdna")
     assert v.gene == "RPE65"
     assert v.transcript_hgvs == "c.260A>G"
-    assert v.protein_change == "p.Asp87Gly"
     assert v.level == "cdna"
-    assert "mock_paper_variants_extractor" in result.provenance
+    protein = next(item for item in result.variants if item.level == "protein")
+    assert protein.protein_hgvs == "p.Asp87Gly"
+    assert result.provenance == ["eamos_paper_extract_l1_l3"]
 
 
 def test_mock_extracts_protein_substitutions_gene_agnostic() -> None:
@@ -112,11 +142,11 @@ def test_mock_extracts_protein_substitutions_gene_agnostic() -> None:
     assert "p.His241Ala" in by_p  # normalized via SearchInputReference, not a hardcoded map
     assert "p.Cys231Ser" in by_p
     hit = by_p["p.His241Ala"]
-    assert hit.level == "protein"
+    assert hit.level == "legacy"
     assert hit.gene == "FAKEGENE"  # gene-agnostic: not limited to the 8 curated symbols
     assert hit.context == "experimental_construct"  # "site-directed mutagenesis"
     assert hit.validated is False
-    assert hit.validation_status == "experimental_construct"
+    assert hit.validation_status == "experimental_construct_non_actionable"
     assert hit.candidates == []
 
 
@@ -146,12 +176,9 @@ def test_mock_protein_only_rows_offer_same_residue_not_distant_candidates() -> N
     by_protein = {v.protein_hgvs: v for v in result.variants}
     hit = by_protein["p.His313Ala"]
     assert hit.validated is False
-    assert hit.validation_status == "candidates"
-    assert {candidate.cdna for candidate in hit.candidates} == {"c.938A>G", "c.938A>C"}
-    assert {candidate.confidence for candidate in hit.candidates} == {"medium"}
-    assert all(candidate.protein_change.startswith("p.His313") for candidate in hit.candidates)
-    assert "c.260A>G" not in {candidate.cdna for candidate in hit.candidates}
-    assert by_protein["p.His527Ala"].validation_status == "experimental_construct"
+    assert hit.validation_status == "experimental_construct_fixture_source_unavailable"
+    assert hit.candidates == []
+    assert by_protein["p.His527Ala"].validation_status == "experimental_construct_non_actionable"
 
 
 def test_mock_protein_only_candidates_use_local_clingen_gene_agnostically(
@@ -198,7 +225,7 @@ def test_mock_protein_only_candidates_use_local_clingen_gene_agnostically(
     variant = next(item for item in paper_result.variants if item.protein_hgvs == "p.His241Ala")
     assert variant.gene == "FAKEGENE"
     assert variant.validated is False
-    assert variant.validation_status == "candidates"
+    assert variant.validation_status == "experimental_construct_non_actionable"
     assert len(variant.candidates) == 1
     assert variant.candidates[0].gene == "FAKEGENE"
     assert variant.candidates[0].cdna == "c.721A>G"
@@ -213,170 +240,124 @@ def test_mock_protein_only_candidates_use_local_clingen_gene_agnostically(
     assert selected.cdna == "c.721A>G"
 
 
-# --- gateway path (structured) + gate -------------------------------------
+# --- deterministic extraction remains canonical under gateway config -------
 
 
 def _gateway_settings() -> SimpleNamespace:
     return SimpleNamespace(llm_provider="gateway", ai_gateway_api_key="vck_test")
 
 
-def test_gateway_extraction_gate_keeps_resolved_drops_unresolved() -> None:
+def test_gateway_chain_cannot_replace_deterministic_mentions() -> None:
     chain = FakeChain(
         {
             "variants": [
-                {
-                    "gene": "RPE65",
-                    "transcript_hgvs": "NM_000329.3:c.260A>G",
-                    "protein_change": "p.Asp87Gly",
-                },
                 {"gene": "MADEUP", "transcript_hgvs": "c.1A>T"},
             ]
         }
     )
-    validator = FakeValidator({"RPE65": _resolved("1-68444869-T-C")})
-    service = PaperVariantsService(_gateway_settings(), chain=chain, validator=validator)
-
-    result = service.extract("paper body")
-
-    by_gene = {v.gene: v for v in result.variants}
-    assert by_gene["RPE65"].validated is True
-    assert by_gene["RPE65"].variant_id == "1-68444869-T-C"
-    assert by_gene["RPE65"].resolved_candidate_id == "clinvar:VCV001421454"
-    assert by_gene["MADEUP"].validated is False
-    assert by_gene["MADEUP"].validation_status == "missing"
-    assert validator.calls == []  # Phase 3 reuses EamosSearchInputResolver instead
-
-
-def test_gateway_protein_candidate_auto_resolves_source_backed_match() -> None:
-    chain = FakeChain(
-        {
-            "variants": [
-                {
-                    "gene": "CFTR",
-                    "protein_hgvs": "p.Leu441del",
-                    "level": "protein",
-                    "context": "clinical_allele",
-                }
-            ]
-        }
-    )
     service = PaperVariantsService(_gateway_settings(), chain=chain)
 
-    result = service.extract("paper body")
+    result = service.extract("The RPE65 proband carried NM_000329.3:c.260A>G.")
+
+    assert chain.calls == 0
+    assert all(variant.gene != "MADEUP" for variant in result.variants)
+    variant = result.variants[0]
+    assert variant.gene == "RPE65"
+    assert variant.validated is False
+    assert variant.validation_status == "fixture_source_unavailable"
+    assert result.provenance == ["eamos_paper_extract_l1_l3"]
+
+
+def test_source_backed_candidate_resolves_and_enables_action() -> None:
+    service = PaperVariantsService(
+        _settings(),
+        candidate_resolver=SourceBackedCandidateResolver(),
+    )
+
+    result = service.extract("The RPE65 proband carried NM_000329.3:c.260A>G.")
 
     variant = result.variants[0]
     assert variant.validated is True
     assert variant.validation_status == "resolved"
-    assert variant.variant_id == "source:CFTR_c.1321_1323del"
-    assert variant.resolved_candidate_id == "source:CFTR_c.1321_1323del"
-    assert variant.candidates[0].cdna == "c.1321_1323del"
-    assert variant.candidates[0].protein_change == "p.Leu441del"
-    assert variant.source_support == ["User-supplied source correction"]
-    assert "search_candidate_resolver" in variant.resolver_provenance
+    assert variant.resolved_candidate_id == "clinvar-live-1421454"
+    assert variant.source_support == ["ClinVar release 2026-07 VCV001421454"]
 
 
-def test_gateway_experimental_protein_match_stays_candidate_not_validated() -> None:
-    chain = FakeChain(
-        {
-            "variants": [
-                {
-                    "gene": "CFTR",
-                    "protein_hgvs": "p.Leu441del",
-                    "level": "protein",
-                    "context": "experimental_construct",
-                }
-            ]
-        }
-    )
-    service = PaperVariantsService(_gateway_settings(), chain=chain)
+def test_deterministic_protein_fixture_cannot_auto_resolve() -> None:
+    service = PaperVariantsService(_gateway_settings())
 
-    result = service.extract("paper body")
+    result = service.extract("The CFTR patient carried p.Leu441del.")
 
     variant = result.variants[0]
     assert variant.validated is False
-    assert variant.validation_status == "candidates"
+    assert variant.validation_status == "fixture_source_unavailable"
     assert variant.variant_id is None
-    assert variant.candidates[0].candidate_id == "source:CFTR_c.1321_1323del"
-    assert variant.candidates[0].confidence == "high"
-
-
-def test_gateway_protein_candidate_suggestion_stays_fail_closed() -> None:
-    chain = FakeChain(
-        {
-            "variants": [
-                {
-                    "gene": "CFTR",
-                    "protein_hgvs": "p.Leu441fs",
-                    "level": "protein",
-                    "context": "clinical_allele",
-                }
-            ]
-        }
-    )
-    service = PaperVariantsService(_gateway_settings(), chain=chain)
-
-    result = service.extract("paper body")
-
-    variant = result.variants[0]
-    assert variant.validated is False
-    assert variant.validation_status == "candidates"
-    assert variant.variant_id is None
-    assert variant.candidates[0].candidate_id == "source:CFTR_c.1321_1323del"
-    assert variant.candidates[0].confidence == "medium"
+    assert variant.candidates == []
     assert "search_candidate_resolver" in variant.resolver_provenance
 
 
-def test_gate_skips_candidate_missing_identity() -> None:
-    chain = FakeChain({"variants": [{"gene": "RPE65"}]})  # no transcript_hgvs
-    validator = FakeValidator({"RPE65": _resolved("x")})
-    service = PaperVariantsService(_gateway_settings(), chain=chain, validator=validator)
+def test_deterministic_experimental_protein_match_stays_non_actionable() -> None:
+    service = PaperVariantsService(_gateway_settings())
 
-    result = service.extract("paper")
+    result = service.extract("A CFTR p.Leu441del experimental construct was engineered.")
 
-    assert result.variants[0].validated is False
-    assert result.variants[0].validation_status == "missing"
-    assert validator.calls == []  # never probed without gene + hgvs
+    variant = result.variants[0]
+    assert variant.validated is False
+    assert variant.validation_status == "experimental_construct_fixture_source_unavailable"
+    assert variant.variant_id is None
+    assert variant.candidates == []
+
+
+def test_deterministic_protein_candidate_suggestion_stays_fail_closed() -> None:
+    service = PaperVariantsService(_gateway_settings())
+
+    result = service.extract("The CFTR patient carried p.Leu441fs.")
+
+    variant = result.variants[0]
+    assert variant.validated is False
+    assert variant.validation_status == "fixture_source_unavailable"
+    assert variant.variant_id is None
+    assert variant.candidates == []
 
 
 def test_no_validate_flag_skips_the_gate() -> None:
-    chain = FakeChain({"variants": [{"gene": "RPE65", "transcript_hgvs": "c.260A>G"}]})
-    validator = FakeValidator({"RPE65": _resolved("1-68444869-T-C")})
-    service = PaperVariantsService(_gateway_settings(), chain=chain, validator=validator)
+    service = PaperVariantsService(_gateway_settings())
 
-    result = service.extract("paper", validate=False)
+    result = service.extract("RPE65 c.260A>G", validate=False)
 
     assert result.variants[0].validated is False
     assert result.variants[0].validation_status == "not_validated"
-    assert validator.calls == []
 
 
-def test_extraction_failure_is_graceful() -> None:
+def test_provider_failure_is_irrelevant_to_deterministic_path() -> None:
     service = PaperVariantsService(_gateway_settings(), chain=BoomChain())
-    result = service.extract("paper")
-    assert result.variants == []
-    assert any(w.startswith("paper_variants_failed:") for w in result.warnings)
+    result = service.extract("RPE65 c.260A>G")
+    assert result.variants[0].validated is False
+    assert result.variants[0].validation_status == "fixture_source_unavailable"
+    assert result.warnings == []
 
 
-def test_gateway_unavailable_without_chain_is_graceful() -> None:
-    # gateway provider but no key/chain → build_gateway_* returns None
+def test_gateway_unavailable_does_not_disable_local_extraction() -> None:
     service = PaperVariantsService(SimpleNamespace(llm_provider="gateway", ai_gateway_api_key=None))
     result = service.extract("RPE65 c.260A>G")
-    assert result.variants == []
-    assert "paper_variants_unavailable" in result.warnings
+    assert result.variants[0].validated is False
+    assert result.variants[0].validation_status == "fixture_source_unavailable"
+    assert result.provenance == ["eamos_paper_extract_l1_l3"]
 
 
 # --- CLI ------------------------------------------------------------------
 
 
-def test_cli_mock_reports_validated_variant(capsys) -> None:
+def test_cli_require_validated_fails_closed_for_fixture_resolution(capsys) -> None:
     code = cli.main(["--text", "RPE65 c.260A>G was identified", "--require-validated"])
-    assert code == 0
+    assert code == 2
     report = json.loads(capsys.readouterr().out)
     assert report["mode"] == "paper_variants_extract"
-    assert report["llm_provider"] == "mock"
+    assert report["llm_provider"] == "eamos_deterministic"
     assert report["source_metadata"] is None
-    assert report["validated_count"] == 1
-    assert report["variants"][0]["variant_id"] == "1-68444869-T-C"
+    assert report["validated_count"] == 0
+    assert report["variants"][0]["validation_status"] == "fixture_source_unavailable"
+    assert report["document_extraction"]["resolutions"][0]["status"] == "unresolved"
 
 
 def test_cli_pdf_ingest(capsys) -> None:
@@ -390,7 +371,46 @@ def test_cli_pdf_ingest(capsys) -> None:
     report = json.loads(capsys.readouterr().out)
     assert report["pdf"]["engine"] == "pypdf"
     assert report["pdf"]["page_count"] >= 1
-    assert report["source_metadata"] is None
+    assert report["source_metadata"] is None or report["source_metadata"]["title"]
+    assert str(pdf) not in json.dumps(report)
+
+
+def test_cli_rejects_oversized_and_non_utf8_text_files_without_echoing_paths(
+    capsys,
+    tmp_path: Path,
+) -> None:
+    private_path = tmp_path / "PRIVATE_INPUT_NAME.txt"
+    private_path.write_bytes(b"x" * 1_000_001)
+
+    assert cli.main(["--text-file", str(private_path)]) == 3
+    oversized = capsys.readouterr().out
+    assert json.loads(oversized)["error"] == "text_size_limit"
+    assert "PRIVATE_INPUT_NAME" not in oversized
+
+    private_path.write_bytes(b"\xff\xfe")
+    assert cli.main(["--text-file", str(private_path)]) == 3
+    invalid = capsys.readouterr().out
+    assert json.loads(invalid)["error"] == "text_encoding_invalid"
+    assert "PRIVATE_INPUT_NAME" not in invalid
+
+
+def test_cli_fails_honestly_for_garbled_text_and_blank_pdf(capsys, tmp_path: Path) -> None:
+    assert cli.main(["--text", "marker" + ("\ufffd" * 200)]) == 3
+    garbled = json.loads(capsys.readouterr().out)
+    assert garbled["error"] == "paper_text_ambiguous"
+
+    from pypdf import PdfWriter
+
+    path = tmp_path / "PRIVATE_BLANK.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    with path.open("wb") as handle:
+        writer.write(handle)
+
+    assert cli.main(["--pdf", str(path)]) == 3
+    blank = capsys.readouterr().out
+    assert json.loads(blank)["error"] == "ocr_required"
+    assert "PRIVATE_BLANK" not in blank
 
 
 # --- API front door -------------------------------------------------------
@@ -415,7 +435,7 @@ def test_api_extract_json_returns_sanitized_cli_style_result(auth_client) -> Non
     assert response.status_code == 200
     body = response.json()
     assert body["mode"] == "paper_variants_extract"
-    assert body["llm_provider"] == "mock"
+    assert body["llm_provider"] == "eamos_deterministic"
     assert body["pdf"] is None
     assert body["source_metadata"] is None
     assert body["guardrails"] == {
@@ -424,10 +444,15 @@ def test_api_extract_json_returns_sanitized_cli_style_result(auth_client) -> Non
         "secrets_in_output": "blocked",
     }
     assert body["candidate_count"] == len(body["variants"])
-    assert body["validated_count"] == 1
-    assert body["variants"][0]["validated"] is True
-    assert body["variants"][0]["resolved_candidate_id"] == "clinvar:VCV001421454"
-    assert "mock_paper_variants_extractor" in body["provenance"]
+    assert body["validated_count"] == 0
+    assert body["variants"][0]["validated"] is False
+    assert body["variants"][0]["validation_status"] == "fixture_source_unavailable"
+    assert body["provenance"] == ["eamos_paper_extract_l1_l3"]
+    assert body["document_extraction"]["schema_version"] == "paper_document_extraction.v2"
+    assert body["execution_disclosure"]["algorithm_id"] == "eamos_paper_extract"
+    resolution = body["document_extraction"]["resolutions"][0]
+    assert resolution["status"] == "unresolved"
+    assert resolution["execution_disclosure"]["execution"] == "unavailable"
     assert text not in response.text
 
 
@@ -453,6 +478,132 @@ def test_api_extract_pdf_upload_returns_pdf_meta(auth_client, pdf_bytes: bytes) 
     assert body["candidate_count"] >= 1
 
 
+def test_api_pdf_ignores_hostile_filename_and_cleans_request_tempfile(
+    auth_client,
+    pdf_bytes: bytes,
+) -> None:
+    upload_dir = Path(auth_client.app.state.settings.upload_dir)
+    before = set(upload_dir.glob("*.pdf"))
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        files={"file": ("../../PRIVATE_PAPER.pdf", pdf_bytes, "application/pdf")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_extraction"]["bundle"]["documents"][0]["filename"] == "main-pdf.pdf"
+    assert "PRIVATE_PAPER" not in response.text
+    assert set(upload_dir.glob("*.pdf")) == before
+
+
+def test_api_blank_pdf_returns_typed_ocr_requirement(auth_client, tmp_path: Path) -> None:
+    from pypdf import PdfWriter
+
+    path = tmp_path / "blank.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    with path.open("wb") as handle:
+        writer.write(handle)
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        files={"file": ("blank.pdf", path.read_bytes(), "application/pdf")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": "ocr_required",
+        "requirement": "local_ocr_or_selectable_text",
+    }
+
+
+def test_api_pdf_page_parse_failure_rejects_partial_text(auth_client, monkeypatch) -> None:
+    def partial_pdf_result(*_args, **_kwargs):
+        return {
+            "text": "Selectable text from the first page.",
+            "pages": [
+                {"page_number": 1, "text": "Selectable text.", "quality": "good"},
+                {"page_number": 2, "text": "", "quality": "empty"},
+            ],
+            "page_count": 2,
+            "engine": "pypdf",
+            "engine_version": "test",
+            "metadata": {},
+            "warnings": ["pdf_page_parse_failed:2:PdfReadError"],
+        }
+
+    monkeypatch.setattr(paper_routes, "extract_pdf_text", partial_pdf_result)
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        files={"file": ("paper.pdf", b"%PDF-partial", "application/pdf")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": "paper_pdf_unavailable",
+        "requirement": "pdf_page_parse_failed:2:PdfReadError",
+    }
+
+
+def test_api_rejects_garbled_text_without_false_zero_success(auth_client) -> None:
+    marker = "PRIVATE_GARBLED_MARKER"
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        json={"text": marker + ("\ufffd" * 200)},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "paper_text_ambiguous"
+    assert marker not in response.text
+
+
+def test_api_json_body_limit_fails_before_parsing_and_does_not_echo_input(
+    auth_client,
+    monkeypatch,
+) -> None:
+    marker = "PRIVATE_OVERSIZED_JSON_MARKER"
+    monkeypatch.setattr(paper_routes, "_MAX_JSON_BODY_BYTES", 128)
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        content=json.dumps({"text": marker + ("x" * 256)}),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "JSON body exceeds configured size limit."
+    assert marker not in response.text
+
+
+def test_api_streaming_upload_limit_fails_before_parser(auth_client) -> None:
+    auth_client.app.state.settings.max_upload_mb = 0.00001
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        files={"file": ("paper.pdf", b"%PDF-" + (b"x" * 256), "application/pdf")},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Uploaded file exceeds configured size limit."
+
+
+def test_api_rejects_multiple_file_parts_with_sanitized_error(auth_client) -> None:
+    marker = "PRIVATE_SECOND_FILENAME"
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        files=[
+            ("file", ("first.pdf", b"%PDF-one", "application/pdf")),
+            ("pdf", (f"{marker}.pdf", b"%PDF-two", "application/pdf")),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Malformed multipart upload."
+    assert marker not in response.text
+
+
 def test_api_extract_times_out_slow_extraction(auth_client, monkeypatch) -> None:
     auth_client.app.state.settings.paper_variants_extract_timeout_seconds = 0.01
 
@@ -469,3 +620,27 @@ def test_api_extract_times_out_slow_extraction(auth_client, monkeypatch) -> None
 
     assert response.status_code == 504
     assert response.json()["detail"] == "Paper variant extraction timed out."
+
+
+def test_api_pdf_parser_timeout_is_bounded_and_cleans_tempfile(
+    auth_client,
+    monkeypatch,
+) -> None:
+    auth_client.app.state.settings.paper_variants_pdf_timeout_seconds = 0.01
+    upload_dir = Path(auth_client.app.state.settings.upload_dir)
+    before = set(upload_dir.glob("*.pdf"))
+
+    def slow_pdf_parser(*_args, **_kwargs):
+        time.sleep(0.05)
+        return {}
+
+    monkeypatch.setattr(paper_routes, "extract_pdf_text", slow_pdf_parser)
+
+    response = auth_client.post(
+        "/api/v1/paper-variants/extract",
+        files={"file": ("paper.pdf", b"%PDF-slow", "application/pdf")},
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == "PDF text extraction timed out."
+    assert set(upload_dir.glob("*.pdf")) == before
