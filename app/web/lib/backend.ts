@@ -483,6 +483,57 @@ export interface LookupResponse {
   evidence: EvidenceSourceSummary[]
   warnings: string[]
   search_interpretation?: SearchInputInterpretation | null
+  execution_state_v2?: ReportExecutionStateV2 | null
+}
+
+// ─── Shared live-product execution/source disclosure ───
+
+export type CapabilityExecutionV2 =
+  | 'eamos_local'
+  | 'mounted_artifact'
+  | 'external_provider'
+  | 'fixture'
+  | 'unavailable'
+export type CapabilitySourceStatusV2 =
+  | 'source_backed'
+  | 'not_required'
+  | 'not_found'
+  | 'not_applicable'
+  | 'unavailable'
+  | 'fixture'
+export type CapabilityApplicabilityV2 = 'applicable' | 'not_applicable' | 'unknown'
+export type CapabilityValidationStatusV2 =
+  | 'validated'
+  | 'fixture_only'
+  | 'unvalidated'
+  | 'failed'
+  | 'not_applicable'
+export type CapabilityRetentionV2 = 'none' | 'request_lifetime' | 'ttl' | 'account_saved'
+
+export interface CapabilityExecutionDisclosureV2 {
+  schema_version?: 'capability_execution.v2'
+  capability_id: string
+  claim: string
+  execution: CapabilityExecutionV2
+  algorithm_id?: string | null
+  algorithm_version?: string | null
+  provider_id?: string | null
+  provider_version?: string | null
+  input_scope: string
+  source_status: CapabilitySourceStatusV2
+  source_record_ids?: string[]
+  source_release?: string | null
+  materialized_at?: string | null
+  artifact_manifest_id?: string | null
+  artifact_sha256?: string | null
+  applicability: CapabilityApplicabilityV2
+  validation_status: CapabilityValidationStatusV2
+  validation_matrix_id?: string | null
+  retention: CapabilityRetentionV2
+  retention_expires_at?: string | null
+  consent_required: boolean
+  warnings?: string[]
+  requirements?: string[]
 }
 
 // ─── Paper → Variants contract (POST /api/v1/paper-variants/extract) ───
@@ -497,8 +548,143 @@ export interface LookupResponse {
 // lib/paperVariants.ts renders the .eamos-mock fixture until Codex ships it, then
 // swaps to live with no shape change. Confirm the exact envelope with Codex
 // before the live cutover.
-export type VariantLevel = 'cdna' | 'protein' | 'genomic' | 'unknown'
-export type VariantContext = 'clinical_allele' | 'experimental_construct' | 'unknown'
+export type VariantLevel =
+  | 'cdna'
+  | 'genomic'
+  | 'rna'
+  | 'mitochondrial'
+  | 'protein'
+  | 'rsid'
+  | 'legacy'
+  | 'unknown'
+export type VariantContext =
+  | 'clinical_allele'
+  | 'case_or_proband'
+  | 'family_segregation'
+  | 'experimental_construct'
+  | 'engineered_rescue'
+  | 'comparator_or_background'
+  | 'bibliography_only'
+  | 'ambiguous'
+  | 'unknown'
+export type PaperDocumentRoleV2 = 'main' | 'supplement'
+export type PaperDocumentKindV2 = 'pdf' | 'text' | 'csv' | 'xlsx'
+export type PaperExtractionQualityV2 = 'good' | 'degraded' | 'garbled' | 'image_only' | 'empty'
+export type PaperExtractionLayerV2 = 'l1_structured' | 'l2_recovery' | 'l3_inventory'
+export type PaperResolutionStatusV2 = 'resolved' | 'ambiguous' | 'unresolved' | 'excluded'
+export type PaperAdjudicationRecommendationV2 = 'confirm' | 'reject' | 'needs_review'
+
+export interface PaperDocumentUploadV2 {
+  document_id: string
+  role: PaperDocumentRoleV2
+  kind: PaperDocumentKindV2
+  upload_ref: string
+  filename: string
+  media_type: string
+  size_bytes: number
+  sha256: string
+}
+
+export interface PaperBibliographicMetadataV2 {
+  title?: string | null
+  authors?: string[]
+  year?: number | null
+  journal?: string | null
+  doi?: string | null
+  pmid?: string | null
+  provenance?: string[]
+}
+
+export interface PaperDocumentMetadataV2 {
+  document_id: string
+  role: PaperDocumentRoleV2
+  kind: PaperDocumentKindV2
+  filename: string
+  media_type: string
+  size_bytes: number
+  sha256: string
+  page_count?: number | null
+  extraction_engine: string
+  extraction_engine_version: string
+  bibliographic_metadata?: PaperBibliographicMetadataV2 | null
+  warnings?: string[]
+}
+
+export interface PaperDocumentBundleV2 {
+  schema_version?: 'paper_document_bundle.v2'
+  bundle_id: string
+  documents: PaperDocumentMetadataV2[]
+  input_digest: string
+}
+
+export interface PaperDocumentBundleRequestV2 {
+  schema_version?: 'paper_document_bundle_request.v2'
+  bundle_id: string
+  documents: PaperDocumentUploadV2[]
+  input_digest: string
+  consent_to_external_processing?: boolean
+}
+
+export interface PaperPageExtractionQualityV2 {
+  document_id: string
+  page_number: number
+  quality: PaperExtractionQualityV2
+  extracted_character_count: number
+  replacement_character_ratio: number
+  warnings?: string[]
+}
+
+export interface PaperEvidenceSpanV2 {
+  document_id: string
+  page_number: number
+  section: string
+  start_character: number
+  end_character: number
+  exact_text: string
+  bounded_quote: string
+}
+
+export interface PaperVariantMentionV2 {
+  mention_id: string
+  notation_type: VariantLevel
+  biological_context: VariantContext
+  extraction_layer: PaperExtractionLayerV2
+  confidence: number
+  span: PaperEvidenceSpanV2
+  gene_evidence?: string[]
+  transcript_evidence?: string[]
+  warnings?: string[]
+}
+
+export interface PaperMentionResolutionV2 {
+  mention_id: string
+  status: PaperResolutionStatusV2
+  canonical_variant?: CanonicalVariantRefV1 | null
+  candidate_ids?: string[]
+  execution_disclosure: CapabilityExecutionDisclosureV2
+  warnings?: string[]
+}
+
+export interface PaperAiAdjudicationV2 {
+  mention_id: string
+  deterministic_digest: string
+  recommendation: PaperAdjudicationRecommendationV2
+  reason: string
+  advisory_only?: true
+  execution_disclosure: CapabilityExecutionDisclosureV2
+}
+
+export interface PaperDocumentExtractionV2 {
+  schema_version?: 'paper_document_extraction.v2'
+  bundle: PaperDocumentBundleV2
+  deterministic_digest: string
+  page_quality?: PaperPageExtractionQualityV2[]
+  mentions?: PaperVariantMentionV2[]
+  resolutions?: PaperMentionResolutionV2[]
+  ai_adjudications?: PaperAiAdjudicationV2[]
+  execution_disclosure: CapabilityExecutionDisclosureV2
+  warnings?: string[]
+}
 
 export interface ValidatedPaperVariant {
   gene: string | null
@@ -572,6 +758,76 @@ export interface PaperVariantsResponse {
   variants: ValidatedPaperVariant[]
   warnings: string[]
   provenance: string[]
+  document_extraction?: PaperDocumentExtractionV2 | null
+  execution_disclosure?: CapabilityExecutionDisclosureV2 | null
+}
+
+export type ReportSectionIdV2 =
+  | 'header'
+  | 'interpretation_summary'
+  | 'disease_mechanism'
+  | 'gene_context_snapshot'
+  | 'population_frequency'
+  | 'molecular_context'
+  | 'computational_deep_dive'
+  | 'acmg_worksheet'
+  | 'expert_panel'
+  | 'publications'
+  | 'therapies_trials'
+  | 'provenance'
+export type ReportSectionStateV2 =
+  | 'ready'
+  | 'empty'
+  | 'partial'
+  | 'unavailable'
+  | 'not_applicable'
+  | 'stale'
+  | 'failed'
+export type ReportMatchLevelV2 =
+  | 'exact_allele'
+  | 'transcript'
+  | 'protein'
+  | 'gene'
+  | 'gene_disease'
+  | 'condition'
+  | 'discovery_only'
+  | 'not_applicable'
+export type ReportPredictorStateV2 =
+  | 'executed'
+  | 'unavailable'
+  | 'not_applicable'
+  | 'failed'
+  | 'stale'
+export type ReportCoverageV2 = 'partial' | 'complete'
+
+export interface ReportSectionExecutionV2 {
+  section_id: ReportSectionIdV2
+  state: ReportSectionStateV2
+  match_level: ReportMatchLevelV2
+  source_snapshot_id: string
+  execution_disclosures?: CapabilityExecutionDisclosureV2[]
+  stale_on_failure?: boolean
+  warnings?: string[]
+}
+
+export interface ReportPredictorExecutionV2 {
+  predictor_id: string
+  applicability: CapabilityApplicabilityV2
+  state: ReportPredictorStateV2
+  source_snapshot_id: string
+  calibration_id?: string | null
+  execution_disclosure: CapabilityExecutionDisclosureV2
+  stale_on_failure?: boolean
+  warnings?: string[]
+}
+
+export interface ReportExecutionStateV2 {
+  schema_version?: 'report_execution_state.v2'
+  coverage: ReportCoverageV2
+  canonical_variant: CanonicalVariantRefV1
+  source_snapshot_id: string
+  sections?: ReportSectionExecutionV2[]
+  predictors?: ReportPredictorExecutionV2[]
 }
 
 // ─── M11 lookup section-fetch contract ───
@@ -627,6 +883,7 @@ export interface LookupInitialSummaryResponse {
   tiles: LookupSummaryTile[]
   lazy_sections: LookupSectionDescriptor[]
   warnings: string[]
+  execution_state_v2?: ReportExecutionStateV2 | null
 }
 
 export interface LookupSectionFetchRequest extends LookupRequest {
@@ -667,6 +924,7 @@ export interface LookupSectionEnvelope {
   payload?: Record<string, unknown> | null
   freshness: LookupSectionFreshness
   warnings: string[]
+  execution_state_v2?: ReportSectionExecutionV2 | null
 }
 
 export interface LookupSectionFetchResponse {
@@ -2000,6 +2258,7 @@ export interface PrimerRequest {
   gene: string
   cdna: string
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
   mode?: PrimerMode
   tm_min?: number
   tm_max?: number
@@ -2065,18 +2324,63 @@ export interface SourceDisclosure {
   requirements: string[]
 }
 
-export interface PrimerResponse {
+export interface WorkbenchV2ResponseEnvelope {
+  execution_disclosure?: CapabilityExecutionDisclosureV2 | null
+  verified_context?: WorkbenchDesignContextV2 | null
+  context_binding?: WorkbenchResultBindingV2 | null
+}
+
+export interface PrimerResponse extends WorkbenchV2ResponseEnvelope {
   mode: PrimerMode
   pairs: PrimerPair[]
   source_disclosure?: SourceDisclosure | null
 }
 
 export type CasEnzyme = 'SpCas9' | 'SaCas9' | 'Cas12a'
+export type CrisprScoreFamilyV2 = 'on_target' | 'off_target' | 'enumeration'
+export type CrisprScoreDirectionV2 = 'higher_is_better' | 'lower_is_better' | 'descriptive'
+
+export interface CrisprVerifiedLocusV2 {
+  genome_build: 'GRCh38'
+  chromosome: string
+  protospacer_start: number
+  protospacer_end: number
+  pam_start: number
+  pam_end: number
+  cut_position: number
+  strand: '+' | '-'
+}
+
+export interface CrisprGuideIdentityV2 {
+  schema_version?: 'crispr_guide_identity.v2'
+  guide_id: string
+  guide: string
+  pam: string
+  enzyme: CasEnzyme
+  locus: CrisprVerifiedLocusV2
+  context_digest: string
+  identity_sha256: string
+}
+
+export interface CrisprScoreV2 {
+  score_id: string
+  family: CrisprScoreFamilyV2
+  algorithm_id: string
+  algorithm_version: string
+  value: number
+  scale_min: number
+  scale_max: number
+  direction: CrisprScoreDirectionV2
+  context_digest: string
+  guide_identity_sha256: string
+  execution_disclosure: CapabilityExecutionDisclosureV2
+}
 
 export interface CrisprRequest {
   gene: string
   cdna: string
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
   cas?: CasEnzyme
   strand_filter?: 'both' | 'plus' | 'minus'
   off_target_tolerance?: number
@@ -2092,6 +2396,9 @@ export interface CrisprGuide {
   off_target_score: number
   gc_percent: number
   notes?: string
+  identity?: CrisprGuideIdentityV2 | null
+  scores?: CrisprScoreV2[]
+  execution_disclosure?: CapabilityExecutionDisclosureV2 | null
 }
 
 export interface HdrSsodn {
@@ -2103,7 +2410,7 @@ export interface HdrSsodn {
   estimated_hdr_efficiency: number
 }
 
-export interface CrisprResponse {
+export interface CrisprResponse extends WorkbenchV2ResponseEnvelope {
   cas: CasEnzyme
   guides: CrisprGuide[]
   ssodn?: HdrSsodn | null
@@ -2114,6 +2421,7 @@ export interface CrisprSsodnRequest {
   gene: string
   cdna: string
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
   transcript?: string | null
   protein_change?: string | null
   species?: 'human' | 'mouse'
@@ -2148,7 +2456,7 @@ export interface CrisprSsodnDesign {
   genome_build: string
 }
 
-export interface CrisprSsodnResponse {
+export interface CrisprSsodnResponse extends WorkbenchV2ResponseEnvelope {
   genome_build: string
   ssodn: CrisprSsodnDesign
   warnings: string[]
@@ -2169,6 +2477,8 @@ export interface CrisprOffTargetRequest {
   max_mismatches?: number
   on_target_locus?: CrisprOffTargetLocus | null
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
+  guide_identity?: CrisprGuideIdentityV2 | null
 }
 
 export interface CrisprOffTargetSite {
@@ -2183,12 +2493,14 @@ export interface CrisprOffTargetSite {
   strand: '+' | '-'
   position: number
   on_target: boolean
+  scores?: CrisprScoreV2[]
 }
 
-export interface CrisprOffTargetResponse {
+export interface CrisprOffTargetResponse extends WorkbenchV2ResponseEnvelope {
   genome_build: string
   sites: CrisprOffTargetSite[]
   source_disclosure?: SourceDisclosure | null
+  guide_identity?: CrisprGuideIdentityV2 | null
 }
 
 export interface CrisprScreeningRegion {
@@ -2215,6 +2527,7 @@ export interface CrisprScreeningPrimerTarget {
 export interface CrisprScreeningPrimerRequest {
   sites: CrisprScreeningPrimerTarget[]
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
   genome_build?: string
   flank_bp?: number
   naming_prefix?: string
@@ -2248,7 +2561,7 @@ export interface ScreeningPrimer {
   template_source: string
 }
 
-export interface CrisprScreeningPrimerResponse {
+export interface CrisprScreeningPrimerResponse extends WorkbenchV2ResponseEnvelope {
   mode: PrimerMode
   primers: ScreeningPrimer[]
   warnings: string[]
@@ -2261,9 +2574,9 @@ export interface CrisprTideSpectrumBin {
   predicted?: number | null
 }
 
-export interface CrisprTideResponse {
+export interface CrisprTideResponse extends WorkbenchV2ResponseEnvelope {
   source_backed?: boolean
-  analysis_kind?: 'tide'
+  analysis_kind?: 'tide' | 'descriptive_trace_comparison'
   provider_label?: string
   source_disclosure?: SourceDisclosure | null
   cut_site_index: number
@@ -2279,6 +2592,7 @@ export interface AlignRequest {
   gene: string
   cdna: string
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
   user_sequence?: string | null
   ab1_blob_base64?: string | null
 }
@@ -2287,12 +2601,14 @@ export interface AlignReferenceRequest {
   gene: string
   cdna: string
   design_context?: WorkbenchDesignContextV1 | null
+  design_context_v2?: WorkbenchDesignContextV2 | null
   transcript?: string | null
   species?: 'human' | 'mouse'
 }
 
 export interface AlignTraceRequest {
   ab1_blob_base64: string
+  design_context_v2?: WorkbenchDesignContextV2 | null
 }
 
 export interface TraceChannel {
@@ -2318,7 +2634,7 @@ export interface AlignTraceHetCall {
   secondary_signal: number
 }
 
-export interface AlignTraceResponse {
+export interface AlignTraceResponse extends WorkbenchV2ResponseEnvelope {
   sequence: string
   base_calls: string[]
   q_scores: number[]
@@ -2333,7 +2649,7 @@ export interface AlignTraceResponse {
   source_disclosure?: SourceDisclosure | null
 }
 
-export interface AlignResponse {
+export interface AlignResponse extends WorkbenchV2ResponseEnvelope {
   reference: string
   sanger_read: string
   match_line: string
@@ -2345,7 +2661,7 @@ export interface AlignResponse {
   source_disclosure?: SourceDisclosure | null
 }
 
-export interface AlignReferenceResponse {
+export interface AlignReferenceResponse extends WorkbenchV2ResponseEnvelope {
   gene: string
   cdna: string
   transcript?: string | null
@@ -2894,6 +3210,32 @@ export type PanelValidity =
   | 'animal_model_only'
   | 'no_known_disease_relationship'
 export type PanelMinimumValidity = 'definitive' | 'strong'
+export type PanelLaunchPostureV2 = 'ready' | 'gated' | 'unavailable'
+export type PanelIntervalScopeV2 = 'whole_gene' | 'mane_exon_splice' | 'capture_bed'
+
+export interface PanelIntervalProvenanceV2 {
+  scope: PanelIntervalScopeV2
+  genome_build: 'GRCh38'
+  interval_release: string
+  interval_manifest_id: string
+  interval_sha256: string
+  splice_flank_bases?: number | null
+}
+
+export interface PanelSourceSnapshotV2 {
+  schema_version?: 'panel_source_snapshot.v2'
+  snapshot_id: string
+  source: PanelSource
+  version: string
+  release: string
+  retrieved_at: string
+  launch_posture: PanelLaunchPostureV2
+  licence_id: string
+  provenance_url?: string | null
+  artifact_manifest_id?: string | null
+  artifact_sha256?: string | null
+  execution_disclosure: CapabilityExecutionDisclosureV2
+}
 
 export interface PanelGene {
   symbol: string
@@ -2905,6 +3247,7 @@ export interface PanelGene {
   validity?: PanelValidity | null
   provenance: string[]
   warnings: string[]
+  interval_provenance_v2?: PanelIntervalProvenanceV2 | null
 }
 
 export interface PanelSummary {
@@ -2917,6 +3260,7 @@ export interface PanelSummary {
   gene_count: number
   intervals_ref: 'hg38'
   warnings: string[]
+  source_snapshot_v2?: PanelSourceSnapshotV2 | null
 }
 
 export interface Panel {
@@ -2929,6 +3273,7 @@ export interface Panel {
   genes: PanelGene[]
   intervals_ref: 'hg38'
   warnings: string[]
+  source_snapshot_v2?: PanelSourceSnapshotV2 | null
 }
 
 export interface PanelListResponse {
@@ -2951,6 +3296,142 @@ export type BatchVariantState =
   | 'completed'
   | 'filtered_post_lookup'
   | 'failed'
+export type BatchInputFormatV2 = 'vcf' | 'vcf_gz' | 'bcf'
+export type BatchAnalysisScopeV2 = 'wes' | 'targeted_panel'
+export type BatchCohortModelV2 = 'single' | 'proband' | 'small_family'
+export type BatchNormalizationStatusV2 =
+  | 'normalized'
+  | 'reference_mismatch'
+  | 'unsupported'
+  | 'failed'
+export type BatchFilterStageV2 = 'pre_annotation' | 'post_annotation'
+export type BatchFilterOutcomeV2 = 'included' | 'excluded' | 'deferred'
+export type BatchFilterReasonV2 =
+  | 'pass_filter'
+  | 'quality'
+  | 'region'
+  | 'gene_scope'
+  | 'capture_scope'
+  | 'genotype'
+  | 'depth'
+  | 'duplicate'
+  | 'consequence'
+  | 'population_frequency'
+  | 'classification'
+  | 'evidence_state'
+  | 'annotation_cap'
+  | 'source_unavailable'
+export type BatchIntervalScopeV2 = 'whole_gene' | 'mane_exon_splice' | 'capture_bed'
+export type BatchFieldNameV2 =
+  | 'gene'
+  | 'hgvs_c'
+  | 'hgvs_p'
+  | 'clinvar_verdict'
+  | 'gnomad_af'
+  | 'predictor_ensemble'
+  | 'acmg_classification'
+export type BatchFieldValueStatusV2 = 'executed' | 'unavailable' | 'not_applicable'
+export type BatchExportFormatV2 = 'tsv' | 'csv' | 'jsonl' | 'vcf'
+export type BatchExportStateV2 = 'queued' | 'running' | 'ready' | 'failed' | 'expired'
+
+export interface BatchInputEnvelopeV2 {
+  schema_version?: 'batch_input_envelope.v2'
+  format: BatchInputFormatV2
+  analysis_scope: BatchAnalysisScopeV2
+  cohort_model: BatchCohortModelV2
+  genome_build: 'GRCh38'
+  source_sha256: string
+  compressed_bytes: number
+  decompressed_bytes: number
+  raw_record_count: number
+  sample_count: number
+  post_filter_variant_cap: number
+  accepted_variant_classes: ('snv' | 'short_indel')[]
+  warnings?: string[]
+}
+
+export interface BatchAlleleV2 {
+  genome_build: 'GRCh38'
+  chromosome: string
+  position: number
+  reference: string
+  alternate: string
+}
+
+export interface BatchAlleleIdentityV2 {
+  original: BatchAlleleV2
+  normalized?: BatchAlleleV2 | null
+  status: BatchNormalizationStatusV2
+  source_record_index: number
+  normalization_algorithm_id: string
+  normalization_algorithm_version: string
+  reference_manifest_id: string
+  reference_sha256: string
+  warnings?: string[]
+}
+
+export interface BatchSourceSnapshotV2 {
+  schema_version?: 'batch_source_snapshot.v2'
+  snapshot_id: string
+  created_at: string
+  genome_build: 'GRCh38'
+  reference_release: string
+  capabilities: CapabilityExecutionDisclosureV2[]
+}
+
+export interface BatchFilterPlanV2 {
+  pass_only?: boolean
+  minimum_quality?: number | null
+  regions?: string[]
+  interval_scope: BatchIntervalScopeV2
+  interval_snapshot_id: string
+  panel_snapshot_id?: string | null
+  max_population_af?: number | null
+  consequence_terms?: string[]
+  classifications?: string[]
+  require_evidence_sources?: string[]
+}
+
+export interface BatchFilterDispositionV2 {
+  stage: BatchFilterStageV2
+  outcome: BatchFilterOutcomeV2
+  reason: BatchFilterReasonV2
+  detail: string
+  source_snapshot_id: string
+}
+
+export interface BatchSampleProvenanceV2 {
+  sample_key: string
+  source_sample_index: number
+  genotype: string
+  phased: boolean
+  depth?: number | null
+  genotype_quality?: number | null
+}
+
+export interface BatchFieldExecutionV2 {
+  field_name: BatchFieldNameV2
+  value_status: BatchFieldValueStatusV2
+  execution_disclosure: CapabilityExecutionDisclosureV2
+}
+
+export interface BatchPagingV2 {
+  snapshot_id: string
+  limit: number
+  next_cursor?: string | null
+  total: number
+  has_more: boolean
+}
+
+export interface BatchExportV2 {
+  export_id: string
+  format: BatchExportFormatV2
+  state: BatchExportStateV2
+  source_snapshot_id: string
+  row_count: number
+  sha256?: string | null
+  expires_at?: string | null
+}
 
 export interface ParsedVariant {
   raw?: string | null
@@ -2978,12 +3459,16 @@ export interface BatchFilters {
 
 export interface BatchUploadResponse {
   upload_ref: string
+  expires_at?: string | null
+  single_use?: boolean | null
+  input_envelope_v2?: BatchInputEnvelopeV2 | null
 }
 
 export interface BatchCreateRequest {
   variants?: ParsedVariant[] | null
   upload_ref?: string | null
   filters?: BatchFilters
+  filter_plan_v2?: BatchFilterPlanV2 | null
 }
 
 export interface BatchCreateResponse {
@@ -2991,17 +3476,21 @@ export interface BatchCreateResponse {
   n_input: number
   n_to_lookup: number
   est_seconds: number
+  input_envelope_v2?: BatchInputEnvelopeV2 | null
+  source_snapshot_v2?: BatchSourceSnapshotV2 | null
 }
 
 export interface BatchPage {
   limit: number
   next_cursor?: string | null
   total: number
+  paging_v2?: BatchPagingV2 | null
 }
 
 export interface BatchJobQuery {
   limit?: number
   cursor?: string | null
+  source_snapshot_id?: string | null
 }
 
 export interface BatchResult {
@@ -3016,6 +3505,11 @@ export interface BatchResult {
   acmg_classification?: string | null
   report_href?: string | null
   warnings: string[]
+  allele_identity_v2?: BatchAlleleIdentityV2 | null
+  source_snapshot_id?: string | null
+  filter_dispositions_v2?: BatchFilterDispositionV2[]
+  sample_provenance_v2?: BatchSampleProvenanceV2[]
+  field_executions_v2?: BatchFieldExecutionV2[]
 }
 
 export interface BatchJob {
@@ -3030,6 +3524,10 @@ export interface BatchJob {
   results: BatchResult[]
   page: BatchPage
   warnings: string[]
+  input_envelope_v2?: BatchInputEnvelopeV2 | null
+  source_snapshot_v2?: BatchSourceSnapshotV2 | null
+  filter_dispositions_v2?: BatchFilterDispositionV2[]
+  exports_v2?: BatchExportV2[]
 }
 
 // ---------------------------------------------------------------------------
@@ -3165,6 +3663,54 @@ export interface WorkbenchDesignContextV1 {
   variant: CanonicalVariantRefV1
   selection: SelectionRangeV1
   context_digest: string
+}
+
+export type WorkbenchEditOperationV2 = 'substitution' | 'deletion' | 'insertion' | 'delins'
+export type WorkbenchContextOriginV2 = 'native_v2' | 'workbench_design_context.v1'
+export type WorkbenchResultStateV2 = 'current' | 'stale'
+
+export interface WorkbenchReferenceBasisV2 {
+  schema_version?: 'workbench_reference_basis.v2'
+  transcript: string
+  genome_build: 'GRCh38'
+  chrom: string
+  genomic_start: number
+  genomic_end: number
+  strand: SelectionStrandV1
+  orientation: SelectionOrientationV1
+  source_id: string
+  source_release: string
+  source_record_id: string
+  sequence_length: number
+  sequence_sha256: string
+}
+
+export interface WorkbenchSparseEditV2 {
+  edit_id: string
+  operation: WorkbenchEditOperationV2
+  start_offset: number
+  end_offset: number
+  reference_bases: string
+  alternate_bases: string
+}
+
+export interface WorkbenchDesignContextV2 {
+  schema_version?: 'workbench_design_context.v2'
+  variant: CanonicalVariantRefV1
+  reference: WorkbenchReferenceBasisV2
+  selection: SelectionRangeV1
+  edits?: WorkbenchSparseEditV2[]
+  revision: number
+  compatibility_origin?: WorkbenchContextOriginV2
+  legacy_context_digest?: string | null
+  context_digest: string
+}
+
+export interface WorkbenchResultBindingV2 {
+  result_context_digest: string
+  current_context_digest: string
+  state: WorkbenchResultStateV2
+  stale_reason?: string | null
 }
 
 export interface ProcessingDisclosureV1 {

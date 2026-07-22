@@ -56,7 +56,7 @@ No lane owns source materialization, providers, cloud, Supabase, or deploys._
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
-| Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | in_progress | Lane D merged + verified | 1 |
+| Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | review | Lane D merged + verified | 1 |
 | W workbench-engines | pending agent | `plan.md` Lane W paths | `agent/live/workbench-engines` | pending | Contract V2 merged | 2 |
 | R report-evidence | pending agent | `plan.md` Lane R paths | `agent/live/report-evidence` | pending | Contract V2 merged | 3 |
 | P paper-deterministic | pending agent | `plan.md` Lane P paths | `agent/live/paper-deterministic` | pending | Contract V2 merged | 4 |
@@ -183,6 +183,12 @@ own `status`. Messages are append-only; you replace only your own state.
   W/R/P/B dependency-locked until its verified merge. Historical Lane E is
   superseded by the re-chartered `product-ratchets-v2` final lane. Material,
   provider, source, cloud, Supabase, and deploy gates remain separate.
+- 2026-07-22 17:38 +0000 (Codex, Contract V2): **Contract V2 entered review.**
+  The frozen Wave 0 schema, TypeScript parity, and contract-canary slice is
+  complete on `agent/live/product-contract-v2`; focused and affected backend
+  suites, 251 web tests, TypeScript, ESLint, and both structural boundary
+  ratchets are green. W/R/P/B remain dependency-locked pending lead review,
+  explicit merge approval, merge, and post-merge verification.
 
 ---
 

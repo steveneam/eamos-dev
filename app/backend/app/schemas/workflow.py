@@ -69,6 +69,9 @@ WorkflowAsyncStateV1 = Literal[
     "expired",
     "stale",
 ]
+WorkbenchEditOperationV2 = Literal["substitution", "deletion", "insertion", "delins"]
+WorkbenchContextOriginV2 = Literal["native_v2", "workbench_design_context.v1"]
+WorkbenchResultStateV2 = Literal["current", "stale"]
 
 OpaqueId = Annotated[
     str,
@@ -354,6 +357,248 @@ class WorkbenchDesignContextV1(_WorkflowContractModel):
         )
         if self.context_digest != expected_digest:
             raise ValueError("context_digest must match the canonical variant and selection")
+        return self
+
+
+class WorkbenchReferenceBasisV2(_WorkflowContractModel):
+    """Immutable source identity for a Workbench sequence, never the sequence itself."""
+
+    schema_version: Literal["workbench_reference_basis.v2"] = "workbench_reference_basis.v2"
+    transcript: ShortText
+    genome_build: Literal["GRCh38"]
+    chrom: Annotated[str, Field(min_length=1, max_length=32)]
+    genomic_start: int = Field(ge=1)
+    genomic_end: int = Field(ge=1)
+    strand: SelectionStrandV1
+    orientation: SelectionOrientationV1
+    source_id: OpaqueId
+    source_release: ShortText
+    source_record_id: SafeKey
+    sequence_length: int = Field(ge=1, le=5_000_000)
+    sequence_sha256: Sha256Hex
+
+    @field_validator("sequence_sha256", mode="before")
+    @classmethod
+    def _normalize_sequence_sha256(cls, value):
+        return _validate_sha256(value) if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_reference_interval(self):
+        if self.genomic_start > self.genomic_end:
+            raise ValueError("genomic_start must be less than or equal to genomic_end")
+        if self.sequence_length != self.genomic_end - self.genomic_start + 1:
+            raise ValueError("sequence_length must match the inclusive genomic interval")
+        return self
+
+
+class WorkbenchSparseEditV2(_WorkflowContractModel):
+    """A bounded replayable edit; full source/user sequences do not belong here."""
+
+    edit_id: OpaqueId
+    operation: WorkbenchEditOperationV2
+    start_offset: int = Field(ge=0, le=5_000_000)
+    end_offset: int = Field(ge=0, le=5_000_000)
+    reference_bases: Annotated[str, Field(max_length=512, pattern=r"^[ACGTN]*$")]
+    alternate_bases: Annotated[str, Field(max_length=512, pattern=r"^[ACGTN]*$")]
+
+    @field_validator("reference_bases", "alternate_bases", mode="before")
+    @classmethod
+    def _normalize_bases(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_edit(self):
+        if self.start_offset > self.end_offset:
+            raise ValueError("start_offset must be less than or equal to end_offset")
+        replaced_length = self.end_offset - self.start_offset
+        if replaced_length != len(self.reference_bases):
+            raise ValueError("reference_bases length must match the replaced half-open range")
+        if self.operation == "insertion" and (replaced_length != 0 or not self.alternate_bases):
+            raise ValueError("insertion requires an empty reference range and alternate bases")
+        if self.operation == "deletion" and (replaced_length == 0 or self.alternate_bases):
+            raise ValueError("deletion requires reference bases and an empty alternate")
+        if self.operation == "substitution" and (
+            replaced_length == 0 or len(self.reference_bases) != len(self.alternate_bases)
+        ):
+            raise ValueError("substitution requires equal non-empty allele lengths")
+        if self.operation == "delins" and (replaced_length == 0 or not self.alternate_bases):
+            raise ValueError("delins requires non-empty reference and alternate alleles")
+        if self.operation in {"substitution", "delins"} and (
+            self.reference_bases == self.alternate_bases
+        ):
+            raise ValueError("sparse edits must change the reference sequence")
+        return self
+
+
+def build_workbench_design_context_digest_v2(
+    *,
+    variant: CanonicalVariantRefV1,
+    reference: WorkbenchReferenceBasisV2,
+    selection: SelectionRangeV1,
+    edits: list[WorkbenchSparseEditV2],
+    revision: int,
+    compatibility_origin: WorkbenchContextOriginV2 = "native_v2",
+    legacy_context_digest: str | None = None,
+) -> str:
+    payload = {
+        "compatibility_origin": compatibility_origin,
+        "edits": [edit.model_dump(mode="json") for edit in edits],
+        "legacy_context_digest": legacy_context_digest,
+        "reference": reference.model_dump(mode="json"),
+        "revision": revision,
+        "schema_version": "workbench_design_context.v2",
+        "selection": selection.model_dump(mode="json"),
+        "variant": variant.model_dump(mode="json"),
+    }
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+class WorkbenchDesignContextV2(_WorkflowContractModel):
+    schema_version: Literal["workbench_design_context.v2"] = "workbench_design_context.v2"
+    variant: CanonicalVariantRefV1
+    reference: WorkbenchReferenceBasisV2
+    selection: SelectionRangeV1
+    edits: list[WorkbenchSparseEditV2] = Field(default_factory=list, max_length=200)
+    revision: int = Field(ge=0)
+    compatibility_origin: WorkbenchContextOriginV2 = "native_v2"
+    legacy_context_digest: Sha256Hex | None = None
+    context_digest: Sha256Hex
+
+    @field_validator("legacy_context_digest", "context_digest", mode="before")
+    @classmethod
+    def _normalize_context_digests(cls, value):
+        return _validate_sha256(value) if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_design_binding(self):
+        if self.variant.resolution_status != "resolved" or self.variant.transcript is None:
+            raise ValueError("Workbench V2 context requires a resolved transcript variant")
+        if self.reference.transcript != self.variant.transcript:
+            raise ValueError("reference transcript must match the canonical variant")
+        if self.reference.genome_build != self.variant.genome_build:
+            raise ValueError("reference genome_build must match the canonical variant")
+        if self.selection.variant_key != self.variant.variant_key:
+            raise ValueError("selection variant_key must match the canonical variant")
+        if self.selection.transcript != self.reference.transcript:
+            raise ValueError("selection transcript must match the reference basis")
+        if self.selection.genome_build != self.reference.genome_build:
+            raise ValueError("selection genome_build must match the reference basis")
+        if self.selection.chrom != self.reference.chrom:
+            raise ValueError("selection chromosome must match the reference basis")
+        if self.selection.strand != self.reference.strand:
+            raise ValueError("selection strand must match the reference basis")
+        if self.selection.orientation != self.reference.orientation:
+            raise ValueError("selection orientation must match the reference basis")
+        if not (
+            self.reference.genomic_start
+            <= self.selection.genomic_start
+            <= self.selection.genomic_end
+            <= self.reference.genomic_end
+        ):
+            raise ValueError("selection must be contained by the immutable reference basis")
+        if self.revision != self.selection.edit_revision:
+            raise ValueError("revision must match selection edit_revision")
+        edit_ids = [edit.edit_id for edit in self.edits]
+        if len(edit_ids) != len(set(edit_ids)):
+            raise ValueError("edit_id values must be unique")
+        expected_order = sorted(
+            self.edits,
+            key=lambda edit: (edit.start_offset, edit.end_offset, edit.edit_id),
+        )
+        if self.edits != expected_order:
+            raise ValueError("sparse edits must use deterministic coordinate/edit_id ordering")
+        for previous, current in zip(self.edits, self.edits[1:], strict=False):
+            if current.start_offset < previous.end_offset:
+                raise ValueError("sparse edits must not overlap")
+        for edit in self.edits:
+            if edit.end_offset > self.reference.sequence_length:
+                raise ValueError("sparse edits must remain inside the reference basis")
+        if self.compatibility_origin == "native_v2":
+            if self.legacy_context_digest is not None:
+                raise ValueError("native V2 contexts cannot carry a legacy_context_digest")
+            if self.selection.sequence_basis == "reference":
+                if self.edits:
+                    raise ValueError("reference native V2 contexts cannot carry sparse edits")
+                if self.selection.sequence_sha256 != self.reference.sequence_sha256:
+                    raise ValueError(
+                        "reference selection digest must match the immutable reference basis"
+                    )
+            elif not self.edits:
+                raise ValueError(
+                    "variant and edited native V2 contexts require replayable sparse edits"
+                )
+        else:
+            if self.legacy_context_digest is None or self.edits:
+                raise ValueError("V1 compatibility contexts require only the legacy digest")
+        expected_digest = build_workbench_design_context_digest_v2(
+            variant=self.variant,
+            reference=self.reference,
+            selection=self.selection,
+            edits=self.edits,
+            revision=self.revision,
+            compatibility_origin=self.compatibility_origin,
+            legacy_context_digest=self.legacy_context_digest,
+        )
+        if self.context_digest != expected_digest:
+            raise ValueError("context_digest must match the complete V2 context")
+        return self
+
+    @classmethod
+    def from_v1(
+        cls,
+        context: WorkbenchDesignContextV1,
+        *,
+        reference: WorkbenchReferenceBasisV2,
+    ) -> "WorkbenchDesignContextV2":
+        """Compatibility shim; remove after every Workbench producer emits V2."""
+
+        digest = build_workbench_design_context_digest_v2(
+            variant=context.variant,
+            reference=reference,
+            selection=context.selection,
+            edits=[],
+            revision=context.selection.edit_revision,
+            compatibility_origin="workbench_design_context.v1",
+            legacy_context_digest=context.context_digest,
+        )
+        return cls(
+            variant=context.variant,
+            reference=reference,
+            selection=context.selection,
+            edits=[],
+            revision=context.selection.edit_revision,
+            compatibility_origin="workbench_design_context.v1",
+            legacy_context_digest=context.context_digest,
+            context_digest=digest,
+        )
+
+
+class WorkbenchResultBindingV2(_WorkflowContractModel):
+    result_context_digest: Sha256Hex
+    current_context_digest: Sha256Hex
+    state: WorkbenchResultStateV2
+    stale_reason: WarningText | None = None
+
+    @field_validator("result_context_digest", "current_context_digest", mode="before")
+    @classmethod
+    def _normalize_result_digests(cls, value):
+        return _validate_sha256(value) if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_stale_state(self):
+        is_current = self.result_context_digest == self.current_context_digest
+        if is_current != (self.state == "current"):
+            raise ValueError("result state must derive from the two context digests")
+        if self.state == "stale" and self.stale_reason is None:
+            raise ValueError("stale results require a bounded stale_reason")
+        if self.state == "current" and self.stale_reason is not None:
+            raise ValueError("current results cannot carry a stale_reason")
         return self
 
 

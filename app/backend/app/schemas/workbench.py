@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.capabilities import CapabilityExecutionDisclosureV2
 from app.schemas.source_disclosure import SourceDisclosure
-from app.schemas.workflow import WorkbenchDesignContextV1
+from app.schemas.workflow import (
+    WorkbenchDesignContextV1,
+    WorkbenchDesignContextV2,
+    WorkbenchResultBindingV2,
+)
 
 PrimerMode = Literal["sanger", "qpcr", "arms"]
 SecondaryStructureRisk = Literal["low", "moderate", "high", "not_assessed"]
@@ -28,10 +35,48 @@ def _strip_text(value):
     return stripped or None
 
 
+class _WorkbenchResponseV2Envelope(BaseModel):
+    """Atomic V2 response binding; legacy responses omit the whole envelope."""
+
+    execution_disclosure: CapabilityExecutionDisclosureV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    verified_context: WorkbenchDesignContextV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    context_binding: WorkbenchResultBindingV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @model_validator(mode="after")
+    def _validate_v2_response_envelope(self):
+        envelope = (
+            self.execution_disclosure,
+            self.verified_context,
+            self.context_binding,
+        )
+        present = sum(value is not None for value in envelope)
+        if present not in {0, len(envelope)}:
+            raise ValueError(
+                "Workbench V2 response fields must be supplied together or omitted together"
+            )
+        if (
+            self.verified_context is not None
+            and self.context_binding is not None
+            and self.context_binding.result_context_digest != self.verified_context.context_digest
+        ):
+            raise ValueError("result context binding must match the verified context digest")
+        return self
+
+
 class WorkbenchQuery(BaseModel):
     gene: str = Field(min_length=1, max_length=WORKBENCH_GENE_MAX_LENGTH)
     cdna: str = Field(min_length=1, max_length=WORKBENCH_CDNA_MAX_LENGTH)
     design_context: WorkbenchDesignContextV1 | None = None
+    design_context_v2: WorkbenchDesignContextV2 | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
 
     @field_validator("gene", "cdna", mode="before")
     @classmethod
@@ -40,9 +85,12 @@ class WorkbenchQuery(BaseModel):
 
     @model_validator(mode="after")
     def _validate_design_context(self):
-        if self.design_context is None:
+        if self.design_context is not None and self.design_context_v2 is not None:
+            raise ValueError("Provide only one Workbench design-context version")
+        context = self.design_context_v2 or self.design_context
+        if context is None:
             return self
-        variant = self.design_context.variant
+        variant = context.variant
         if self.gene.upper() != variant.gene or self.cdna != variant.cdna:
             raise ValueError("query gene and cdna must match the design-context variant")
         transcript = getattr(self, "transcript", None)
@@ -107,13 +155,148 @@ class PrimerPair(BaseModel):
     recommended: bool = False
 
 
-class PrimerResponse(BaseModel):
+class PrimerResponse(_WorkbenchResponseV2Envelope):
     mode: PrimerMode
     pairs: list[PrimerPair] = Field(default_factory=list)
     source_disclosure: SourceDisclosure | None = None
 
 
 CasEnzyme = Literal["SpCas9", "SaCas9", "Cas12a"]
+CrisprScoreFamilyV2 = Literal["on_target", "off_target", "enumeration"]
+CrisprScoreDirectionV2 = Literal["higher_is_better", "lower_is_better", "descriptive"]
+
+
+class _WorkbenchV2Model(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, validate_default=True)
+
+
+class CrisprVerifiedLocusV2(_WorkbenchV2Model):
+    genome_build: Literal["GRCh38"]
+    chromosome: str = Field(min_length=1, max_length=32)
+    protospacer_start: int = Field(ge=1)
+    protospacer_end: int = Field(ge=1)
+    pam_start: int = Field(ge=1)
+    pam_end: int = Field(ge=1)
+    cut_position: int = Field(ge=1)
+    strand: Literal["+", "-"]
+
+    @model_validator(mode="after")
+    def _validate_locus(self):
+        if self.protospacer_start > self.protospacer_end or self.pam_start > self.pam_end:
+            raise ValueError("CRISPR locus intervals must be ordered")
+        locus_start = min(self.protospacer_start, self.pam_start)
+        locus_end = max(self.protospacer_end, self.pam_end)
+        if not locus_start <= self.cut_position <= locus_end:
+            raise ValueError("cut_position must lie inside the verified guide/PAM locus")
+        return self
+
+
+def build_crispr_guide_identity_digest_v2(
+    *,
+    guide: str,
+    pam: str,
+    enzyme: CasEnzyme,
+    locus: CrisprVerifiedLocusV2,
+    context_digest: str,
+) -> str:
+    payload = {
+        "context_digest": context_digest,
+        "enzyme": enzyme,
+        "genome_build": locus.genome_build,
+        "guide": guide,
+        "locus": locus.model_dump(mode="json"),
+        "pam": pam,
+        "schema_version": "crispr_guide_identity.v2",
+    }
+    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+class CrisprGuideIdentityV2(_WorkbenchV2Model):
+    schema_version: Literal["crispr_guide_identity.v2"] = "crispr_guide_identity.v2"
+    guide_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._~-]*$",
+    )
+    guide: str = Field(min_length=20, max_length=20, pattern=r"^[ACGT]{20}$")
+    pam: str = Field(min_length=2, max_length=8, pattern=r"^[ACGTN]+$")
+    enzyme: CasEnzyme
+    locus: CrisprVerifiedLocusV2
+    context_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    identity_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("guide", "pam", mode="before")
+    @classmethod
+    def _normalize_sequences(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @field_validator("context_digest", "identity_sha256", mode="before")
+    @classmethod
+    def _normalize_digests(cls, value):
+        return value.lower() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_identity(self):
+        if self.locus.protospacer_end - self.locus.protospacer_start + 1 != len(self.guide):
+            raise ValueError("protospacer interval length must match the guide length")
+        if self.locus.pam_end - self.locus.pam_start + 1 != len(self.pam):
+            raise ValueError("PAM interval length must match the PAM length")
+        expected = build_crispr_guide_identity_digest_v2(
+            guide=self.guide,
+            pam=self.pam,
+            enzyme=self.enzyme,
+            locus=self.locus,
+            context_digest=self.context_digest,
+        )
+        if self.identity_sha256 != expected:
+            raise ValueError("identity_sha256 must bind guide, PAM, locus, enzyme, and context")
+        return self
+
+
+class CrisprScoreV2(_WorkbenchV2Model):
+    score_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._~-]*$",
+    )
+    family: CrisprScoreFamilyV2
+    algorithm_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._~-]*$",
+    )
+    algorithm_version: str = Field(min_length=1, max_length=128)
+    value: float = Field(allow_inf_nan=False)
+    scale_min: float = Field(allow_inf_nan=False)
+    scale_max: float = Field(allow_inf_nan=False)
+    direction: CrisprScoreDirectionV2
+    context_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    guide_identity_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    execution_disclosure: CapabilityExecutionDisclosureV2
+
+    @field_validator("context_digest", "guide_identity_sha256", mode="before")
+    @classmethod
+    def _normalize_score_digests(cls, value):
+        return value.lower() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_scale(self):
+        if self.scale_min >= self.scale_max:
+            raise ValueError("score scale_min must be less than scale_max")
+        if not self.scale_min <= self.value <= self.scale_max:
+            raise ValueError("score value must lie inside its declared scale")
+        if self.execution_disclosure.execution not in {
+            "eamos_local",
+            "mounted_artifact",
+            "external_provider",
+        }:
+            raise ValueError("value-bearing CRISPR scores require executed capability output")
+        if self.execution_disclosure.algorithm_id != self.algorithm_id:
+            raise ValueError("score algorithm_id must match its execution disclosure")
+        if self.execution_disclosure.algorithm_version != self.algorithm_version:
+            raise ValueError("score algorithm_version must match its execution disclosure")
+        return self
 
 
 class CrisprRequest(WorkbenchQuery):
@@ -132,6 +315,35 @@ class CrisprGuide(BaseModel):
     off_target_score: float
     gc_percent: float
     notes: str = ""
+    # V1 aggregate scores remain during migration. Remove them after every
+    # consumer reads the algorithm-explicit ``scores`` collection.
+    identity: CrisprGuideIdentityV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    scores: list[CrisprScoreV2] = Field(
+        default_factory=list, max_length=32, exclude_if=lambda value: not value
+    )
+    execution_disclosure: CapabilityExecutionDisclosureV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @model_validator(mode="after")
+    def _validate_v2_scores(self):
+        if self.scores and self.identity is None:
+            raise ValueError("algorithm-explicit scores require a verified guide identity")
+        if self.identity is not None and (
+            self.guide != self.identity.guide
+            or self.pam != self.identity.pam
+            or self.strand != self.identity.locus.strand
+        ):
+            raise ValueError("guide row must match its verified guide identity")
+        if self.identity is not None and any(
+            score.context_digest != self.identity.context_digest
+            or score.guide_identity_sha256 != self.identity.identity_sha256
+            for score in self.scores
+        ):
+            raise ValueError("guide scores must bind to the exact guide identity")
+        return self
 
 
 class HdrSsodn(BaseModel):
@@ -163,7 +375,7 @@ class CrisprSsodnDesign(BaseModel):
     genome_build: str
 
 
-class CrisprResponse(BaseModel):
+class CrisprResponse(_WorkbenchResponseV2Envelope):
     cas: CasEnzyme
     guides: list[CrisprGuide] = Field(default_factory=list)
     ssodn: HdrSsodn | None = None
@@ -225,7 +437,7 @@ class CrisprSsodnRequest(WorkbenchQuery):
         return self
 
 
-class CrisprSsodnResponse(BaseModel):
+class CrisprSsodnResponse(_WorkbenchResponseV2Envelope):
     genome_build: str
     ssodn: CrisprSsodnDesign
     warnings: list[str] = Field(default_factory=list)
@@ -251,6 +463,12 @@ class CrisprOffTargetRequest(BaseModel):
     max_mismatches: int = Field(default=3, ge=0, le=6)
     on_target_locus: CrisprOffTargetLocus | None = None
     design_context: WorkbenchDesignContextV1 | None = None
+    design_context_v2: WorkbenchDesignContextV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    guide_identity: CrisprGuideIdentityV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @field_validator("guide", "pam", "genome_build", mode="before")
     @classmethod
@@ -273,6 +491,24 @@ class CrisprOffTargetRequest(BaseModel):
             raise ValueError("pam must contain only A, C, G, T, and N bases.")
         return pam
 
+    @model_validator(mode="after")
+    def _validate_v2_identity(self):
+        if self.design_context is not None and self.design_context_v2 is not None:
+            raise ValueError("Provide only one Workbench design-context version")
+        if self.guide_identity is None:
+            return self
+        if self.design_context_v2 is None:
+            raise ValueError("guide_identity requires design_context_v2")
+        if self.guide != self.guide_identity.guide or self.pam != self.guide_identity.pam:
+            raise ValueError("guide and PAM must match guide_identity")
+        if self.enzyme != self.guide_identity.enzyme:
+            raise ValueError("enzyme must match guide_identity")
+        if self.genome_build != self.guide_identity.locus.genome_build:
+            raise ValueError("genome_build must match guide_identity")
+        if self.design_context_v2.context_digest != self.guide_identity.context_digest:
+            raise ValueError("guide_identity must be bound to design_context_v2")
+        return self
+
 
 class CrisprOffTargetSite(BaseModel):
     sequence: str
@@ -286,12 +522,31 @@ class CrisprOffTargetSite(BaseModel):
     strand: Literal["+", "-"]
     position: int = Field(ge=1)
     on_target: bool
+    scores: list[CrisprScoreV2] = Field(
+        default_factory=list, max_length=32, exclude_if=lambda value: not value
+    )
 
 
-class CrisprOffTargetResponse(BaseModel):
+class CrisprOffTargetResponse(_WorkbenchResponseV2Envelope):
     genome_build: str
     sites: list[CrisprOffTargetSite] = Field(default_factory=list)
     source_disclosure: SourceDisclosure | None = None
+    guide_identity: CrisprGuideIdentityV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @model_validator(mode="after")
+    def _validate_score_contexts(self):
+        scores = [score for site in self.sites for score in site.scores]
+        if scores and self.guide_identity is None:
+            raise ValueError("off-target scores require a verified guide identity")
+        if self.guide_identity is not None and any(
+            score.context_digest != self.guide_identity.context_digest
+            or score.guide_identity_sha256 != self.guide_identity.identity_sha256
+            for score in scores
+        ):
+            raise ValueError("off-target scores must bind to the exact guide identity")
+        return self
 
 
 class CrisprScreeningRegion(BaseModel):
@@ -364,6 +619,9 @@ class CrisprScreeningPrimerTarget(BaseModel):
 class CrisprScreeningPrimerRequest(BaseModel):
     sites: list[CrisprScreeningPrimerTarget] = Field(min_length=1, max_length=50)
     design_context: WorkbenchDesignContextV1 | None = None
+    design_context_v2: WorkbenchDesignContextV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     genome_build: str = Field(default="GRCh38", min_length=1, max_length=32)
     flank_bp: int = Field(default=400, ge=50, le=5_000)
     naming_prefix: str = Field(default="OTS", min_length=1, max_length=64)
@@ -381,6 +639,8 @@ class CrisprScreeningPrimerRequest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_ranges(self):
+        if self.design_context is not None and self.design_context_v2 is not None:
+            raise ValueError("Provide only one Workbench design-context version")
         if self.tm_min > self.tm_max:
             raise ValueError("tm_min must be less than or equal to tm_max.")
         if self.product_size_min > self.product_size_max:
@@ -410,7 +670,7 @@ class ScreeningPrimer(BaseModel):
     template_source: str
 
 
-class CrisprScreeningPrimerResponse(BaseModel):
+class CrisprScreeningPrimerResponse(_WorkbenchResponseV2Envelope):
     mode: PrimerMode
     primers: list[ScreeningPrimer] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -423,9 +683,9 @@ class CrisprTideSpectrumBin(BaseModel):
     predicted: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
-class CrisprTideResponse(BaseModel):
+class CrisprTideResponse(_WorkbenchResponseV2Envelope):
     source_backed: bool = True
-    analysis_kind: Literal["tide"] = "tide"
+    analysis_kind: Literal["tide", "descriptive_trace_comparison"] = "tide"
     provider_label: str = "Eamos observed-only TIDE-style analyzer"
     source_disclosure: SourceDisclosure | None = None
     cut_site_index: int = Field(ge=1)
@@ -459,6 +719,9 @@ class AlignReferenceRequest(WorkbenchQuery):
 
 class AlignTraceRequest(BaseModel):
     ab1_blob_base64: str = Field(min_length=1, max_length=WORKBENCH_AB1_BLOB_MAX_LENGTH)
+    design_context_v2: WorkbenchDesignContextV2 | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @field_validator("ab1_blob_base64", mode="before")
     @classmethod
@@ -489,7 +752,7 @@ class AlignTraceHetCall(BaseModel):
     secondary_signal: float
 
 
-class AlignTraceResponse(BaseModel):
+class AlignTraceResponse(_WorkbenchResponseV2Envelope):
     sequence: str
     base_calls: list[str] = Field(default_factory=list)
     q_scores: list[int] = Field(default_factory=list)
@@ -504,7 +767,7 @@ class AlignTraceResponse(BaseModel):
     source_disclosure: SourceDisclosure | None = None
 
 
-class AlignResponse(BaseModel):
+class AlignResponse(_WorkbenchResponseV2Envelope):
     reference: str
     sanger_read: str
     match_line: str
@@ -516,7 +779,7 @@ class AlignResponse(BaseModel):
     source_disclosure: SourceDisclosure | None = None
 
 
-class AlignReferenceResponse(BaseModel):
+class AlignReferenceResponse(_WorkbenchResponseV2Envelope):
     gene: str
     cdna: str
     transcript: str | None = None
