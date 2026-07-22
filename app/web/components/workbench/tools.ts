@@ -23,13 +23,13 @@ export const TOOL_META: Record<WorkbenchTool, ToolMeta> = {
   primer: {
     rail: 'Primer',
     title: 'Primer designer',
-    sub: 'Primer3 engine · Sanger / qPCR / Amplicon / ARMS modes',
+    sub: 'Primer3 engine · Sanger / qPCR modes',
     tracks: true,
   },
   crispr: {
     rail: 'CRISPR',
     title: 'CRISPR designer',
-    sub: 'CRISPOR-style scoring · gRNA + ssODN repair template',
+    sub: 'Provider-verified guide design · gRNA + ssODN repair template',
     tracks: true,
   },
   align: {

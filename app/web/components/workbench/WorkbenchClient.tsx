@@ -4,7 +4,7 @@ import './workbench-viewer.css'
 import './workbench-side-panel.css'
 import './workbench-tools.css'
 import './workbench-designers.css'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { WorkbenchTool } from '@/lib/backend'
@@ -14,6 +14,11 @@ import { ModePill } from '@/components/layout/ModePill'
 import { captureWorkbenchOpen } from '@/lib/product-analytics'
 import { ContextStrip } from './ContextStrip'
 import { WorkbenchShell } from './WorkbenchShell'
+import {
+  readWorkbenchWorkspace,
+  workbenchIdentity,
+} from '@/lib/workbench/workspace'
+import type { ViewerMode } from './CanvasHeader'
 
 const DEFAULT_GENE = 'RPE65'
 const DEFAULT_CDNA = 'c.260A>G'
@@ -45,8 +50,39 @@ export function WorkbenchClient() {
   const cdna = cleanParam(params.get('cdna')) ?? DEFAULT_CDNA
   const transcript = cleanParam(params.get('transcript'))
 
-  const [tool, setTool] = useState<WorkbenchTool>('viewer')
+  const toolParam = params.get('tool')
+  const legacyCompare = toolParam === 'compare'
+  const tool: WorkbenchTool = toolParam === 'primer' || toolParam === 'crispr' || toolParam === 'align'
+    ? toolParam
+    : 'viewer'
+  const view: ViewerMode = params.get('view') === 'locus' ? 'locus' : 'window'
+  const contextId = /^[A-Za-z0-9_-]{1,100}$/.test(params.get('context_id') ?? '')
+    ? params.get('context_id') ?? undefined
+    : undefined
   const lastOpenedIdentity = useRef<string | null>(null)
+
+  const workbenchHref = useCallback((
+    nextTool: WorkbenchTool,
+    nextView: ViewerMode,
+    nextTranscript = transcript,
+  ) => {
+    const next = new URLSearchParams({ gene, cdna, tool: nextTool, view: nextView })
+    if (nextTranscript) next.set('transcript', nextTranscript)
+    if (contextId) next.set('context_id', contextId)
+    return `/workbench?${next.toString()}`
+  }, [cdna, contextId, gene, transcript])
+
+  useEffect(() => {
+    if (!legacyCompare) return
+    router.replace('/compare?view=compare&notice=workbench_compare_moved', { scroll: false })
+  }, [legacyCompare, router])
+
+  useEffect(() => {
+    if (legacyCompare || params.has('tool') || params.has('view')) return
+    const restored = readWorkbenchWorkspace(workbenchIdentity(gene, cdna, transcript))
+    if (!restored) return
+    router.replace(workbenchHref(restored.active_tool, restored.view), { scroll: false })
+  }, [cdna, gene, legacyCompare, params, router, transcript, workbenchHref])
 
   useEffect(() => {
     const identity = `${gene}\u0000${cdna}\u0000${transcript ?? ''}`
@@ -71,8 +107,12 @@ export function WorkbenchClient() {
     }
   }
 
+  if (legacyCompare) {
+    return <div className="wb-redirect" role="status">Opening Batch comparison…</div>
+  }
+
   return (
-    <div style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
+    <div className="wb-page" style={{ background: 'var(--bg-soft)', minHeight: '100vh' }}>
       {/* ── Nav — shared chrome, identical to Report / Batch ── */}
       <div className="nav-wrap">
         <div className="wrap-wide nav">
@@ -90,10 +130,27 @@ export function WorkbenchClient() {
         gene={gene}
         variant={cdna}
         tool={tool}
-        onSelectTool={setTool}
+        onSelectTool={(nextTool) => router.push(workbenchHref(nextTool, view), { scroll: false })}
       />
 
-      <WorkbenchShell tool={tool} gene={gene} cdna={cdna} transcript={transcript} />
+      {gene === DEFAULT_GENE && cdna === DEFAULT_CDNA && !params.has('gene') && !params.has('cdna') ? (
+        <div className="wb-example-note" role="note">
+          Example workspace: RPE65 c.260A&gt;G. Search for a gene and variant above to replace it with your target.
+        </div>
+      ) : null}
+
+      <WorkbenchShell
+        tool={tool}
+        gene={gene}
+        cdna={cdna}
+        transcript={transcript}
+        initialView={view}
+        onViewChange={(nextView) => router.replace(workbenchHref(tool, nextView), { scroll: false })}
+        onTranscriptChange={(nextTranscript) => router.push(
+          workbenchHref(tool, view, nextTranscript),
+          { scroll: false },
+        )}
+      />
     </div>
   )
 }

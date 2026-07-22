@@ -6,8 +6,9 @@
    authoritative for everything it carries — window, queried variant,
    sequences, windowed segments, in-window ClinVar, protein features,
    restriction sites, oligo features, summary numbers. Transcript
-   architecture can come from the backend projection when requested; older
-   fixture/scaffold fallbacks remain explicit via `geneViewerScaffoldWarnings()`.
+   architecture can come from the backend projection when requested. Any
+   optional scaffold must be supplied explicitly by a caller; production
+   adaptation never imports bundled scientific sample data.
 
    Pure + side-effect free so it is unit-testable without a DOM.
 ─────────────────────────────────────────────────────────────────────── */
@@ -37,7 +38,6 @@ import {
   type ProteinProductEffect,
   type WindowSegment,
 } from './gene-window'
-import { RPE65_V2 } from './sample-rpe65-v2'
 
 /** ClinVar classification → the 5-tier renderer class. `unknown` has no
  *  renderer tier; it collapses to `vus` for display (documented mapping). */
@@ -275,9 +275,9 @@ function mapProteinFeatures(
 /**
  * Map a backend `GeneViewerResponse` into the renderer `GeneWindowData`.
  *
- * @param resp     backend payload (live or `GENE_VIEWER_SAMPLE` fallback).
+ * @param resp     source-backed backend payload.
  * @param alleleMode  which sequence basis to render.
- * @param options.scaffold whole-gene exon/intron/conservation source. Defaults to `RPE65_V2`.
+ * @param options.scaffold explicit caller-supplied exon/intron/conservation source.
  * @param options.architecture use `transcript` to render exon/intron structure from
  * metadata projection while keeping `windowSegments` sequence-bounded.
  */
@@ -292,13 +292,15 @@ export function adaptGeneViewer(
   alleleMode: AlleleMode = resp.sequences.allele_mode,
   options: AdaptGeneViewerOptions = {},
 ): GeneWindowData {
-  const scaffold = options.scaffold ?? RPE65_V2
+  const scaffold = options.scaffold
   const { identity, locus, summary, queried_variant: qv, tracks } = resp
   const reverse = locus.strand === '-'
   const qvCds = qv.cds_pos
-  const canUseSampleScaffold =
-    identity.gene === scaffold.gene &&
-    identity.resolved_transcript === scaffold.transcript
+  const canUseScaffold = Boolean(
+    scaffold &&
+      identity.gene === scaffold.gene &&
+      identity.resolved_transcript === scaffold.transcript,
+  )
 
   const applied = alleleMode === 'variant' ? resp.sequences.applied_variant : null
   let cumulativeOffset = 0
@@ -351,7 +353,7 @@ export function adaptGeneViewer(
 
   const pf = tracks.protein_features
   const rawProteinLength =
-    summary.protein_length ?? (canUseSampleScaffold ? scaffold.proteinLength : 0)
+    summary.protein_length ?? (canUseScaffold ? scaffold?.proteinLength ?? 0 : 0)
   const proteinProduct = mapProteinProduct(tracks.protein_product, alleleMode)
   const proteinLength =
     alleleMode === 'variant' && proteinProduct?.truncatesProtein
@@ -381,8 +383,8 @@ export function adaptGeneViewer(
   const usesTranscriptProjection = projectionExons.length > 0
   const rawExons = usesTranscriptProjection
     ? projectionExons
-    : canUseSampleScaffold
-      ? scaffold.exons
+    : canUseScaffold
+      ? scaffold?.exons ?? []
       : windowSegments
           .filter((seg): seg is Extract<WindowSegment, { kind: 'exon' }> => seg.kind === 'exon')
           .map((seg) => ({
@@ -394,8 +396,8 @@ export function adaptGeneViewer(
   const exons = annotateExons(rawExons, proteinProduct)
   const introns = projectionIntrons?.length
     ? projectionIntrons
-    : canUseSampleScaffold
-      ? scaffold.introns
+    : canUseScaffold
+      ? scaffold?.introns ?? []
       : windowSegments
           .filter((seg): seg is Extract<WindowSegment, { kind: 'intron' }> => seg.kind === 'intron')
           .map((seg) => ({
@@ -415,14 +417,14 @@ export function adaptGeneViewer(
     chrom: locus.chrom,
     nativeStrand: reverse ? 'reverse' : 'forward',
 
-    geneLength: summary.gene_length ?? (canUseSampleScaffold ? scaffold.geneLength : 0),
+    geneLength: summary.gene_length ?? (canUseScaffold ? scaffold?.geneLength ?? 0 : 0),
     totalExons: summary.total_exons,
-    cdsLength: summary.cds_length ?? (canUseSampleScaffold ? scaffold.cdsLength : 0),
+    cdsLength: summary.cds_length ?? (canUseScaffold ? scaffold?.cdsLength ?? 0 : 0),
     proteinLength,
-    utr5Length: summary.utr5_length ?? (canUseSampleScaffold ? scaffold.utr5Length : 0),
-    utr3Length: summary.utr3_length ?? (canUseSampleScaffold ? scaffold.utr3Length : 0),
-    mrnaLength: summary.mrna_length ?? (canUseSampleScaffold ? scaffold.mrnaLength : 0),
-    architectureScope: usesTranscriptProjection || canUseSampleScaffold ? 'transcript' : 'window',
+    utr5Length: summary.utr5_length ?? (canUseScaffold ? scaffold?.utr5Length ?? 0 : 0),
+    utr3Length: summary.utr3_length ?? (canUseScaffold ? scaffold?.utr3Length ?? 0 : 0),
+    mrnaLength: summary.mrna_length ?? (canUseScaffold ? scaffold?.mrnaLength ?? 0 : 0),
+    architectureScope: usesTranscriptProjection || canUseScaffold ? 'transcript' : 'window',
 
     exons,
     introns,
@@ -454,16 +456,24 @@ export function adaptGeneViewer(
 
     genomicCoords: {
       chrom: locus.chrom,
-      start: locus.gene_start ?? scaffold.genomicCoords.start,
-      end: locus.gene_end ?? scaffold.genomicCoords.end,
+      start:
+        locus.gene_start ??
+        resp.full_locus?.locus.start ??
+        resp.window.display_genomic_start ??
+        0,
+      end:
+        locus.gene_end ??
+        resp.full_locus?.locus.end ??
+        resp.window.display_genomic_end ??
+        0,
       strand: reverse ? '-' : '+',
     },
 
     conservation:
       tracks.conservation_values.length > 0
         ? tracks.conservation_values
-        : canUseSampleScaffold
-          ? scaffold.conservation
+        : canUseScaffold
+          ? scaffold?.conservation ?? []
           : [],
 
     restriction: tracks.restriction_sites.map((r) => ({
@@ -493,16 +503,13 @@ function transcriptProjectionForArchitecture(
 
 /**
  * Honest provenance for the adapted viewer: the backend payload's own
- * warnings plus synthetic warnings naming any field the adapter had to
- * fill from the sample scaffold.
+ * warnings plus bounded availability notes. It never fills scientific fields
+ * from a bundled sample.
  */
 export function geneViewerScaffoldWarnings(
   resp: GeneViewerResponse,
 ): string[] {
   const warnings = [...resp.provenance.warnings]
-  const usesSampleScaffold =
-    resp.identity.gene === RPE65_V2.gene &&
-    resp.identity.resolved_transcript === RPE65_V2.transcript
   const hasTranscriptProjection = Boolean(
     resp.transcript_projection?.intervals.some((interval) => interval.kind === 'exon') ||
       resp.full_locus?.transcript_projection.intervals.some((interval) => interval.kind === 'exon'),
@@ -510,14 +517,10 @@ export function geneViewerScaffoldWarnings(
   warnings.push(
     hasTranscriptProjection
       ? 'exon_intron_table_from_transcript_projection'
-      : usesSampleScaffold
-      ? 'exon_intron_table_from_sample_scaffold'
       : 'exon_intron_table_window_only',
   )
   if (resp.tracks.conservation_values.length === 0) {
-    warnings.push(
-      usesSampleScaffold ? 'conservation_from_sample_scaffold' : 'conservation_unavailable',
-    )
+    warnings.push('conservation_unavailable')
   }
   return warnings
 }

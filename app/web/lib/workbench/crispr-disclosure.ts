@@ -55,11 +55,9 @@ export function designProviderDisclosure(
   result: CrisprResponse | null | undefined,
 ): CrisprDesignDisclosure {
   const disclosure = disclosureView(result?.source_disclosure, {
-    source_status: 'local_provider',
-    provider_id: 'local_deterministic_spcas9',
-    provider_label: 'Local deterministic SpCas9 provider',
-    warnings: ['advanced_crispr_scoring_gated'],
-    requirements: ['spcas9_ngg'],
+    source_status: 'unavailable',
+    provider_id: 'crispr_provider_unverified',
+    provider_label: 'Verified CRISPR provider required',
   })
   if (result?.source_disclosure) {
     const sourceBacked = disclosure.operational
@@ -104,12 +102,12 @@ export function designProviderDisclosure(
   }
 
   return {
-    providerLabel: 'Local deterministic SpCas9',
+    providerLabel: 'Verified CRISPR provider required',
     sourceBacked: false,
     statusLine:
-      'No source-backed provider metadata was returned, so this is shown as the local deterministic SpCas9 surface.',
+      'No operational provider result has been returned.',
     scoreLine:
-      'Scores are heuristic/local: GC/poly-T/PAM-proximal on-target plus an in-context Hsu/MIT specificity scan, not genome-wide DeepHF/CFD output.',
+      'Guide scores remain unavailable until the backend returns provider proof and named scoring materials.',
     platformLine: `${PLATFORM_GATED_MODELS} are platform-gated and not Windows-safe here.`,
   }
 }
@@ -190,12 +188,12 @@ export function outcomeDisclosure(
 
   return {
     sourceBacked: false,
-    sourceLabel: 'Frontend sample/fallback',
-    fitLabel: 'Sample R2',
+    sourceLabel: 'Verified TIDE provider required',
+    fitLabel: 'Fit R2',
     seriesLabel: 'observed-only',
-    observedLegendLabel: 'Observed sample',
+    observedLegendLabel: 'Observed',
     showPredicted: false,
     predictionLine:
-      'Predicted repair/Lindel series is hidden until the backend returns source-backed TIDE or Lindel data with numeric predicted bins.',
+      'No outcome series is available until the backend returns source-backed TIDE or Lindel data.',
   }
 }

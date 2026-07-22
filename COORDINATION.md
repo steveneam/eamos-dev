@@ -39,7 +39,7 @@ full required CI/Vercel gate, and merged as PR #17. Post-merge `main` CI run
 | B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | merged · PR #16 · `5c5a950` | design-binding merged | 3 |
 | Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | complete · remote ledger `20260722144613` + `20260722144619`; post-apply proof green | B merged + fresh Steven approval | 4 |
 | C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | merged · PR #17 · `0d52e11` (head `f880655`) | A/B merged; merge after Task F | 5 |
-| D workbench-canvas | unassigned | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | pending | B + C merged | 6 |
+| D workbench-canvas | Codex(wt) | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | review · local gates green | B + C merged | 6 |
 | E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 7 |
 
 ---

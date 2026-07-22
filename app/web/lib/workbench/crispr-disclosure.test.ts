@@ -24,7 +24,7 @@ describe('designProviderDisclosure', () => {
       provider_label: 'DeepHF service',
     } as CrisprResponse)
     expect(disclosure.sourceBacked).toBe(false)
-    expect(disclosure.providerLabel).toBe('Local deterministic SpCas9')
+    expect(disclosure.providerLabel).toBe('Verified CRISPR provider required')
   })
 
   it('surfaces backend source-backed provider details when present', () => {
