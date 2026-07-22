@@ -165,10 +165,11 @@ describe('adaptGeneViewer — fixture parity with RPE65_V2 (hybrid)', () => {
     expect(data.mrnaLength).toBe(RPE65_V2.mrnaLength)
   })
 
-  it('fills whole-gene exon/intron/conservation from the sample scaffold', () => {
-    expect(data.exons).toEqual(RPE65_V2.exons)
-    expect(data.introns).toEqual(RPE65_V2.introns)
-    expect(data.conservation).toEqual(RPE65_V2.conservation)
+  it('stays window-bounded when whole-gene source data is absent', () => {
+    expect(data.exons.map((exon) => exon.num)).toEqual([3, 4, 5])
+    expect(data.introns.map((intron) => intron.num)).toEqual([3, 4])
+    expect(data.conservation).toEqual([])
+    expect(data.architectureScope).toBe('window')
   })
 
   it('reproduces RPE65_V2 windowSegments in reference mode', () => {
@@ -427,12 +428,12 @@ describe('adaptGeneViewer — classification mapping', () => {
 })
 
 describe('geneViewerScaffoldWarnings', () => {
-  it('keeps backend warnings and names the sample-scaffolded fields', () => {
+  it('keeps backend warnings and reports unavailable source fields', () => {
     const w = geneViewerScaffoldWarnings(GENE_VIEWER_SAMPLE)
     expect(w).toContain('offline_fixture_not_live_source_backed')
     expect(w).toContain('clinvar_track_is_sample_bounded')
-    expect(w).toContain('exon_intron_table_from_sample_scaffold')
-    expect(w).toContain('conservation_from_sample_scaffold')
+    expect(w).toContain('exon_intron_table_window_only')
+    expect(w).toContain('conservation_unavailable')
   })
 
   it('drops the conservation warning when the payload carries values', () => {
@@ -441,8 +442,8 @@ describe('geneViewerScaffoldWarnings', () => {
       tracks: { ...GENE_VIEWER_SAMPLE.tracks, conservation_values: [0.5, 0.6] },
     }
     const w = geneViewerScaffoldWarnings(resp)
-    expect(w).not.toContain('conservation_from_sample_scaffold')
-    expect(w).toContain('exon_intron_table_from_sample_scaffold')
+    expect(w).not.toContain('conservation_unavailable')
+    expect(w).toContain('exon_intron_table_window_only')
   })
 
   it('does not report sample-scaffolded fields for non-RPE65 payloads', () => {

@@ -1,28 +1,57 @@
 'use client'
 
-import { useState } from 'react'
-import { analyzeTide } from '@/lib/api'
+import { useEffect, useRef, useState } from 'react'
+import { analyzeTide, getWorkbenchTraceDisclosure } from '@/lib/api'
 import { outcomeDisclosure } from '@/lib/workbench/crispr-disclosure'
 import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
 import type { CrisprTideResult } from '@/lib/workbench/crispr-tide-sample'
 import { IndelSpectrum } from './IndelSpectrum'
+import type { ProcessingDisclosureV1, WorkbenchDesignContextV1 } from '@/lib/backend'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 /**
- * Post-CRISPR editing-outcome scaffold. Until backend metadata says otherwise,
- * this is an observed-only sample/fallback surface, not a repair predictor.
+ * Authenticated observed TIDE analysis. Missing providers fail closed; no
+ * trace-derived sample or predicted repair output is substituted.
  */
-export function OutcomesTab() {
+export function OutcomesTab({
+  designContext,
+  onResultDigest,
+}: {
+  designContext: WorkbenchDesignContextV1 | null
+  onResultDigest?: (digest: string) => void
+}) {
+  const { user, loading: authLoading, getAccessToken } = useAuth()
   const [control, setControl] = useState<File | null>(null)
   const [edited, setEdited] = useState<File | null>(null)
   const [cutIndex, setCutIndex] = useState(100)
   const [res, setRes] = useState<CrisprTideResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
+  const [processing, setProcessing] = useState<ProcessingDisclosureV1 | null>(null)
+  const [runContext, setRunContext] = useState<WorkbenchDesignContextV1 | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    const controller = new AbortController()
+    getAccessToken()
+      .then((token) => token
+        ? getWorkbenchTraceDisclosure(token, { signal: controller.signal })
+        : null)
+      .then((disclosure) => {
+        if (!controller.signal.aborted) setProcessing(disclosure)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setProcessing(null)
+      })
+    return () => controller.abort()
+  }, [getAccessToken, user])
   const outcomeInfo = outcomeDisclosure(res)
   const sourceDisclosure = res
     ? disclosureView(res.source_disclosure, {
-        source_status: res.source_backed ? 'local_provider' : 'fallback',
-        provider_id: res.source_backed ? 'observed_only_tide' : 'frontend_tide_sample',
+        source_status: 'unavailable',
+        provider_id: 'tide_provider_unverified',
         provider_label: outcomeInfo.sourceLabel,
         warnings: res.warnings,
       })
@@ -34,6 +63,14 @@ export function OutcomesTab() {
   }
 
   const run = async () => {
+    if (!user) {
+      setError('Sign in before uploading traces for server-side outcome analysis.')
+      return
+    }
+    if (!designContext) {
+      setError('Resolve an exact source-backed selection before outcome analysis.')
+      return
+    }
     if (!control || !edited) {
       setError('Upload both a control and an edited Sanger trace (.ab1 / JSON).')
       setRes(null)
@@ -48,28 +85,47 @@ export function OutcomesTab() {
     setLoading(true)
     setError(null)
     setRes(null)
+    setCancelled(false)
+    const token = await getAccessToken()
+    if (!token) {
+      setError('Your session is unavailable. Sign in again before uploading traces.')
+      setLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
-      setRes(await analyzeTide(control, edited, cutIndex))
+      const response = await analyzeTide(control, edited, cutIndex, {
+        signal: controller.signal,
+        accessToken: token,
+      })
+      setRes(response)
+      setRunContext(designContext)
+      onResultDigest?.(designContext.context_digest)
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setCancelled(true)
+        return
+      }
       setError(e instanceof Error ? e.message : 'TIDE analysis failed')
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setLoading(false)
+      }
     }
   }
 
   return (
     <div className="crispr-outcomes">
-      {!outcomeInfo.sourceBacked && (
-        <span className="crispr-preview-tag eamos-mock">Preview</span>
-      )}
       <div className="tool-form">
         <div className="field">
-          <span className="field-label">Control trace (.ab1 / JSON)</span>
+          <span className="field-label">Control trace (.ab1)</span>
           <label className="align-read-btn align-file-btn">
             {control ? 'Replace file' : 'Choose file'}
             <input
               type="file"
-              accept=".ab1,.json"
+              accept=".ab1,.abi"
               hidden
               disabled={loading}
               onChange={(e) => {
@@ -80,12 +136,12 @@ export function OutcomesTab() {
           </label>
         </div>
         <div className="field">
-          <span className="field-label">Edited trace (.ab1 / JSON)</span>
+          <span className="field-label">Edited trace (.ab1)</span>
           <label className="align-read-btn align-file-btn">
             {edited ? 'Replace file' : 'Choose file'}
             <input
               type="file"
-              accept=".ab1,.json"
+              accept=".ab1,.abi"
               hidden
               disabled={loading}
               onChange={(e) => {
@@ -117,25 +173,46 @@ export function OutcomesTab() {
           type="button"
           className="btn-teal"
           onClick={run}
-          disabled={loading}
+          disabled={loading || authLoading || !user || !designContext}
           title="Compare edited vs control traces to estimate indel outcomes"
         >
           {loading ? 'Analyzing...' : 'Analyze outcomes'}
         </button>
+        {loading ? (
+          <button type="button" className="align-read-btn" onClick={() => abortRef.current?.abort()}>
+            Cancel
+          </button>
+        ) : null}
         <span className="tool-panel-sub">
           {control?.name ?? 'no control'} / {edited?.name ?? 'no edited'} /{' '}
           {outcomeInfo.sourceLabel}
         </span>
       </div>
 
-      {!outcomeInfo.sourceBacked && (
+      <div className="workbench-context-binding" role="note">
+        {!user
+          ? 'Sign-in required. Trace files are not uploaded until you start analysis.'
+          : processing
+            ? `${processing.provider_label}: server processing; raw input persisted ${processing.raw_input_persisted ? 'yes' : 'no'}; retention ${processing.retention.replaceAll('_', ' ')}.`
+            : 'Checking authenticated trace-processing disclosure…'}
+      </div>
+      {cancelled ? (
+        <div className="workbench-context-binding" role="status">
+          Outcome analysis cancelled. Uploaded files remain only in this component and no result was saved.
+        </div>
+      ) : null}
+      {runContext && (!designContext || runContext.context_digest !== designContext.context_digest) ? (
+        <div className="workbench-stale" role="status">
+          This outcome result is stale for the current selection.
+        </div>
+      ) : null}
+
+      {!res && (
         <div className="crispr-caveats">
           <div className="help-note">
-            Preview surface — outcomes stay observed-only until the backend
-            returns source-backed TIDE / Lindel details with numeric predicted
-            bins. Uploaded traces are not evidence of a completed solve, and
-            Lindel frameshift probability would be a separate backend score, not
-            blended into observed indel frequencies.
+            Runs require the authenticated TIDE provider and two AB1 traces.
+            No sample result is substituted. Lindel or other repair predictions
+            remain separate and are shown only when returned with provider proof.
           </div>
         </div>
       )}

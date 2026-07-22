@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type {
   CasEnzyme,
   CrisprRequest,
   CrisprResponse,
   HdrSsodn,
+  WorkbenchDesignContextV1,
 } from '@/lib/backend'
 import { designGuides } from '@/lib/api'
 import { designProviderDisclosure } from '@/lib/workbench/crispr-disclosure'
@@ -23,6 +24,9 @@ interface DesignTabProps {
   cdna: string
   /** Hand a designed guide to the Off-targets tab for genome-wide screening. */
   onScreenGuide?: (seed: ScreenSeed) => void
+  designContext: WorkbenchDesignContextV1 | null
+  onResultDigest?: (digest: string) => void
+  executionBlockedReason: string | null
 }
 
 const CAS_OPTIONS: Array<{ value: CasEnzyme; label: string; caveat: string }> = [
@@ -30,7 +34,7 @@ const CAS_OPTIONS: Array<{ value: CasEnzyme; label: string; caveat: string }> = 
     value: 'SpCas9',
     label: 'SpCas9 · NGG',
     caveat:
-      'Current real-mode CRISPR design supports local deterministic SpCas9 only.',
+      'Execution requires an operational backend provider with named scoring materials; heuristic fallback output is blocked.',
   },
 ]
 
@@ -51,6 +55,15 @@ function clampNumber(
   const parsed = Number(raw)
   if (!Number.isFinite(parsed)) return fallback
   return Math.min(max, Math.max(min, parsed))
+}
+
+function downloadDesign(filename: string, content: string, mediaType: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: `${mediaType};charset=utf-8` }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 /** SpCas9 recognises NGG; the other enzymes stay schema-only in real mode. */
@@ -123,7 +136,14 @@ function SsodnLine({
   )
 }
 
-export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
+export function DesignTab({
+  gene,
+  cdna,
+  designContext,
+  executionBlockedReason,
+  onResultDigest,
+  onScreenGuide,
+}: DesignTabProps) {
   const [cas] = useState<CasEnzyme>('SpCas9')
   const [strand, setStrand] = useState<CrisprRequest['strand_filter']>('both')
   const [offTol, setOffTol] = useState(2)
@@ -134,15 +154,16 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hovered, setHovered] = useState<number | null>(null)
+  const [cancelled, setCancelled] = useState(false)
+  const [runContext, setRunContext] = useState<WorkbenchDesignContextV1 | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const selectedCas = CAS_OPTIONS.find((option) => option.value === cas)
   const providerDisclosure = designProviderDisclosure(res)
   const sourceDisclosure = disclosureView(res?.source_disclosure, {
-    source_status: 'local_provider',
-    provider_id: 'local_deterministic_spcas9',
-    provider_label: 'Local deterministic SpCas9 provider',
-    warnings: ['advanced_crispr_scoring_gated'],
-    requirements: ['spcas9_ngg'],
+    source_status: 'unavailable',
+    provider_id: 'crispr_provider_unverified',
+    provider_label: 'Verified CRISPR provider required',
   })
 
   const clearComputed = () => {
@@ -152,6 +173,14 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
   }
 
   const run = async () => {
+    if (!designContext) {
+      setError('Resolve a source-backed selection before designing guides.')
+      return
+    }
+    if (executionBlockedReason) {
+      setError(executionBlockedReason)
+      return
+    }
     if (!Number.isFinite(offTol) || offTol < 0 || offTol > 5) {
       setError('Off-target tolerance must be between 0 and 5.')
       setRes(null)
@@ -163,22 +192,36 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
     setError(null)
     setRes(null)
     setHovered(null)
+    setCancelled(false)
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
       const payload: CrisprRequest = {
         gene,
         cdna,
+        design_context: designContext,
         cas,
         strand_filter: strand,
         off_target_tolerance: offTol,
       }
-      const r = await designGuides(payload)
+      const r = await designGuides(payload, { signal: controller.signal })
+      if (r.cas !== cas) throw new Error('The CRISPR provider returned an incompatible enzyme mode.')
       setRes(r)
+      setRunContext(designContext)
+      onResultDigest?.(designContext.context_digest)
       const nextRec = recommendedGuideIndex(r.guides)
       setHovered(nextRec >= 0 ? nextRec : null)
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setCancelled(true)
+        return
+      }
       setError(e instanceof Error ? e.message : 'CRISPR design failed')
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setLoading(false)
+      }
     }
   }
 
@@ -210,7 +253,6 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
     rows[0] ??
     null
   const template = res?.ssodn?.reference_arm ?? null
-  const returnedDifferentCas = Boolean(res && res.cas !== cas)
 
   return (
     <div className="crispr-design">
@@ -262,15 +304,31 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
           type="button"
           className="btn-teal"
           onClick={run}
-          disabled={loading}
+          disabled={loading || !designContext || Boolean(executionBlockedReason)}
           title="Design SpCas9 (NGG) guides across the target window"
         >
           {loading ? 'Designing...' : 'Design SpCas9 guides'}
         </button>
+        {loading ? (
+          <button type="button" className="align-read-btn" onClick={() => abortRef.current?.abort()}>
+            Cancel
+          </button>
+        ) : null}
         <span className="tool-panel-sub">
           {gene} / {cdna} / {providerDisclosure.providerLabel}
         </span>
       </div>
+
+      {cancelled ? (
+        <div className="workbench-context-binding" role="status">
+          Guide design cancelled. No result was saved.
+        </div>
+      ) : null}
+      {runContext && (!designContext || runContext.context_digest !== designContext.context_digest) ? (
+        <div className="workbench-stale" role="status">
+          These guide results are stale for the current selection.
+        </div>
+      ) : null}
 
       <div className="crispr-caveats">
         <div className="workbench-source-line" role="note">
@@ -299,13 +357,6 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
 
       {res && (
         <>
-          {returnedDifferentCas && (
-            <div className="crispr-result-note">
-              Returned result is labeled {res.cas}; treat this as sample output
-              for the requested {cas} mode.
-            </div>
-          )}
-
           <div className="crispr-ref-anchor">
             <span className="cra-label">Designed against</span>
             <span className="cra-target">
@@ -316,6 +367,50 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
                 template {template.length} nt · ssODN reference arm
               </span>
             )}
+          </div>
+
+          <div className="workbench-export-row" aria-label="CRISPR design exports">
+            <button
+              type="button"
+              onClick={() => downloadDesign(
+                `${gene}-guides.tsv`,
+                [
+                  'index\tguide\tpam\tstrand\tcut_position\ton_target_score\toff_target_score\tgc_percent',
+                  ...res.guides.map((guide) => [
+                    guide.index, guide.guide, guide.pam, guide.strand, guide.cut_position,
+                    guide.on_target_score, guide.off_target_score, guide.gc_percent,
+                  ].join('\t')),
+                ].join('\n'),
+                'text/tab-separated-values',
+              )}
+            >
+              Export guides
+            </button>
+            {res.ssodn ? (
+              <button type="button" onClick={() => downloadDesign(`${gene}-ssodn.txt`, res.ssodn?.repair_template ?? '', 'text/plain')}>
+                Export ssODN
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => downloadDesign(
+                `${gene}-crispr-manifest.json`,
+                JSON.stringify({
+                  schema_version: 'workbench_crispr_manifest.v1',
+                  gene,
+                  cdna,
+                  context_digest: runContext?.context_digest ?? null,
+                  selection: runContext?.selection ?? null,
+                  guide_count: res.guides.length,
+                  cas: res.cas,
+                  source_disclosure: res.source_disclosure ?? null,
+                  generated_at: new Date().toISOString(),
+                }, null, 2),
+                'application/json',
+              )}
+            >
+              Export manifest
+            </button>
           </div>
 
           <div
@@ -516,6 +611,8 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
                               pam: g.pam,
                               strand: g.strand,
                               source: `guide #${g.index}`,
+                              contextDigest: runContext?.context_digest ?? '',
+                              genomicLocus: null,
                             })
                           }
                           title="Screen this guide for genome-wide off-targets — switches to the Off-targets tab and pre-fills the protospacer + PAM."
@@ -554,7 +651,13 @@ export function DesignTab({ gene, cdna, onScreenGuide }: DesignTabProps) {
 
           {/* The lab-order donor follows guide design — you choose a guide,
               then order the ssODN repair template that pairs with it. */}
-          <SsodnLabDonor gene={gene} cdna={cdna} />
+          <SsodnLabDonor
+            gene={gene}
+            cdna={cdna}
+            designContext={designContext}
+            executionBlockedReason={executionBlockedReason}
+            onResultDigest={onResultDigest}
+          />
         </>
       )}
     </div>

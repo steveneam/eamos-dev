@@ -1,7 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import type { CrisprSsodnDesign, CrisprSsodnResponse, SsodnOrientation } from '@/lib/backend'
+import { useEffect, useRef, useState } from 'react'
+import type {
+  CrisprSsodnDesign,
+  CrisprSsodnResponse,
+  SsodnOrientation,
+  WorkbenchDesignContextV1,
+} from '@/lib/backend'
 import { designSsodn } from '@/lib/api'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
@@ -9,15 +14,6 @@ import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disc
 const MIN_LEN = 60
 const MAX_LEN = 200
 const DEFAULT_LEN = 120
-
-/** Mock when the route is unreachable (offline fallback) or the backend can't
- *  resolve a real genomic window — both surface as an illustrative donor. */
-function isMock(res: CrisprSsodnResponse): boolean {
-  return (
-    res.warnings.includes('crispr_ssodn_mock_genomic_window') ||
-    res.ssodn.template_source.startsWith('mock')
-  )
-}
 
 /** Offsets of the 3 nucleotides of the codon carrying the edit, framed from the
  *  CDS position so the whole codon (not just the changed base) is highlighted.
@@ -101,14 +97,33 @@ function SeqRow({
  * length (120 nt lab default), the orderable single-string oligo with intronic
  * bases lowercased and the corrective edit highlighted, the order name, and a
  * Copy-oligo button. Real workbook-accurate sequences come from the backend
- * `/api/v1/crispr/ssodn` route; the bundled sample renders it offline.
+ * `/api/v1/crispr/ssodn` route. Missing or fallback providers fail closed.
  */
-export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
+export function SsodnLabDonor({
+  gene,
+  cdna,
+  designContext,
+  executionBlockedReason,
+  onResultDigest,
+}: {
+  gene: string
+  cdna: string
+  designContext: WorkbenchDesignContextV1 | null
+  executionBlockedReason: string | null
+  onResultDigest?: (digest: string) => void
+}) {
   const [oligoLength, setOligoLength] = useState(DEFAULT_LEN)
   const [orientation, setOrientation] = useState<SsodnOrientation>('sense')
   const [res, setRes] = useState<CrisprSsodnResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
+  const [runDigest, setRunDigest] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const onResultDigestRef = useRef(onResultDigest)
+  useEffect(() => {
+    onResultDigestRef.current = onResultDigest
+  }, [onResultDigest])
 
   const clampedLen = Math.min(
     MAX_LEN,
@@ -116,42 +131,63 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
   )
 
   useEffect(() => {
-    let cancelled = false
+    let disposed = false
+    if (!designContext || executionBlockedReason) {
+      queueMicrotask(() => {
+        if (disposed) return
+        setLoading(false)
+        setRes(null)
+        setError(executionBlockedReason ?? 'Exact design context is unavailable.')
+      })
+      return () => { disposed = true }
+    }
     const timer = setTimeout(() => {
       setLoading(true)
       setError(null)
+      setCancelled(false)
+      const controller = new AbortController()
+      abortRef.current = controller
       designSsodn({
         gene,
         cdna,
+        design_context: designContext,
         oligo_length: clampedLen,
         orientation,
         protocol: 'lab_genomic',
-      })
+      }, { signal: controller.signal })
         .then((r) => {
-          if (cancelled) return
+          if (disposed) return
           setRes(r)
+          setRunDigest(designContext.context_digest)
+          onResultDigestRef.current?.(designContext.context_digest)
           setLoading(false)
         })
         .catch((e) => {
-          if (cancelled) return
+          if (disposed) return
+          if (e instanceof DOMException && e.name === 'AbortError') {
+            setCancelled(true)
+            setLoading(false)
+            return
+          }
           setError(e instanceof Error ? e.message : 'ssODN design failed')
           setLoading(false)
         })
     }, 200)
     return () => {
-      cancelled = true
+      disposed = true
       clearTimeout(timer)
+      abortRef.current?.abort()
+      abortRef.current = null
     }
-  }, [gene, cdna, clampedLen, orientation])
+  }, [cdna, clampedLen, designContext, executionBlockedReason, gene, orientation])
 
   const ss = res?.ssodn ?? null
   const sourceDisclosure = disclosureView(res?.source_disclosure, {
-    source_status: res && isMock(res) ? 'fallback' : 'source_backed',
-    provider_id: res && isMock(res) ? 'crispr_ssodn_mock_window' : 'local_mane_hg38_ssodn',
-    provider_label: res && isMock(res) ? 'Mock genomic-window fallback' : 'Local ssODN context',
+    source_status: 'unavailable',
+    provider_id: 'crispr_ssodn_provider_unverified',
+    provider_label: 'Verified ssODN provider required',
     warnings: res?.warnings ?? [],
   })
-  const mock = res ? sourceDisclosure.preview : false
   const codon = ss ? editedCodon(ss.variant_offset, cdna) : null
   const reference = ss && codon ? deriveReference(ss, codon.offsets) : null
 
@@ -160,14 +196,6 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
       <div className="crispr-track-h ssodn-donor-h">
         <span>
           Lab order donor (ssODN)
-          {mock && (
-            <span
-              className="eamos-mock ssodn-mock-tag"
-              title="Illustrative donor — the real workbook-accurate sequence comes from the genomic donor service"
-            >
-              {sourceDisclosure.statusLabel}
-            </span>
-          )}
         </span>
         {ss && !loading && (
           <CopyButton text={ss.oligo_sequence} label="Copy oligo" size="inline" />
@@ -220,6 +248,15 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
       </div>
 
       {loading && <p className="ssodn-donor-status">Designing donor…</p>}
+      {loading ? (
+        <button type="button" className="align-read-btn" onClick={() => abortRef.current?.abort()}>
+          Cancel donor design
+        </button>
+      ) : null}
+      {cancelled ? <p className="ssodn-donor-status">Donor design cancelled. No result was saved.</p> : null}
+      {runDigest && (!designContext || runDigest !== designContext.context_digest) ? (
+        <p className="ssodn-donor-status">This donor is stale for the current selection.</p>
+      ) : null}
       {error && (
         <p className="ssodn-donor-status error" role="alert">
           {error}
@@ -291,7 +328,6 @@ export function SsodnLabDonor({ gene, cdna }: { gene: string; cdna: string }) {
           </div>
           <p className="ssodn-order-note">
             Order: Sigma · SDS-PAGE purity · lyophilised · lowest yield.
-            {mock && ` ${sourceDisclosure.caveat}`}
           </p>
         </>
       )}

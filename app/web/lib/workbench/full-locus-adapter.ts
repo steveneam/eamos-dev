@@ -5,6 +5,7 @@
    introducing for a row-oriented payload. */
 
 import type { GeneViewerResponse } from '../backend'
+import type { ViewerFullLocus } from '../backend'
 import { buildFullLocusRows, type FullLocusRows } from './full-locus-layout'
 
 export type FullLocusViewModel =
@@ -20,6 +21,8 @@ export type FullLocusViewModel =
       gene: string
       cdna: string
       transcript: string
+      transcriptOptions: string[]
+      fullLocus: ViewerFullLocus
       rows: FullLocusRows
       warnings: string[]
     }
@@ -39,6 +42,10 @@ export function adaptFullLocus(resp: GeneViewerResponse): FullLocusViewModel {
     gene,
     cdna,
     transcript,
+    transcriptOptions: Array.from(
+      new Set([transcript, ...resp.identity.transcript_aliases].filter(Boolean)),
+    ),
+    fullLocus: resp.full_locus,
     rows: buildFullLocusRows(resp.full_locus),
     warnings,
   }

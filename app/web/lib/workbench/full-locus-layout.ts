@@ -55,6 +55,17 @@ export interface FullLocusRow {
   clinvarPins: Array<{ col: number; label: string; classification: VariantClassification | null }>
 }
 
+export interface FullLocusNavigationTarget {
+  id: string
+  kind: ViewerTranscriptIntervalKind
+  label: string
+  genomicStart: number
+  genomicEnd: number
+  rowIndex: number
+  exonNumber?: number | null
+  intronNumber?: number | null
+}
+
 export interface FullLocusRows {
   basesPerRow: number
   rowCount: number
@@ -67,6 +78,10 @@ export interface FullLocusRows {
   genomeBuild: string
   locusStart: number
   locusEnd: number
+  transcript: string
+  displaySequence: string
+  queriedGenomicPosition: number | null
+  navigationTargets: FullLocusNavigationTarget[]
 }
 
 const DEFAULT_BASES_PER_ROW = 60
@@ -112,6 +127,38 @@ function classificationOf(feature: ViewerFeatureInterval): VariantClassification
   return feature.classification ?? null
 }
 
+export function reverseComplement(sequence: string): string {
+  const complements: Record<string, string> = {
+    A: 'T',
+    C: 'G',
+    G: 'C',
+    T: 'A',
+    N: 'N',
+  }
+  return sequence
+    .toUpperCase()
+    .split('')
+    .reverse()
+    .map((base) => complements[base] ?? 'N')
+    .join('')
+}
+
+export function isReverseDisplay(
+  orientation: ViewerOrientation,
+  strand: GenomeStrand,
+): boolean {
+  return orientation === 'genomic_reverse' || (orientation === 'transcript' && strand === '-')
+}
+
+export function genomicPositionAt(rows: FullLocusRows, displayOffset: number): number | null {
+  if (!Number.isSafeInteger(displayOffset) || displayOffset < 0 || displayOffset >= rows.totalBases) {
+    return null
+  }
+  return isReverseDisplay(rows.orientation, rows.strand)
+    ? rows.locusEnd - displayOffset
+    : rows.locusStart + displayOffset
+}
+
 function metadataString(
   feature: ViewerFeatureInterval,
   key: string,
@@ -122,10 +169,15 @@ function metadataString(
 
 export function buildFullLocusRows(
   full: ViewerFullLocus,
-  opts: { basesPerRow?: number } = {},
+  opts: { basesPerRow?: number; orientation?: ViewerOrientation } = {},
 ): FullLocusRows {
   const { locus, transcript_projection, feature_intervals, rendering_hints } = full
   const totalBases = locus.sequence.length
+  const orientation = opts.orientation ?? rendering_hints.orientation
+  const reverse = isReverseDisplay(orientation, locus.strand)
+  const displaySequence = reverse
+    ? reverseComplement(locus.sequence)
+    : locus.sequence.toUpperCase()
   const basesPerRow = clampBasesPerRow(
     rendering_hints.bases_per_row_min,
     rendering_hints.bases_per_row_max,
@@ -133,7 +185,8 @@ export function buildFullLocusRows(
   )
   const rowCount = totalBases === 0 ? 0 : Math.ceil(totalBases / basesPerRow)
 
-  const positionToOffset = (genomicPos: number): number => genomicPos - locus.start
+  const positionToOffset = (genomicPos: number): number =>
+    reverse ? locus.end - genomicPos : genomicPos - locus.start
   const offsetToRow = (offset: number): { row: number; col: number } => {
     const row = Math.floor(offset / basesPerRow)
     const col = offset - row * basesPerRow
@@ -148,9 +201,9 @@ export function buildFullLocusRows(
       rowIndex,
       sequenceStart: offsetStart + 1,
       sequenceEnd: offsetEnd,
-      genomicStart: locus.start + offsetStart,
-      genomicEnd: locus.start + offsetEnd - 1,
-      bases: locus.sequence.slice(offsetStart, offsetEnd),
+      genomicStart: reverse ? locus.end - offsetStart : locus.start + offsetStart,
+      genomicEnd: reverse ? locus.end - offsetEnd + 1 : locus.start + offsetEnd - 1,
+      bases: displaySequence.slice(offsetStart, offsetEnd),
       bands: [],
       codonMarks: [],
       clinvarPins: [],
@@ -158,8 +211,10 @@ export function buildFullLocusRows(
   }
 
   for (const interval of transcript_projection.intervals) {
-    const relStart = positionToOffset(interval.genomic_start)
-    const relEnd = positionToOffset(interval.genomic_end) + 1
+    const endpointA = positionToOffset(interval.genomic_start)
+    const endpointB = positionToOffset(interval.genomic_end)
+    const relStart = Math.min(endpointA, endpointB)
+    const relEnd = Math.max(endpointA, endpointB) + 1
     const clampedStart = Math.max(0, relStart)
     const clampedEnd = Math.min(totalBases, relEnd)
     if (clampedEnd <= clampedStart) continue
@@ -207,6 +262,7 @@ export function buildFullLocusRows(
   }
 
   let variantRowIndex: number | null = null
+  let queriedGenomicPosition: number | null = null
 
   for (const feature of feature_intervals) {
     if (isQueriedVariantFeature(feature.kind)) {
@@ -221,6 +277,7 @@ export function buildFullLocusRows(
         classification: classificationOf(feature),
       }
       variantRowIndex = row
+      queriedGenomicPosition = feature.start
     } else if (isClinvarFeature(feature.kind)) {
       const offset = positionToOffset(feature.start)
       if (offset < 0 || offset >= totalBases) continue
@@ -233,17 +290,40 @@ export function buildFullLocusRows(
     }
   }
 
+  const navigationTargets = transcript_projection.intervals.map((interval) => ({
+    id: interval.id,
+    kind: interval.kind,
+    label: intervalLabel(interval),
+    genomicStart: Math.min(interval.genomic_start, interval.genomic_end),
+    genomicEnd: Math.max(interval.genomic_start, interval.genomic_end),
+    rowIndex: Math.max(
+      0,
+      Math.floor(
+        Math.min(
+          positionToOffset(interval.genomic_start),
+          positionToOffset(interval.genomic_end),
+        ) / basesPerRow,
+      ),
+    ),
+    exonNumber: interval.exon_number ?? null,
+    intronNumber: interval.intron_number ?? null,
+  }))
+
   return {
     basesPerRow,
     rowCount,
     totalBases,
     variantRowIndex,
     rows,
-    orientation: rendering_hints.orientation,
+    orientation,
     chrom: locus.chrom,
     strand: locus.strand,
     genomeBuild: locus.genome_build,
     locusStart: locus.start,
     locusEnd: locus.end,
+    transcript: transcript_projection.transcript,
+    displaySequence,
+    queriedGenomicPosition,
+    navigationTargets,
   }
 }
