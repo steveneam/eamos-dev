@@ -27,7 +27,12 @@ import {
 } from '@/lib/workbench/edit-state'
 import { aaThree, type Base } from '@/lib/workbench/codon-table'
 import type { AlleleMode, PrimerPair, ProteinDomainTrack } from '@/lib/backend'
-import type { SelectionSummary, StrandMode, TrackState } from './viewer-types'
+import type {
+  SelectionSummary,
+  StrandMode,
+  TrackState,
+  WindowDesignState,
+} from './viewer-types'
 import { CodonDetail } from './CodonDetail'
 import { HistoryTimeline } from './HistoryTimeline'
 import { ViewerToolbar } from './ViewerToolbar'
@@ -98,6 +103,8 @@ interface SequenceViewerV2Props {
   onToggleMinimap?: () => void
   onScratchChange: (entries: ScratchEntry[]) => void
   onSelectionChange: (selection: SelectionSummary | null) => void
+  initialDesignState?: WindowDesignState | null
+  onDesignStateChange?: (state: WindowDesignState) => void
   onEditCountChange?: (count: number) => void
   onActiveExonChange?: (n: number) => void
   /** Clicking a ClinVar dot focuses it: jumps to the position and reports the
@@ -129,6 +136,8 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       onToggleMinimap,
       onScratchChange,
       onSelectionChange,
+      initialDesignState,
+      onDesignStateChange,
       onEditCountChange,
       onActiveExonChange,
       onClinvarSelect,
@@ -150,15 +159,45 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     const focusSearchRef = useRef<() => void>(() => {})
     const isSelecting = useRef(false)
     const dragCleanupRef = useRef<(() => void) | null>(null)
-    const selectionRef = useRef<SelectionRange | null>(null)
+    const initialSelection = initialDesignState?.selection ?? null
+    const selectionRef = useRef<SelectionRange | null>(initialSelection)
     const dragFrameRef = useRef<number | null>(null)
     const pendingDragPointRef = useRef<{ x: number; y: number } | null>(null)
     const dragRowBoxesRef = useRef<DragRowBox[] | null>(null)
     const activePointerIdRef = useRef<number | null>(null)
 
-    const [editState, dispatch] = useReducer(editReducer, initialEditState)
+    const restoredRevisionBase = useRef(
+      initialDesignState?.edits.length
+        ? Math.max(0, initialDesignState.editRevision - 1)
+        : 0,
+    )
+    const [editState, dispatch] = useReducer(
+      editReducer,
+      initialDesignState,
+      (seed) => {
+        if (!seed?.edits.length) return initialEditState
+        const restored = new Map<number, Edit>()
+        for (const edit of seed.edits) {
+          if (!Number.isSafeInteger(edit.flatIndex) || edit.flatIndex < 0) continue
+          restored.set(edit.flatIndex, edit.kind === 'del'
+            ? { kind: 'del', alt: '-' }
+            : { kind: edit.kind, alt: edit.alt })
+        }
+        if (restored.size === 0) return initialEditState
+        return {
+          edits: restored,
+          history: [{
+            label: 'Restored browser-session edits',
+            before: new Map(),
+            after: new Map(restored),
+            time: Date.now(),
+          }],
+          cursor: 1,
+        }
+      },
+    )
     const { edits, history, cursor } = editState
-    const [selection, setSelection] = useState<SelectionRange | null>(null)
+    const [selection, setSelection] = useState<SelectionRange | null>(initialSelection)
     const setLiveSelection = useCallback(
       (
         next:
@@ -384,6 +423,18 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     // (and immediately for click / keyboard / jump / edit, which aren't drags).
     const flushSelectionSummary = useCallback(() => {
       const sel = selectionRef.current
+      const editRevision = edits.size > 0
+        ? Math.max(1, restoredRevisionBase.current + cursor)
+        : 0
+      onDesignStateChange?.({
+        selection: sel ? { start: sel.start, end: sel.end } : null,
+        edits: Array.from(edits, ([flatIndex, edit]) => ({
+          flatIndex,
+          kind: edit.kind,
+          alt: edit.kind === 'del' ? '' : edit.alt,
+        })),
+        editRevision,
+      })
       if (!sel) {
         onSelectionChange(null)
         return
@@ -391,7 +442,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       const lo = Math.min(sel.start, sel.end)
       const hi = Math.max(sel.start, sel.end)
       onSelectionChange(buildSelectionSummary(data, flat, edits, lo, hi))
-    }, [data, flat, edits, onSelectionChange])
+    }, [cursor, data, edits, flat, onDesignStateChange, onSelectionChange])
     useEffect(() => {
       selectionRef.current = selection
       if (isSelecting.current) return
@@ -631,6 +682,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
 
     const onSequencePointerDown = useCallback(
       (clientX: number, clientY: number, shift: boolean, pointerId: number) => {
+        rootRef.current?.focus({ preventScroll: true })
         dragRowBoxesRef.current = collectDragRowBoxes()
         const idx = baseIndexFromPoint(clientX, clientY)
         if (idx === null) {
@@ -657,6 +709,13 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           if (e.pointerId !== activePointerIdRef.current) return
           if (!isSelecting.current) return
           e.preventDefault()
+          if (e.clientY < 48) {
+            window.scrollBy({ top: -20 })
+            dragRowBoxesRef.current = collectDragRowBoxes()
+          } else if (e.clientY > window.innerHeight - 48) {
+            window.scrollBy({ top: 20 })
+            dragRowBoxesRef.current = collectDragRowBoxes()
+          }
           pendingDragPointRef.current = { x: e.clientX, y: e.clientY }
           if (dragFrameRef.current !== null) return
           dragFrameRef.current = window.requestAnimationFrame(() => {
@@ -777,7 +836,9 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     // ── Keyboard ──
     useEffect(() => {
       const onKey = (e: KeyboardEvent) => {
-        const tag = (document.activeElement as HTMLElement | null)?.tagName
+        const activeElement = document.activeElement as HTMLElement | null
+        if (!activeElement || !rootRef.current?.contains(activeElement)) return
+        const tag = activeElement.tagName
         const inField = tag === 'INPUT' || tag === 'TEXTAREA'
         if (e.metaKey || e.ctrlKey) {
           const k = e.key.toLowerCase()
@@ -794,7 +855,7 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           return
         }
         if (inField) return
-        if (selection && e.key === 'Backspace') {
+        if (selection && (e.key === 'Backspace' || e.key === 'Delete')) {
           applyDel(
             Math.min(selection.start, selection.end),
             Math.max(selection.start, selection.end),
@@ -810,12 +871,18 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
           e.preventDefault()
         } else if (e.key === 'Escape') {
           setLiveSelection(null)
-        } else if (e.key === 'ArrowLeft' && selection) {
-          const n = Math.max(0, selection.end - 1)
-          setLiveSelection({ start: n, end: n })
-        } else if (e.key === 'ArrowRight' && selection) {
-          const n = Math.min(flat.length - 1, selection.end + 1)
-          setLiveSelection({ start: n, end: n })
+        } else if (selection && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+          const n = e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? flat.length - 1
+              : e.key === 'ArrowLeft'
+                ? Math.max(0, selection.end - 1)
+                : Math.min(flat.length - 1, selection.end + 1)
+          setLiveSelection(e.shiftKey
+            ? { start: selection.start, end: n }
+            : { start: n, end: n })
+          e.preventDefault()
         }
       }
       window.addEventListener('keydown', onKey)
@@ -834,6 +901,19 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
       setSearchQuery('')
       setJumpError(null)
     }, [])
+    const adjustSelectionEndpoint = useCallback(
+      (edge: 'start' | 'end', delta: number) => {
+        setLiveSelection((current) => {
+          if (!current) return current
+          const low = Math.min(current.start, current.end)
+          const high = Math.max(current.start, current.end)
+          return edge === 'start'
+            ? { start: Math.max(0, Math.min(high, low + delta)), end: high }
+            : { start: low, end: Math.min(flat.length - 1, Math.max(low, high + delta)) }
+        })
+      },
+      [flat.length, setLiveSelection],
+    )
     // Clicking a ClinVar dot focuses it: jump to (and select) the base, then
     // report the variant up so the Scratchpad log can show its info card.
     const handleClinvarClick = useCallback(
@@ -845,7 +925,13 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
     )
 
     return (
-      <div className="sv-root" ref={rootRef}>
+      <div
+        className="sv-root"
+        ref={rootRef}
+        tabIndex={0}
+        role="region"
+        aria-label="Editable sequence window"
+      >
         <ViewerToolbar
           searchQuery={searchQuery}
           jumpError={jumpError}
@@ -945,6 +1031,17 @@ export const SequenceViewerV2 = forwardRef<SequenceViewerHandle, SequenceViewerV
                 onRestrictionHover={setRestrictionHover}
                 onRestrictionSelect={handleRestrictionSelect}
               />
+              <div className="sv-selection-range-controls" role="status">
+                <span>
+                  {selection
+                    ? `Selected ${posDisplay(data, flat[Math.min(selection.start, selection.end)])} – ${posDisplay(data, flat[Math.max(selection.start, selection.end)])}`
+                    : 'No sequence range selected'}
+                </span>
+                <button type="button" onClick={() => adjustSelectionEndpoint('start', -1)} disabled={!selection} aria-label="Move selection start one base left">Start −</button>
+                <button type="button" onClick={() => adjustSelectionEndpoint('start', 1)} disabled={!selection} aria-label="Move selection start one base right">Start +</button>
+                <button type="button" onClick={() => adjustSelectionEndpoint('end', -1)} disabled={!selection} aria-label="Move selection end one base left">End −</button>
+                <button type="button" onClick={() => adjustSelectionEndpoint('end', 1)} disabled={!selection} aria-label="Move selection end one base right">End +</button>
+              </div>
             </>
           )}
         </div>
@@ -1035,7 +1132,7 @@ function SectionHeader({
   )
 }
 
-type PrimerOverlayBasis = 'genomic' | 'template' | 'schematic'
+type PrimerOverlayBasis = 'genomic' | 'template'
 
 interface PrimerAmpliconOverlay {
   basis: PrimerOverlayBasis
@@ -1050,7 +1147,7 @@ function buildPrimerAmpliconOverlay(
   pair: PrimerPair,
   data: GeneWindowData,
   flatLength: number,
-): PrimerAmpliconOverlay {
+): PrimerAmpliconOverlay | null {
   const genomicStart = numberOrNull(pair.amplicon_genomic_start)
   const genomicEnd = numberOrNull(pair.amplicon_genomic_end)
   const pairChrom = normalizeChrom(pair.genomic_chromosome)
@@ -1111,14 +1208,7 @@ function buildPrimerAmpliconOverlay(
     })
   }
 
-  return overlayResult({
-    basis: 'schematic',
-    outside: false,
-    label: `Amplicon · ${pair.product_size} bp · spans ${data.queriedVariant.hgvsC}`,
-    note: 'schematic fallback, backend placement unavailable',
-    leftPct: 0,
-    widthPct: 100,
-  })
+  return null
 }
 
 function overlayResult({

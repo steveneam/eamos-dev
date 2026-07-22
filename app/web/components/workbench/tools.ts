@@ -17,19 +17,19 @@ export const TOOL_META: Record<WorkbenchTool, ToolMeta> = {
   viewer: {
     rail: 'Sequence',
     title: 'Sequence viewer',
-    sub: 'RPE65 (ENSG00000116745) · 21,139 bp · exon 4 around c.260',
+    sub: 'Complete source-backed locus · queried variant as the initial focus',
     tracks: true,
   },
   primer: {
     rail: 'Primer',
     title: 'Primer designer',
-    sub: 'Primer3 engine · Sanger / qPCR / Amplicon / ARMS modes',
+    sub: 'Primer3 engine · Sanger / qPCR modes',
     tracks: true,
   },
   crispr: {
     rail: 'CRISPR',
     title: 'CRISPR designer',
-    sub: 'CRISPOR-style scoring · gRNA + ssODN repair template',
+    sub: 'Provider-verified guide design · gRNA + ssODN repair template',
     tracks: true,
   },
   align: {

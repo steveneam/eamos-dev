@@ -23,41 +23,17 @@ import { CopyButton } from '@/components/ui/CopyButton'
    grid-template-rows 0fr→1fr wrap. Same semantics, animatable, a11y-clean.
 ─────────────────────────────────────────────────────────────────────── */
 
-/** Deterministic illustrative secondary-structure metrics from a primer
- *  sequence. The local Primer3 surface does not return thermodynamic alignments
- *  yet, so these are mock (tagged illustrative) — but stable per sequence and in
- *  the ranges Primer3 / Primer-BLAST report: self-complementarity (self-dimer
- *  tendency), self 3′ complementarity (primer-dimer formed at the 3′ end, the
- *  one that matters most), and the most-stable hairpin Tm (3′ hairpins block
- *  extension). Lower is better throughout. */
-function hashSeq(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
-}
-function illustrativeStruct(seq: string) {
-  // Unsigned shifts (>>>) — a signed >> on the >2^31 hash would flip negative
-  // and yield nonsensical negative scores through the modulo.
-  const h = hashSeq(seq)
-  return {
-    selfAny: 2 + (h % 7), // 2–8
-    selfEnd: (h >>> 3) % 5, // 0–4
-    hairpinTm: (h >>> 6) % 100 < 55 ? 0 : 28 + ((h >>> 7) % 18), // mostly none, else ~28–45 °C
-  }
-}
-
 function finiteMetric(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-function formatMetric(value: number): string {
+function formatMetric(value: number | null): string {
+  if (value === null) return 'not assessed'
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
-function formatHairpin(value: number): string {
+function formatHairpin(value: number | null): string {
+  if (value === null) return 'not assessed'
   return value ? `${formatMetric(value)} °C` : 'none'
 }
 
@@ -87,16 +63,15 @@ function formatGenomicRange(
 }
 
 function primerStruct(pair: PrimerPair, side: 'forward' | 'reverse') {
-  const fallback = illustrativeStruct(side === 'forward' ? pair.forward : pair.reverse)
   const selfAny = finiteMetric(side === 'forward' ? pair.self_any_forward : pair.self_any_reverse)
   const selfEnd = finiteMetric(side === 'forward' ? pair.self_end_forward : pair.self_end_reverse)
   const hairpinTm = finiteMetric(
     side === 'forward' ? pair.hairpin_tm_forward : pair.hairpin_tm_reverse,
   )
   return {
-    selfAny: selfAny ?? fallback.selfAny,
-    selfEnd: selfEnd ?? fallback.selfEnd,
-    hairpinTm: hairpinTm ?? fallback.hairpinTm,
+    selfAny,
+    selfEnd,
+    hairpinTm,
     live: selfAny !== null || selfEnd !== null || hairpinTm !== null,
   }
 }
@@ -179,21 +154,20 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
   const notes = parseNotes(pair.notes)
   const fwdStruct = primerStruct(pair, 'forward')
   const revStruct = primerStruct(pair, 'reverse')
-  const livePairEnd = finiteMetric(pair.pair_compl_end)
-  const pairEnd = livePairEnd ?? ((hashSeq(pair.forward + pair.reverse) >>> 2) % 5)
-  const structureLive = fwdStruct.live || revStruct.live || livePairEnd !== null
+  const pairEnd = finiteMetric(pair.pair_compl_end)
+  const structureLive = fwdStruct.live || revStruct.live || pairEnd !== null
   const placement = primerPlacement(pair)
   const structureSource = structureLive
     ? 'Primer3 thermodynamic screen'
-    : 'illustrative fallback'
+    : 'not assessed'
   const placementSource = placement.live ? 'backend placement' : 'placement unavailable'
 
   // Clipboard payload — sequences + the full detail set (thermodynamics,
   // secondary structure, specificity), tab-laid so it pastes cleanly.
   const copyText = [
     `Primer pair #${pair.index}${pair.recommended ? ' (recommended)' : ''} — ${badge.label}`,
-    `F\t${pair.forward}\t${pair.forward.length} nt\tPlus\tTm ${pair.tm_forward.toFixed(1)} °C\tGC ${pair.gc_forward}%`,
-    `R\t${pair.reverse}\t${pair.reverse.length} nt\tMinus\tTm ${pair.tm_reverse.toFixed(1)} °C\tGC ${pair.gc_reverse}%`,
+    `F\t${pair.forward}\t${pair.forward.length} nt\t${pair.forward_strand ?? 'not assessed'}\tTm ${pair.tm_forward.toFixed(1)} °C\tGC ${pair.gc_forward}%`,
+    `R\t${pair.reverse}\t${pair.reverse.length} nt\t${pair.reverse_strand ?? 'not assessed'}\tTm ${pair.tm_reverse.toFixed(1)} °C\tGC ${pair.gc_reverse}%`,
     `Product ${pair.product_size} bp · ΔTm ${deltaTm.toFixed(1)} °C · ${placementSource}`,
     `Placement: template F ${placement.forwardTemplate ?? 'unavailable'} / R ${placement.reverseTemplate ?? 'unavailable'} · amplicon ${placement.templateAmplicon ?? 'unavailable'}${placement.genomicAmplicon ? ` · genomic ${placement.genomicAmplicon}` : ''}`,
     `Secondary structure (${structureSource}): self-compl F${formatMetric(fwdStruct.selfAny)}/R${formatMetric(revStruct.selfAny)} · self-3′ F${formatMetric(fwdStruct.selfEnd)}/R${formatMetric(revStruct.selfEnd)} · hairpin F${formatHairpin(fwdStruct.hairpinTm)}/R${formatHairpin(revStruct.hairpinTm)} · pair-3′ ${formatMetric(pairEnd)}`,
@@ -373,7 +347,7 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
                 </div>
                 <div>
                   <dt>Template strand</dt>
-                  <dd>F {pair.forward_strand ?? 'Plus'} / R {pair.reverse_strand ?? 'Minus'}</dd>
+                  <dd>F {pair.forward_strand ?? 'not assessed'} / R {pair.reverse_strand ?? 'not assessed'}</dd>
                 </div>
                 <div>
                   <dt>Template start–stop</dt>
@@ -415,7 +389,10 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
                   <dt>Self 3′ (end)</dt>
                   <dd
                     className={
-                      fwdStruct.selfEnd > 3 || revStruct.selfEnd > 3 ? 'warn' : undefined
+                      (fwdStruct.selfEnd != null && fwdStruct.selfEnd > 3) ||
+                      (revStruct.selfEnd != null && revStruct.selfEnd > 3)
+                        ? 'warn'
+                        : undefined
                     }
                   >
                     F {formatMetric(fwdStruct.selfEnd)} / R {formatMetric(revStruct.selfEnd)}
@@ -430,13 +407,13 @@ export function PrimerResultCard({ pair, selected, onToggleOverlay }: PrimerResu
                 </div>
                 <div>
                   <dt>Pair 3′ dimer</dt>
-                  <dd className={pairEnd > 3 ? 'warn' : undefined}>{formatMetric(pairEnd)}</dd>
+                  <dd className={pairEnd != null && pairEnd > 3 ? 'warn' : undefined}>{formatMetric(pairEnd)}</dd>
                 </div>
               </dl>
-              <p className={`primer-notes-raw${structureLive ? '' : ' eamos-mock'}`}>
+              <p className="primer-notes-raw">
                 {structureLive
                   ? pair.secondary_structure_notes || structureSource
-                  : 'illustrative fallback, Primer3 thermodynamic alignment unavailable'}
+                  : 'Not assessed: Primer3 thermodynamic alignment values were not returned.'}
               </p>
             </section>
             <section>

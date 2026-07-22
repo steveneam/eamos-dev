@@ -1,13 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
-import type { AlignReferenceResponse, SourceDisclosure } from '@/lib/backend'
+import type {
+  AlignReferenceResponse,
+  SourceDisclosure,
+  WorkbenchDesignContextV1,
+} from '@/lib/backend'
 import { resolveAlignReference } from '@/lib/api'
+import { canonicalJson, sha256Hex } from '@/lib/workbench/design-context'
 import type { GeneWindowData } from '@/lib/workbench/gene-window'
 import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
+import type { WorkbenchDerivedResultV1 } from '@/lib/workbench/workspace'
 import { ReadRow } from './ReadRow'
 import {
   bestOrientation,
+  analyzeRead,
   customReference,
   defaultReference,
   findMotif,
@@ -22,6 +29,11 @@ interface AlignPanelProps {
   gene: string
   cdna: string
   transcript?: string
+  designContext: WorkbenchDesignContextV1 | null
+  restoredResultDigest?: string
+  restoredDerivedResult?: WorkbenchDerivedResultV1
+  executionBlockedReason: string | null
+  onResultDigest?: (digest: string, summary: WorkbenchDerivedResultV1) => void
 }
 
 function referenceFromResolved(response: AlignReferenceResponse): ReferenceState {
@@ -36,20 +48,41 @@ function referenceFromResolved(response: AlignReferenceResponse): ReferenceState
   }
 }
 
-export function AlignPanel({ data, gene, cdna, transcript }: AlignPanelProps) {
+export function AlignPanel(props: AlignPanelProps) {
+  const { data, gene, cdna, transcript } = props
   const key = `${gene}|${cdna}|${transcript ?? data.transcript}`
-  return <AlignWorkspace key={key} data={data} gene={gene} cdna={cdna} transcript={transcript} />
+  return <AlignWorkspace key={key} {...props} />
 }
 
-function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
+function downloadAlignment(filename: string, content: string, mediaType: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: `${mediaType};charset=utf-8` }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function AlignWorkspace({
+  data,
+  gene,
+  cdna,
+  transcript,
+  designContext,
+  restoredResultDigest,
+  restoredDerivedResult,
+  executionBlockedReason,
+  onResultDigest,
+}: AlignPanelProps) {
   const seedReference = useMemo(() => defaultReference(data), [data])
 
   const [reference, setReference] = useState<ReferenceState>(seedReference)
   const [referenceSourceDisclosure, setReferenceSourceDisclosure] =
     useState<SourceDisclosure | null>(null)
-  const [referenceStatus, setReferenceStatus] = useState<'resolving' | 'ready' | 'unavailable'>(
+  const [referenceStatus, setReferenceStatus] = useState<'resolving' | 'ready' | 'unavailable' | 'cancelled'>(
     'resolving',
   )
+  const [resolutionEpoch, setResolutionEpoch] = useState(0)
   const [reads, setReads] = useState<ReadEntry[]>([])
   const [addError, setAddError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -61,7 +94,14 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
   const [search, setSearch] = useState('')
   const [activeMatch, setActiveMatch] = useState(0)
   const [parsing, setParsing] = useState(0)
+  const [resultDigest, setResultDigest] = useState<string | null>(null)
+  const [resultContextDigest, setResultContextDigest] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const referenceAbortRef = useRef<AbortController | null>(null)
+  const onResultDigestRef = useRef(onResultDigest)
+  useEffect(() => {
+    onResultDigestRef.current = onResultDigest
+  }, [onResultDigest])
   const referenceFallback: Partial<SourceDisclosure> = reference.custom
     ? {
         source_status: 'local_provider',
@@ -69,43 +109,53 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
         provider_label: 'Custom alignment reference',
       }
     : {
-        source_status: 'local_provider',
-        provider_id: 'viewer_payload_alignment_reference',
-        provider_label: 'Viewer payload reference',
+        source_status: 'unavailable',
+        provider_id: 'alignment_reference_unverified',
+        provider_label: 'Unverified alignment reference',
       }
   const referenceSource = disclosureView(referenceSourceDisclosure, referenceFallback)
+  const canAlign = reference.custom || referenceStatus === 'ready'
 
   useEffect(() => {
-    let stale = false
+    const controller = new AbortController()
+    referenceAbortRef.current = controller
     queueMicrotask(() => {
-      if (stale) return
+      if (controller.signal.aborted) return
       setReference(seedReference)
       setReferenceSourceDisclosure(null)
-      setReferenceStatus('resolving')
+      setReferenceStatus(
+        designContext && !executionBlockedReason ? 'resolving' : 'unavailable',
+      )
     })
+    if (!designContext || executionBlockedReason) {
+      return () => controller.abort()
+    }
     resolveAlignReference({
       gene,
       cdna,
       transcript,
       species: 'human',
-    })
+      design_context: designContext,
+    }, { signal: controller.signal })
       .then((resolved) => {
-        if (stale) return
-        const fixtureReference =
-          resolved.source === 'fixture' ||
-          resolved.source_disclosure?.source_status === 'fixture'
-        if (!fixtureReference) setReference(referenceFromResolved(resolved))
+        if (controller.signal.aborted) return
+        setReference(referenceFromResolved(resolved))
         setReferenceSourceDisclosure(resolved.source_disclosure ?? null)
         setReferenceStatus('ready')
       })
-      .catch(() => {
-        if (stale) return
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          setReferenceStatus('cancelled')
+          return
+        }
         setReferenceStatus('unavailable')
+        setAddError(error instanceof Error ? error.message : 'Reference resolution failed.')
       })
     return () => {
-      stale = true
+      controller.abort()
+      if (referenceAbortRef.current === controller) referenceAbortRef.current = null
     }
-  }, [cdna, gene, seedReference, transcript])
+  }, [cdna, designContext, executionBlockedReason, gene, resolutionEpoch, seedReference, transcript])
 
   const matches = useMemo(() => findMotif(reference.sequence, search), [reference.sequence, search])
   const searchHits = useMemo(() => {
@@ -123,6 +173,10 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
   }
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
+    if (!canAlign) {
+      setAddError('Resolve a source-backed reference or provide custom FASTA before adding reads.')
+      return
+    }
     setAddError(null)
     const list = Array.from(files)
     const errors: string[] = []
@@ -144,7 +198,7 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
       setParsing(0)
     }
     if (errors.length > 0) setAddError(errors.join(' · '))
-  }, [reference])
+  }, [canAlign, reference])
 
   const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -153,6 +207,10 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
   }
 
   const addPaste = () => {
+    if (!canAlign) {
+      setAddError('Resolve a source-backed reference or provide custom FASTA before adding reads.')
+      return
+    }
     try {
       setReads((prev) => [...prev, readFromPaste(pasteDraft, `Pasted read ${prev.length + 1}`)])
       setPasteDraft('')
@@ -189,6 +247,66 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
       prev.map((read) => (read.id === id ? { ...read, orientation } : read)),
     )
 
+  const analyses = useMemo(
+    () => reads.map((read) => ({ read, analysis: analyzeRead(reference, read, false) })),
+    [reads, reference],
+  )
+
+  useEffect(() => {
+    if (!canAlign || analyses.length === 0) return
+    let stale = false
+    const compact = analyses.map(({ read, analysis }) => ({
+      source: read.source,
+      orientation: read.orientation,
+      identity: analysis.comparison.alignment?.identity ?? null,
+      mismatch_count: analysis.realMismatch.size,
+      low_quality_mismatch_count: analysis.lowQMismatch.size,
+      heterozygous_peak_count: analysis.hetIndices.size,
+      trimmed_bases: analysis.trimStart + (read.sequence.length - analysis.trimEnd),
+    }))
+    Promise.all([
+      sha256Hex(reference.sequence),
+      sha256Hex(canonicalJson({
+        context_digest: reference.custom ? null : designContext?.context_digest ?? null,
+        reference_custom: reference.custom,
+        analyses: compact,
+      })),
+    ]).then(([referenceDigest, digest]) => {
+      if (stale) return
+      const identities = compact
+        .map((item) => item.identity)
+        .filter((value): value is number => value !== null)
+      const summary: WorkbenchDerivedResultV1 = {
+        schema_version: 'workbench_derived_result.v1',
+        tool: 'align',
+        context_digest: reference.custom ? null : designContext?.context_digest ?? null,
+        result_digest: digest,
+        recorded_at: new Date().toISOString(),
+        title: `${analyses.length} read${analyses.length === 1 ? '' : 's'} aligned`,
+        metrics: {
+          read_count: analyses.length,
+          reference_kind: reference.custom ? 'custom_fasta' : 'source_backed_context',
+          reference_sha256: referenceDigest,
+          mean_identity_percent: identities.length > 0
+            ? Number((identities.reduce((sum, value) => sum + value, 0) * 100 / identities.length).toFixed(2))
+            : null,
+          mismatch_count: compact.reduce((sum, item) => sum + item.mismatch_count, 0),
+          low_quality_mismatch_count: compact.reduce((sum, item) => sum + item.low_quality_mismatch_count, 0),
+          heterozygous_peak_count: compact.reduce((sum, item) => sum + item.heterozygous_peak_count, 0),
+          computation: 'browser_local_pairwise',
+        },
+      }
+      setResultDigest(digest)
+      setResultContextDigest(summary.context_digest)
+      onResultDigestRef.current?.(digest, summary)
+    }).catch(() => undefined)
+    return () => { stale = true }
+  }, [analyses, canAlign, designContext?.context_digest, reference.custom, reference.sequence])
+
+  const resultStale = Boolean(
+    resultContextDigest && resultContextDigest !== designContext?.context_digest,
+  )
+
   return (
     <div className="align-panel align-flow">
       <div className="tool-panel-head">
@@ -216,12 +334,22 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
                 onClick={() => {
                   setReference(seedReference)
                   setReferenceSourceDisclosure(null)
-                  setReferenceStatus('ready')
+                  setReferenceStatus('resolving')
+                  setResolutionEpoch((value) => value + 1)
                 }}
               >
-                Reset to {data.gene}
+                Resolve {data.gene} reference
               </button>
             )}
+            {referenceStatus === 'resolving' ? (
+              <button
+                type="button"
+                className="align-read-btn"
+                onClick={() => referenceAbortRef.current?.abort()}
+              >
+                Cancel reference request
+              </button>
+            ) : null}
             <button
               type="button"
               className="align-read-btn"
@@ -249,7 +377,10 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
             <span className="workbench-source-muted">resolving backend reference</span>
           )}
           {referenceStatus === 'unavailable' && (
-            <span className="workbench-source-muted">backend reference unavailable</span>
+            <span className="workbench-source-muted">source-backed reference unavailable; use custom FASTA</span>
+          )}
+          {referenceStatus === 'cancelled' && (
+            <span className="workbench-source-muted">reference request cancelled</span>
           )}
         </div>
         {refEditing && (
@@ -283,7 +414,7 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
                 Use this reference
               </button>
               <span className="align-slot-hint">
-                Identifier search (Entrez / Ensembl / RefSeq) is coming via the backend.
+                Entrez / Ensembl / RefSeq identifier resolution is unavailable in this backend. Paste or upload the resolved FASTA.
               </span>
             </div>
             {refError && (
@@ -295,9 +426,35 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
         )}
       </section>
 
+      <div className="workbench-context-binding" role="note">
+        {reference.custom
+          ? 'Custom FASTA is aligned locally in this browser and is not persisted.'
+          : designContext
+            ? `Reference request bound to context ${designContext.context_digest.slice(0, 10)}. Reads and chromatogram traces remain browser-memory only.`
+            : 'Exact design context is unresolved. Automatic reference resolution is disabled.'}
+      </div>
+      {executionBlockedReason && !reference.custom ? (
+        <div className="workbench-stale" role="alert">{executionBlockedReason}</div>
+      ) : null}
+      {resultStale ? (
+        <div className="workbench-stale" role="status">
+          The retained alignment summary is stale for the current design context.
+        </div>
+      ) : null}
+      {!resultDigest && restoredResultDigest && restoredDerivedResult ? (
+        <div className="workbench-context-binding" role="note">
+          Retained derived summary: {restoredDerivedResult.title} · result {restoredResultDigest.slice(0, 10)}. Raw reads and traces were not stored.
+        </div>
+      ) : null}
+      {!resultDigest && restoredResultDigest && !restoredDerivedResult ? (
+        <div className="workbench-context-binding" role="note">
+          This tab retained only prior alignment identity ({restoredResultDigest.slice(0, 10)}). Add the reads again to restore analysis.
+        </div>
+      ) : null}
+
       {/* Add reads */}
       <div
-        className={`align-add${dragOver ? ' dragover' : ''}`}
+        className={`align-add${dragOver ? ' dragover' : ''}${canAlign ? '' : ' disabled'}`}
         onDragOver={(event) => {
           event.preventDefault()
           setDragOver(true)
@@ -308,10 +465,10 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
         <span className="align-add-label">
           Drop Sanger <b>.ab1</b> reads here, or
         </span>
-        <button type="button" className="btn-teal" onClick={() => fileInputRef.current?.click()}>
+        <button type="button" className="btn-teal" onClick={() => fileInputRef.current?.click()} disabled={!canAlign}>
           Choose .ab1 files
         </button>
-        <button type="button" className="align-read-btn" onClick={() => setPasteOpen((v) => !v)}>
+        <button type="button" className="align-read-btn" onClick={() => setPasteOpen((v) => !v)} disabled={!canAlign}>
           Paste sequence
         </button>
         <input
@@ -389,7 +546,11 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
       </div>
 
       {/* Reads */}
-      {reads.length === 0 ? (
+      {!canAlign ? (
+        <div className="align-empty">
+          Resolve a source-backed reference or provide custom FASTA before adding reads.
+        </div>
+      ) : reads.length === 0 ? (
         <div className="align-empty">
           Drop one or more Sanger <b>.ab1</b> reads (or paste a sequence) to align against{' '}
           {reference.label}.
@@ -415,6 +576,53 @@ function AlignWorkspace({ data, gene, cdna, transcript }: AlignPanelProps) {
               onRemove={() => setReads((prev) => prev.filter((r) => r.id !== read.id))}
             />
             ))}
+          </div>
+          <div className="workbench-export-row" aria-label="Alignment exports">
+            <button
+              type="button"
+              onClick={() => downloadAlignment(
+                `${gene}-alignment-summary.tsv`,
+                [
+                  'read_number\tsource\torientation\tidentity_percent\treal_mismatches\tlow_quality_mismatches\theterozygous_peaks',
+                  ...analyses.map(({ read, analysis }, index) => [
+                    index + 1,
+                    read.source,
+                    read.orientation,
+                    analysis.comparison.alignment
+                      ? (analysis.comparison.alignment.identity * 100).toFixed(2)
+                      : '',
+                    analysis.realMismatch.size,
+                    analysis.lowQMismatch.size,
+                    analysis.hetIndices.size,
+                  ].join('\t')),
+                ].join('\n'),
+                'text/tab-separated-values',
+              )}
+            >
+              Export summary
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadAlignment(
+                `${gene}-alignment-manifest.json`,
+                JSON.stringify({
+                  schema_version: 'workbench_alignment_manifest.v1',
+                  gene,
+                  cdna,
+                  transcript: transcript ?? data.transcript,
+                  context_digest: reference.custom ? null : resultContextDigest,
+                  result_digest: resultDigest,
+                  reference_kind: reference.custom ? 'custom_fasta' : 'source_backed_context',
+                  read_count: reads.length,
+                  computation: 'browser_local_pairwise',
+                  raw_inputs_persisted: false,
+                  generated_at: new Date().toISOString(),
+                }, null, 2),
+                'application/json',
+              )}
+            >
+              Export manifest
+            </button>
           </div>
         </>
       )}

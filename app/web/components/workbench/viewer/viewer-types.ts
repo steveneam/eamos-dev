@@ -34,3 +34,8 @@ export interface SelectionSummary {
   /** Range (`len > 1`) exonic/intronic breakdown; `''` for a single base. */
   span: string
 }
+
+export type {
+  WindowDesignEdit,
+  WindowDesignState,
+} from '@/lib/workbench/window-design-context'

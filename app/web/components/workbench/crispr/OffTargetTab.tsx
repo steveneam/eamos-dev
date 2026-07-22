@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   CasEnzyme,
   CrisprOffTargetRequest,
@@ -9,6 +9,7 @@ import type {
   CrisprScreeningPrimerRequest,
   CrisprScreeningPrimerResponse,
   CrisprScreeningPrimerTarget,
+  WorkbenchDesignContextV1,
 } from '@/lib/backend'
 import { enumerateOffTargets, designScreeningPrimers } from '@/lib/api'
 import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
@@ -22,10 +23,11 @@ interface OffTargetTabProps {
   seed?: ScreenSeed | null
   /** Fired once the seed has been applied, so the parent can clear it (no re-prefill). */
   onSeedConsumed?: () => void
+  designContext: WorkbenchDesignContextV1 | null
+  executionBlockedReason: string | null
+  onResultDigest?: (digest: string) => void
 }
 
-/** Default protospacer used to seed the form (the de-identified on-target). */
-const DEFAULT_GUIDE = 'GAGTCCGAGCAGAAGAAGAT'
 const MAX_OFFTARGET_MISMATCHES = 3
 
 type SortKey = 'score' | 'mismatches'
@@ -142,14 +144,22 @@ function ExportButtons({
   )
 }
 
-export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabProps) {
+export function OffTargetTab({
+  gene,
+  cdna,
+  seed,
+  onSeedConsumed,
+  designContext,
+  executionBlockedReason,
+  onResultDigest,
+}: OffTargetTabProps) {
   // ── enumeration form ──────────────────────────────────────────────────
-  const [guide, setGuide] = useState(DEFAULT_GUIDE)
+  const [guide, setGuide] = useState('')
   const [pam, setPam] = useState('NGG')
   const [maxMismatches, setMaxMismatches] = useState(3)
-  const [chrom, setChrom] = useState('chr7')
-  const [pos, setPos] = useState('117509080')
-  const [strand, setStrand] = useState<'+' | '-'>('+')
+  const [onTargetLocus, setOnTargetLocus] = useState<ScreenSeed['genomicLocus']>(null)
+  const [seedDigest, setSeedDigest] = useState<string | null>(null)
+  const [locusConfirmed, setLocusConfirmed] = useState(false)
   const [seededFrom, setSeededFrom] = useState<string | null>(null)
 
   // Apply a guide handed in from Design before paint (render-phase idiom, like
@@ -160,7 +170,9 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
     setSeenSeed(seed)
     setGuide(seed.guide)
     setPam(seed.pam || 'NGG')
-    if (seed.strand) setStrand(seed.strand)
+    setOnTargetLocus(seed.genomicLocus)
+    setSeedDigest(seed.contextDigest)
+    setLocusConfirmed(false)
     setSeededFrom(seed.source)
   }
   // Signal the parent to clear the seed once applied (post-render, so this never
@@ -172,6 +184,9 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
   const [res, setRes] = useState<CrisprOffTargetResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
+  const [runDigest, setRunDigest] = useState<string | null>(null)
+  const enumerateAbortRef = useRef<AbortController | null>(null)
 
   // ── curation ──────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -186,6 +201,8 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
   const [primerRes, setPrimerRes] = useState<CrisprScreeningPrimerResponse | null>(null)
   const [primerLoading, setPrimerLoading] = useState(false)
   const [primerError, setPrimerError] = useState<string | null>(null)
+  const [primerCancelled, setPrimerCancelled] = useState(false)
+  const primerAbortRef = useRef<AbortController | null>(null)
 
   const clearComputed = () => {
     setRes(null)
@@ -199,6 +216,23 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
   const cleanGuide = guide.trim().toUpperCase()
 
   const enumerate = async () => {
+    if (!designContext) {
+      setError('Resolve a source-backed selection before off-target enumeration.')
+      return
+    }
+    if (executionBlockedReason) {
+      setError(executionBlockedReason)
+      return
+    }
+    if (
+      !onTargetLocus ||
+      !locusConfirmed ||
+      !seedDigest ||
+      seedDigest !== designContext.context_digest
+    ) {
+      setError('A guide-specific genomic cut locus must be derived from the current design run and explicitly confirmed before enumeration.')
+      return
+    }
     if (cleanGuide.length !== 20 || /[^ACGT]/.test(cleanGuide)) {
       setError('Enter a 20 nt protospacer using A/C/G/T only.')
       setRes(null)
@@ -210,26 +244,36 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
     setSelected(new Set())
     setPrimerRes(null)
     setPrimerError(null)
+    setCancelled(false)
+    const controller = new AbortController()
+    enumerateAbortRef.current = controller
     try {
-      const position = Number(pos)
       const payload: CrisprOffTargetRequest = {
         guide: cleanGuide,
         pam: pam.trim().toUpperCase() || 'NGG',
         enzyme: 'SpCas9' as CasEnzyme,
         genome_build: 'GRCh38',
         max_mismatches: maxMismatches,
-        on_target_locus: Number.isFinite(position)
-          ? { chromosome: chrom.trim() || 'chr1', position, strand }
-          : null,
+        on_target_locus: onTargetLocus,
+        design_context: designContext,
       }
-      const r = await enumerateOffTargets(payload)
+      const r = await enumerateOffTargets(payload, { signal: controller.signal })
       setRes(r)
+      setRunDigest(designContext.context_digest)
+      onResultDigest?.(designContext.context_digest)
       // Pre-select the default top-N off-targets so the flow is one click ahead.
       setSelected(autoPickKeys(r.sites, topN, MAX_OFFTARGET_MISMATCHES, false))
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setCancelled(true)
+        return
+      }
       setError(e instanceof Error ? e.message : 'Off-target enumeration failed')
     } finally {
-      setLoading(false)
+      if (enumerateAbortRef.current === controller) {
+        enumerateAbortRef.current = null
+        setLoading(false)
+      }
     }
   }
 
@@ -270,10 +314,13 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
   )
 
   const designPrimers = async () => {
-    if (!res || selectedSites.length === 0) return
+    if (!res || selectedSites.length === 0 || !designContext) return
     setPrimerLoading(true)
     setPrimerError(null)
     setPrimerRes(null)
+    setPrimerCancelled(false)
+    const controller = new AbortController()
+    primerAbortRef.current = controller
     try {
       const sites: CrisprScreeningPrimerTarget[] = selectedSites.map((s, i) => ({
         site_index: i + 1,
@@ -286,44 +333,46 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
       }))
       const payload: CrisprScreeningPrimerRequest = {
         sites,
+        design_context: designContext,
         genome_build: res.genome_build,
         flank_bp: flank,
         naming_prefix: prefix,
         mode: 'sanger',
       }
-      const r = await designScreeningPrimers(payload)
+      const r = await designScreeningPrimers(payload, { signal: controller.signal })
       setPrimerRes(r)
+      onResultDigest?.(designContext.context_digest)
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setPrimerCancelled(true)
+        return
+      }
       setPrimerError(e instanceof Error ? e.message : 'Screening-primer design failed')
     } finally {
-      setPrimerLoading(false)
+      if (primerAbortRef.current === controller) {
+        primerAbortRef.current = null
+        setPrimerLoading(false)
+      }
     }
   }
 
   const offTargetDisclosure = res
     ? disclosureView(res.source_disclosure, {
-        source_status: 'fallback',
+        source_status: 'unavailable',
         provider_id: 'workbench_offtarget_unknown',
         provider_label: 'Off-target provider metadata unavailable',
       })
     : null
   const screeningDisclosure = primerRes
     ? disclosureView(primerRes.source_disclosure, {
-        source_status: primerRes.warnings.includes('crispr_screening_mock_template')
-          ? 'fallback'
-          : 'source_backed',
-        provider_id: primerRes.warnings.includes('crispr_screening_mock_template')
-          ? 'mock_screening_primer_template'
-          : 'local_screening_primer_context',
-        provider_label: primerRes.warnings.includes('crispr_screening_mock_template')
-          ? 'Mock screening-primer template'
-          : 'Local screening-primer context',
+        source_status: 'unavailable',
+        provider_id: 'screening_primer_provider_unverified',
+        provider_label: 'Unverified screening-primer provider',
         warnings: primerRes.warnings,
       })
     : null
   const codingCount = offSites.filter((s) => s.biotype === 'protein_coding').length
   const closeCount = offSites.filter((s) => s.mismatches <= 1).length
-  const usingMock = screeningDisclosure?.preview ?? false
 
   const sitesTsv = res
     ? toTSV(
@@ -417,48 +466,25 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
             }}
           />
         </label>
-        <label className="field">
-          <span className="field-label">On-target chromosome</span>
-          <input
-            className="field-input mono"
-            type="text"
-            value={chrom}
-            spellCheck={false}
-            disabled={loading}
-            onChange={(e) => {
-              setChrom(e.target.value)
-              clearComputed()
-            }}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">On-target position</span>
-          <input
-            className="field-input mono"
-            type="text"
-            value={pos}
-            spellCheck={false}
-            disabled={loading}
-            onChange={(e) => {
-              setPos(e.target.value)
-              clearComputed()
-            }}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">Strand</span>
-          <select
-            className="field-select"
-            value={strand}
-            disabled={loading}
-            onChange={(e) => {
-              setStrand(e.target.value as '+' | '-')
-              clearComputed()
-            }}
-          >
-            <option value="+">Plus (+)</option>
-            <option value="-">Minus (−)</option>
-          </select>
+        <div className="field ots-field-wide">
+          <span className="field-label">Derived guide cut locus</span>
+          <span className="field-input mono" aria-live="polite">
+            {onTargetLocus
+              ? `${onTargetLocus.chromosome}:${onTargetLocus.position} (${onTargetLocus.strand})`
+              : 'Unavailable from current guide result'}
+          </span>
+        </div>
+        <label className="field ots-field-wide">
+          <span className="field-label">Confirm on-target locus</span>
+          <span>
+            <input
+              type="checkbox"
+              checked={locusConfirmed}
+              disabled={!onTargetLocus || seedDigest !== designContext?.context_digest || loading}
+              onChange={(event) => setLocusConfirmed(event.currentTarget.checked)}
+            />{' '}
+            I verified this guide-specific GRCh38 cut locus.
+          </span>
         </label>
       </div>
 
@@ -467,11 +493,23 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
           type="button"
           className="btn-teal"
           onClick={enumerate}
-          disabled={loading}
+          disabled={
+            loading ||
+            !designContext ||
+            Boolean(executionBlockedReason) ||
+            !onTargetLocus ||
+            !locusConfirmed ||
+            seedDigest !== designContext?.context_digest
+          }
           title="Search the genome for sites matching your guide + PAM within the mismatch limit, then score and rank them."
         >
           {loading ? 'Enumerating…' : 'Enumerate off-targets'}
         </button>
+        {loading ? (
+          <button type="button" className="align-read-btn" onClick={() => enumerateAbortRef.current?.abort()}>
+            Cancel
+          </button>
+        ) : null}
         <span className="tool-panel-sub">
           {gene} · {cdna} · SpCas9 NGG · GRCh38
         </span>
@@ -479,17 +517,28 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
 
       <div className="help-note">
         Paste the 20 nt protospacer of a guide designed above. Indexed GRCh38
-        screening is used when the backend artifact is configured; the offline
-        fallback keeps de-identified sample coordinates.
+        screening is used only when the backend artifact is configured; there
+        is no fixture fallback, and enumeration stays disabled until a current
+        guide result provides a guide-specific genomic cut locus.
       </div>
 
       {seededFrom && (
         <div className="help-note crispr-seed-note">
-          Seeded from {seededFrom}; set the on-target genomic locus (chromosome /
-          position) before enumerating — Design positions are template-relative,
-          not genomic coordinates.
+          Seeded from {seededFrom}. This guide result exposes template-relative
+          positions only, so no genomic cut locus was inferred.
         </div>
       )}
+
+      {cancelled ? (
+        <div className="workbench-context-binding" role="status">
+          Off-target enumeration cancelled. No result was saved.
+        </div>
+      ) : null}
+      {runDigest && (!designContext || runDigest !== designContext.context_digest) ? (
+        <div className="workbench-stale" role="status">
+          These off-target results are stale for the current selection.
+        </div>
+      ) : null}
 
       {error && <div className="crispr-error">{error}</div>}
 
@@ -794,6 +843,11 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
                 ? 'Designing…'
                 : `Design primers for ${selectedSites.length} site${selectedSites.length === 1 ? '' : 's'}`}
             </button>
+            {primerLoading ? (
+              <button type="button" className="align-read-btn" onClick={() => primerAbortRef.current?.abort()}>
+                Cancel
+              </button>
+            ) : null}
           </div>
 
           {selectedSites.length === 0 && (
@@ -804,6 +858,11 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
           )}
 
           {primerError && <div className="crispr-error">{primerError}</div>}
+          {primerCancelled ? (
+            <div className="workbench-context-binding" role="status">
+              Screening-primer design cancelled. No result was saved.
+            </div>
+          ) : null}
 
           {primerRes && (
             <>
@@ -820,12 +879,6 @@ export function OffTargetTab({ gene, cdna, seed, onSeedConsumed }: OffTargetTabP
                       {screeningDisclosure.cacheStatus}
                     </span>
                   )}
-                </div>
-              )}
-              {usingMock && (
-                <div className="crispr-result-note">
-                  {screeningDisclosure?.caveat ??
-                    'Screening primers are drawn from bundled fallback windows.'}
                 </div>
               )}
               <div className="crispr-table-wrap">

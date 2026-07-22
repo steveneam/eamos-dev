@@ -1,14 +1,18 @@
 'use client'
 
-import { useState } from 'react'
-import type { PrimerMode, PrimerPair, PrimerRequest, PrimerResponse } from '@/lib/backend'
+import { useRef, useState } from 'react'
+import type {
+  PrimerMode,
+  PrimerPair,
+  PrimerRequest,
+  PrimerResponse,
+  WorkbenchDesignContextV1,
+} from '@/lib/backend'
 import { designPrimers } from '@/lib/api'
-import {
-  isArmsUnsupportedError,
-  parsePrimerConstraints,
-  primerErrorMessage,
-} from '@/lib/workbench/primer-form'
+import { canonicalJson, sha256Hex } from '@/lib/workbench/design-context'
+import { parsePrimerConstraints, primerErrorMessage } from '@/lib/workbench/primer-form'
 import { disclosureChipClass, disclosureView } from '@/lib/workbench/source-disclosure'
+import type { WorkbenchDerivedResultV1 } from '@/lib/workbench/workspace'
 import { PrimerResultCard } from './PrimerResultCard'
 
 interface PrimerPanelProps {
@@ -17,6 +21,11 @@ interface PrimerPanelProps {
   /** Pair toggled "show on gene view" + its setter (drives the viewer overlay). */
   selected?: PrimerPair | null
   onSelect?: (pair: PrimerPair | null) => void
+  designContext: WorkbenchDesignContextV1 | null
+  restoredResultDigest?: string
+  restoredDerivedResult?: WorkbenchDerivedResultV1
+  onResultDigest?: (digest: string, summary: WorkbenchDerivedResultV1) => void
+  executionBlockedReason: string | null
 }
 
 const MODES: Array<{ v: PrimerMode; label: string; tip: string }> = [
@@ -30,11 +39,6 @@ const MODES: Array<{ v: PrimerMode; label: string; tip: string }> = [
     label: 'qPCR',
     tip: 'qPCR primers — a short amplicon optimised for quantitative / real-time PCR.',
   },
-  {
-    v: 'arms',
-    label: 'ARMS',
-    tip: 'ARMS allele-specific primers — the 3′ end is placed on the variant base to discriminate alleles.',
-  },
 ]
 
 /** Honest loading: the request is a single synchronous call, so we show one
@@ -42,13 +46,52 @@ const MODES: Array<{ v: PrimerMode; label: string; tip: string }> = [
  *  ticker (DESIGN.md principle #4 / plans/primer-integration.md §4.3). */
 const PHASES = ['Constraints', 'Primer3 thermodynamics', 'Specificity screen']
 
+function downloadText(filename: string, content: string, mediaType: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: `${mediaType};charset=utf-8` }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function primerTsv(response: PrimerResponse): string {
+  const header = [
+    'index', 'forward', 'reverse', 'tm_forward', 'tm_reverse', 'gc_forward',
+    'gc_reverse', 'product_size', 'specificity_hits', 'structure_risk',
+  ]
+  const rows = response.pairs.map((pair) => [
+    pair.index, pair.forward, pair.reverse, pair.tm_forward, pair.tm_reverse,
+    pair.gc_forward, pair.gc_reverse, pair.product_size, pair.specificity_hits,
+    pair.secondary_structure_risk ?? 'not_assessed',
+  ].join('\t'))
+  return [header.join('\t'), ...rows].join('\n')
+}
+
+function primerFasta(response: PrimerResponse): string {
+  return response.pairs.flatMap((pair) => [
+    `>pair_${pair.index}_forward`, pair.forward,
+    `>pair_${pair.index}_reverse`, pair.reverse,
+  ]).join('\n')
+}
+
 /**
  * Primer tool panel — the first reference implementation of the DESIGN.md
- * Dashboard Interaction Language (plans/primer-integration.md §5). Mock-first
- * against the frozen `POST /api/v1/primer` contract; no contract/schema edits.
+ * Dashboard Interaction Language (plans/primer-integration.md §5). Requests
+ * execute only against an operational backend provider.
  * Mirrors `CrisprPanel`. Sits in the shared Workbench shell below the viewer.
  */
-export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps) {
+export function PrimerPanel({
+  gene,
+  cdna,
+  selected,
+  onSelect,
+  designContext,
+  restoredResultDigest,
+  restoredDerivedResult,
+  onResultDigest,
+  executionBlockedReason,
+}: PrimerPanelProps) {
   const [mode, setMode] = useState<PrimerMode>('sanger')
   const [tmMin, setTmMin] = useState('58')
   const [tmMax, setTmMax] = useState('62')
@@ -59,12 +102,15 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
   const [res, setRes] = useState<PrimerResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [armsUnsupported, setArmsUnsupported] = useState(false)
+  const [runDigest, setRunDigest] = useState<string | null>(null)
+  const [cancelled, setCancelled] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   const clearRunState = () => {
     setRes(null)
     setError(null)
-    setArmsUnsupported(false)
+    setRunDigest(null)
+    setCancelled(false)
   }
 
   const chooseMode = (nextMode: PrimerMode) => {
@@ -85,8 +131,16 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
     if (loading) return
 
     setError(null)
-    setArmsUnsupported(false)
     setRes(null)
+    setCancelled(false)
+    if (!designContext) {
+      setError('Resolve a source-backed selection before running primer design.')
+      return
+    }
+    if (executionBlockedReason) {
+      setError(executionBlockedReason)
+      return
+    }
 
     const parsedConstraints = parsePrimerConstraints({
       tmMin,
@@ -100,11 +154,14 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
     }
 
     setLoading(true)
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
       const constraints = parsedConstraints.values
       const payload: PrimerRequest = {
         gene,
         cdna,
+        design_context: designContext,
         mode,
         tm_min: constraints.tmMin,
         tm_max: constraints.tmMax,
@@ -112,31 +169,57 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
         product_size_max: constraints.productMax,
         avoid_snps: avoidSnps,
       }
-      const r = await designPrimers(payload)
+      const r = await designPrimers(payload, { signal: controller.signal })
+      if (r.mode !== mode) throw new Error('The primer provider returned an incompatible mode.')
+      const resultDigest = await sha256Hex(canonicalJson({
+        context_digest: designContext.context_digest,
+        request: payload,
+        response: r,
+      }))
+      const summary: WorkbenchDerivedResultV1 = {
+        schema_version: 'workbench_derived_result.v1',
+        tool: 'primer',
+        context_digest: designContext.context_digest,
+        result_digest: resultDigest,
+        recorded_at: new Date().toISOString(),
+        title: `${r.pairs.length} ${mode} primer pair${r.pairs.length === 1 ? '' : 's'}`,
+        metrics: {
+          mode,
+          pair_count: r.pairs.length,
+          recommended_pair: r.pairs.find((pair) => pair.recommended)?.index ?? null,
+          provider: r.source_disclosure?.provider_label ?? 'unavailable',
+          specificity_scope: 'template_or_provider_reported',
+        },
+      }
       setRes(r)
+      setRunDigest(designContext.context_digest)
+      onResultDigest?.(resultDigest, summary)
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setCancelled(true)
+        return
+      }
       const msg = primerErrorMessage(e)
       setRes(null)
-      if (mode === 'arms' && isArmsUnsupportedError(msg)) {
-        setArmsUnsupported(true)
-      } else {
-        setError(msg)
-      }
+      setError(msg)
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setLoading(false)
+      }
     }
   }
 
-  // Offline mock always serves the Sanger fixture; flag the honest mismatch.
-  const mockModeMismatch = res !== null && res.mode !== mode
   const sourceDisclosure = res
     ? disclosureView(res.source_disclosure, {
-        source_status: 'fixture',
-        provider_id: 'workbench_primer_fixture',
-        provider_label: 'Workbench primer fixture',
-        warnings: ['workbench_fixture'],
+        source_status: 'unavailable',
+        provider_id: 'workbench_primer_unverified',
+        provider_label: 'Unverified primer provider',
       })
     : null
+  const resultIsStale = Boolean(
+    runDigest && (!designContext || runDigest !== designContext.context_digest),
+  )
 
   return (
     <div className="primer-panel">
@@ -246,11 +329,20 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
           type="button"
           className="btn-teal primer-go"
           onClick={run}
-          disabled={loading}
+          disabled={loading || !designContext || Boolean(executionBlockedReason)}
           title="Run Primer3 thermodynamics + the specificity screen to design and validate primer pairs for this target."
         >
           {loading ? 'Designing…' : 'Generate & validate'}
         </button>
+        {loading ? (
+          <button
+            type="button"
+            className="align-read-btn"
+            onClick={() => abortRef.current?.abort()}
+          >
+            Cancel
+          </button>
+        ) : null}
         <span className="tool-panel-sub">
           {gene} · {cdna} · {MODES.find((m) => m.v === mode)?.label}
         </span>
@@ -274,16 +366,41 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
         This is not an NCBI Primer-BLAST validation.
       </div>
 
+      <div className="workbench-context-binding" role="note">
+        {designContext
+          ? `Bound to ${designContext.selection.chrom}:${designContext.selection.genomic_start.toLocaleString('en-US')}-${designContext.selection.genomic_end.toLocaleString('en-US')} · ${designContext.selection.sequence_basis} · revision ${designContext.selection.edit_revision}`
+          : 'Exact source-backed context is unresolved. Primer requests are disabled.'}
+      </div>
+
+      {executionBlockedReason ? (
+        <div className="workbench-stale" role="alert">{executionBlockedReason}</div>
+      ) : null}
+      {cancelled ? (
+        <div className="workbench-context-binding" role="status">
+          Primer design cancelled. No result was saved.
+        </div>
+      ) : null}
+
+      {resultIsStale ? (
+        <div className="workbench-stale" role="status">
+          Previous primer results are retained but stale because the selection or edit revision changed.
+        </div>
+      ) : null}
+
+      {!res && restoredResultDigest && restoredDerivedResult ? (
+        <div className="workbench-context-binding" role="note">
+          Retained derived summary: {restoredDerivedResult.title} · result {restoredResultDigest.slice(0, 10)}. Primer sequences are not persisted; rerun to restore them.
+        </div>
+      ) : null}
+      {!res && restoredResultDigest && !restoredDerivedResult ? (
+        <div className="workbench-context-binding" role="note">
+          This tab retained only prior primer result identity ({restoredResultDigest.slice(0, 10)}). Rerun to restore details.
+        </div>
+      ) : null}
+
       {error && <div className="primer-error">{error}</div>}
 
-      {armsUnsupported && (
-        <div className="primer-empty">
-          ARMS real-mode design isn’t implemented yet (backend M-002
-          follow-up). Sanger and qPCR modes are available now.
-        </div>
-      )}
-
-      {res && !armsUnsupported && (
+      {res && (
         <>
           {sourceDisclosure && (
             <div className="workbench-source-line" role="note">
@@ -298,14 +415,6 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
                   {sourceDisclosure.cacheStatus}
                 </span>
               )}
-            </div>
-          )}
-          {(mockModeMismatch || sourceDisclosure?.preview) && (
-            <div className="primer-mock-note">
-              {sourceDisclosure?.statusLabel}: {sourceDisclosure?.caveat}
-              {mockModeMismatch
-                ? ` The bundled fixture is Sanger, so ${MODES.find((m) => m.v === mode)?.label} mode is showing the Sanger pairs.`
-                : ''}
             </div>
           )}
           <div className="primer-feed">
@@ -327,10 +436,33 @@ export function PrimerPanel({ gene, cdna, selected, onSelect }: PrimerPanelProps
               </div>
             )}
           </div>
+          <div className="workbench-export-row" aria-label="Primer exports">
+            <button type="button" onClick={() => downloadText(`${gene}-primers.tsv`, primerTsv(res), 'text/tab-separated-values')}>Export TSV</button>
+            <button type="button" onClick={() => downloadText(`${gene}-primers.fasta`, primerFasta(res), 'text/plain')}>Export FASTA</button>
+            <button
+              type="button"
+              onClick={() => downloadText(
+                `${gene}-primer-manifest.json`,
+                JSON.stringify({
+                  schema_version: 'workbench_primer_manifest.v1',
+                  gene,
+                  cdna,
+                  context_digest: runDigest,
+                  mode: res.mode,
+                  pair_count: res.pairs.length,
+                  source_disclosure: res.source_disclosure ?? null,
+                  generated_at: new Date().toISOString(),
+                }, null, 2),
+                'application/json',
+              )}
+            >
+              Export manifest
+            </button>
+          </div>
         </>
       )}
 
-      {!res && !loading && !error && !armsUnsupported && (
+      {!res && !loading && !error && (
         <div className="primer-prompt">
           Set your constraints and run <b>Generate &amp; validate</b> to design
           primer pairs for {gene} {cdna}. Each pair resolves into a one-glance

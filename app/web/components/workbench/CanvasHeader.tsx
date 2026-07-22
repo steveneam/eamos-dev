@@ -34,7 +34,7 @@ const VIEWER_MODES: Array<{ m: ViewerMode; label: string; title: string }> = [
     m: 'locus',
     label: 'Full gene · overview',
     title:
-      'Whole genomic locus — read-only overview; base colour, selection, and editing live in Window view.',
+      'Whole genomic locus with search, coordinate navigation, selection, and sparse editing.',
   },
 ]
 
