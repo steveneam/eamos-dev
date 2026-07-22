@@ -18,8 +18,9 @@ export function SiteFooter() {
           <div style={{ maxWidth: 360 }}>
             <EamosLogo size={18} tone="dark" />
             <p className="mt-4 text-[12.5px] leading-[1.6]" style={{ color: 'var(--hero-ink-2)' }}>
-              A free, independent genomic evidence workspace. Wired sources and predictor engines
-              are included, with runtime status and available provenance kept visible.
+              A next-generation genetic variant search engine. Search wired clinical sources and 11
+              in-silico predictors in one traceable report, with score provenance, runtime status, and
+              ACMG/AMP ruleset versions visible.
             </p>
           </div>
 
@@ -52,7 +53,7 @@ export function SiteFooter() {
           <TextLink href="/terms" className="text-[11.5px]">Terms &amp; Conditions</TextLink>
           <TextLink href="/privacy" className="text-[11.5px]">Privacy Policy</TextLink>
           <span style={{ color: 'var(--hero-ink-3)' }}>Research use only. Not a medical device.</span>
-          <span style={{ color: 'var(--hero-ink-3)' }}>© {new Date().getFullYear()} Eamos · Genomic intelligence platform</span>
+          <span style={{ color: 'var(--hero-ink-3)' }}>© {new Date().getFullYear()} Eamos · Genetic variant search</span>
         </div>
       </div>
     </footer>

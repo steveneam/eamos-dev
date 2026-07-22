@@ -11,9 +11,9 @@ const FEATURES = [
   {
     index: '01',
     eyebrow: 'Variant report',
-    title: 'Evidence you can trace, not just a verdict',
+    title: 'A search result built for interpretation',
     description:
-      'Move from classification and population evidence to disease context, literature, and trials in one navigable report. Source status and provenance stay attached to the result.',
+      'Move from clinical consensus and population evidence to 11 in-silico predictors, version-pinned ACMG/AMP criteria, disease context, literature, and trials. Source provenance, ruleset version, and runtime status stay visible throughout.',
     src: '/features/report-demo.webp',
     alt: 'Eamos variant report for the bundled RPE65 demo, showing the real gnomAD population-frequency section and its provenance-aware evidence workspace.',
     route: '/report?fixture=rpe65-negative',

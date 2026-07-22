@@ -33,6 +33,10 @@ const ITEMS: QA[] = [
     a: 'The current catalog includes ClinVar, gnomAD, Ensembl, PubMed, and ClinicalTrials.gov plus AlphaMissense, ESM1b, REVEL, PrimateAI-3D, MetaLR, CI-SpliceAI, SpliceAI, Pangolin, CADD, GPN-MSA, and CAPICE. Each report shows which sources returned evidence for that variant.',
   },
   {
+    q: 'How does Eamos stay current as standards change?',
+    a: 'Predictor scores and ACMG/AMP criteria keep their source, release, or ruleset version visible, so reviewed updates can be added without silently rewriting earlier reports. Eamos is tracking the forthcoming SVC v4 framework and ongoing ClinGen guidance; until a standard is final and activated, the current ruleset label remains visible.',
+  },
+  {
     q: 'Is Eamos really free?',
     a: 'Yes. Eamos is one free product with no paid tiers or checkout. Every wired source and predictor is included. If a score is missing, the report says so; it is never hidden behind an upgrade.',
   },

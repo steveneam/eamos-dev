@@ -734,8 +734,9 @@ async function verifySocialMetadata(cdp) {
       };
     })()`,
   )
-  assertLanding(/free/i.test(metadata.title), 'Open Graph title does not state free positioning')
-  assertLanding(/Free genomic variant evidence/i.test(metadata.description), 'Open Graph description drifted')
+  assertLanding(/Genetic Variant Search Engine/i.test(metadata.title), 'Open Graph title drifted')
+  assertLanding(/11 in-silico predictors/i.test(metadata.description), 'Open Graph predictor positioning drifted')
+  assertLanding(/version-pinned ACMG\/AMP criteria/i.test(metadata.description), 'Open Graph criteria positioning drifted')
   assertLanding(new URL(metadata.image).pathname === '/og-image.png', 'Open Graph image path drifted')
   assertLanding(metadata.imageWidth === String(SOCIAL_CARD_WIDTH), 'Open Graph image width drifted')
   assertLanding(metadata.imageHeight === String(SOCIAL_CARD_HEIGHT), 'Open Graph image height drifted')

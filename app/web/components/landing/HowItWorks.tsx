@@ -21,10 +21,10 @@ const STEPS: Step[] = [
   },
   {
     num: 2,
-    kicker: 'Source sweep',
-    title: 'Eamos checks the wired evidence',
+    kicker: 'Evidence engine',
+    title: 'Assemble the evidence stack',
     description:
-      'Eamos requests the sources and predictors wired for the resolved variant, then joins returned evidence with an ACMG-aware rules layer. Missing results remain unavailable, not inferred.',
+      'Eamos checks the clinical sources and 11 in-silico predictors wired for the resolved variant, then evaluates returned evidence through a named, version-pinned ACMG/AMP rules layer. Missing results remain unavailable, not inferred.',
     visual: {
       lines: [
         'ClinVar · gnomAD · Ensembl',
@@ -40,8 +40,8 @@ const STEPS: Step[] = [
     kicker: 'Sourced report',
     title: 'Inspect the report',
     description:
-      'Review predictor scores, source rows, literature, and trial discovery links with provenance attached, then carry the variant into Workbench or Batch.',
-    visual: { lines: ['Evidence: source-backed', 'Status: visible per row', 'Next: Workbench or Batch'] },
+      'Review clinical evidence, predictor scores, ACMG/AMP criteria, literature, and trial discovery links with provenance and release status attached, then carry the variant into Workbench or Batch.',
+    visual: { lines: ['Scores: source-labelled', 'Criteria: version-pinned', 'Next: Workbench or Batch'] },
   },
 ]
 
@@ -58,13 +58,13 @@ export function HowItWorks() {
       <div className="mx-auto px-8" style={{ maxWidth: 1180 }}>
         <header className="mb-14 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div style={{ maxWidth: 720 }}>
-            <LandingH2>One variant in. One structured report out.</LandingH2>
+            <LandingH2>One query. A versioned evidence stack.</LandingH2>
           </div>
           <p
             className="md:max-w-[300px] md:text-right"
             style={{ fontSize: 12.5, color: 'var(--hero-ink-3)', letterSpacing: '0.01em' }}
           >
-            Three stations. The middle one is where the work happens.
+            Sources, predictors, and criteria stay inspectable from query to report.
           </p>
         </header>
 
