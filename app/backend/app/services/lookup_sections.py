@@ -16,6 +16,7 @@ from app.schemas.lookup import (
     LookupSummaryTile,
 )
 from app.schemas.run import EvidenceSourceSummary, SourceProvenance
+from app.schemas.report import ReportSectionExecutionV2
 
 SECTION_FETCH_ENDPOINT = "/api/v1/lookup/sections"
 LAZY_SECTION_ORDER: tuple[LookupSectionId, ...] = (
@@ -72,6 +73,7 @@ def build_lookup_initial_summary(response: LookupResponse) -> LookupInitialSumma
             for section_id in LAZY_SECTION_ORDER
         ],
         warnings=list(response.warnings),
+        execution_state_v2=response.execution_state_v2,
     )
 
 
@@ -131,25 +133,29 @@ def _section_envelope(
 def _publications_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     section = response.report_payload.publications_literature
     status: LookupSectionStatus = "available" if section is not None else "missing"
+    execution = _section_execution(response, "publications")
     return LookupSectionEnvelope(
         section_id="publications",
-        status=status,
+        status=_execution_status(execution, status),
         payload=section.model_dump(mode="json") if section is not None else None,
         freshness=_freshness(response, "publications"),
         warnings=list(section.warnings) if section is not None else ["publications_unavailable"],
+        execution_state_v2=execution,
     )
 
 
 def _trials_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     profile = response.report_payload.report_profile
     section = profile.therapies_trials if profile is not None else None
+    execution = _section_execution(response, "therapies_trials")
     if section is None:
         return LookupSectionEnvelope(
             section_id="therapies_trials",
-            status="missing",
+            status=_execution_status(execution, "missing"),
             payload=None,
             freshness=_freshness(response, "therapies_trials"),
             warnings=["clinical_trials_unavailable"],
+            execution_state_v2=execution,
         )
 
     warnings = list(section.warnings)
@@ -165,10 +171,11 @@ def _trials_envelope(response: LookupResponse) -> LookupSectionEnvelope:
 
     return LookupSectionEnvelope(
         section_id="therapies_trials",
-        status=status,
+        status=_execution_status(execution, status),
         payload=section.model_dump(mode="json"),
         freshness=_freshness(response, "therapies_trials", provenance=section.provenance),
         warnings=warnings,
+        execution_state_v2=execution,
     )
 
 
@@ -180,9 +187,10 @@ def _computational_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     )
     status: LookupSectionStatus = "available" if has_payload else "missing"
     provenance = section.provenance if section is not None else []
+    execution = _section_execution(response, "computational_deep_dive")
     return LookupSectionEnvelope(
         section_id="computational_deep_dive",
-        status=status,
+        status=_execution_status(execution, status),
         payload=section.model_dump(mode="json") if section is not None else None,
         freshness=_freshness(response, "computational_deep_dive", provenance=provenance),
         warnings=(
@@ -190,16 +198,21 @@ def _computational_envelope(response: LookupResponse) -> LookupSectionEnvelope:
             if section is not None
             else ["computational_deep_dive_unavailable"]
         ),
+        execution_state_v2=execution,
     )
 
 
 def _clingen_vcep_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     profile = response.report_payload.report_profile
     expert_panel = profile.expert_panel if profile is not None else None
+    execution = _section_execution(
+        response,
+        "expert_panel" if expert_panel is not None else "acmg_worksheet",
+    )
     if expert_panel is not None:
         return LookupSectionEnvelope(
             section_id="clingen_vcep",
-            status="available",
+            status=_execution_status(execution, "available"),
             payload=expert_panel.model_dump(mode="json"),
             freshness=_freshness(
                 response,
@@ -207,16 +220,18 @@ def _clingen_vcep_envelope(response: LookupResponse) -> LookupSectionEnvelope:
                 source_hints=("clingen",),
             ),
             warnings=[],
+            execution_state_v2=execution,
         )
 
     worksheet = profile.acmg_worksheet if profile is not None else None
     if worksheet is None:
         return LookupSectionEnvelope(
             section_id="clingen_vcep",
-            status="missing",
+            status=_execution_status(execution, "missing"),
             payload=None,
             freshness=_freshness(response, "clingen_vcep"),
             warnings=["clingen_vcep_unavailable"],
+            execution_state_v2=execution,
         )
 
     payload: dict[str, Any] = worksheet.model_dump(mode="json")
@@ -228,11 +243,41 @@ def _clingen_vcep_envelope(response: LookupResponse) -> LookupSectionEnvelope:
     ]
     return LookupSectionEnvelope(
         section_id="clingen_vcep",
-        status="partial",
+        status=_execution_status(execution, "partial"),
         payload=payload,
         freshness=_freshness(response, "clingen_vcep"),
         warnings=_dedupe(warnings),
+        execution_state_v2=execution,
     )
+
+
+def _section_execution(
+    response: LookupResponse,
+    section_id: str,
+) -> ReportSectionExecutionV2 | None:
+    state = response.execution_state_v2
+    if state is None:
+        return None
+    return next((item for item in state.sections if item.section_id == section_id), None)
+
+
+def _execution_status(
+    execution: ReportSectionExecutionV2 | None,
+    fallback: LookupSectionStatus,
+) -> LookupSectionStatus:
+    if execution is None:
+        return fallback
+    return {
+        "ready": "available",
+        "empty": "empty",
+        "partial": "partial",
+        "unavailable": "missing",
+        "not_applicable": "unsupported",
+        "stale": "stale",
+        "failed": "failed",
+    }[
+        execution.state
+    ]  # type: ignore[return-value]
 
 
 def _freshness(

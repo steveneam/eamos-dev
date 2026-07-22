@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.schemas.run import EvidenceSourceSummary, SourceProvenance, SourceStatus
+from app.services.report_source_truth import normalize_report_source_status
 from app.services.source_fact_policy import build_source_fact_policy_envelope
 
 _SOURCE_TABLE_POLICY_IDENTITIES: dict[str, tuple[str, str]] = {
@@ -123,29 +124,7 @@ def source_provenance_from_mapping(raw: dict[str, Any]) -> SourceProvenance:
 
 
 def normalize_source_status(status: str | None) -> SourceStatus:
-    normalized = (status or "").strip().lower()
-    if normalized in {
-        "live",
-        "local",
-        "cache",
-        "stale",
-        "fixture",
-        "fallback",
-        "missing",
-        "live_stub",
-        "error",
-        "failed",
-    }:
-        return normalized  # type: ignore[return-value]
-    if normalized == "source_table":
-        return "local"
-    if normalized in {"degraded", "stub", "unavailable"}:
-        return "fallback"
-    if normalized in {"timeout"}:
-        return "error"
-    if not normalized:
-        return "missing"
-    return "fallback"
+    return normalize_report_source_status(status)  # type: ignore[return-value]
 
 
 def _parse_timestamp(value: str | None) -> datetime | None:

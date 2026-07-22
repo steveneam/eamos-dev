@@ -11,6 +11,7 @@ from app.schemas.run import (
     ReportDataCurrencyStatus,
     ReportDataCurrencyTier,
 )
+from app.services.report_source_truth import report_source_category
 
 _SOURCE_META: dict[str, tuple[str, ReportDataCurrencyTier | None]] = {
     "clinvar": ("ClinVar", "volatile"),
@@ -95,6 +96,8 @@ def latest_evidence_timestamp(
     evidence_map = evidence_map or {}
     candidates: list[tuple[datetime, str]] = []
     for item in evidence:
+        if report_source_category(item.status) not in {"current", "stale"}:
+            continue
         summary = evidence_map.get(item.source, {})
         for value in (
             item.fetched_at,
@@ -191,7 +194,7 @@ def _freshness_status(
         return "stale"
     if dated_value is None:
         return "unknown"
-    if status in {"live", "local", "cache", "fixture"}:
+    if report_source_category(status) == "current":
         return "fresh"
     return "unknown"
 

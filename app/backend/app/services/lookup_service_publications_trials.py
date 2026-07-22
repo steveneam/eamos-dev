@@ -18,30 +18,15 @@ from app.schemas.run import (
 )
 from app.services.lookup_service_cache import result_to_evidence
 from app.services.lookup_service_utils import dedupe_values, text_value
+from app.services.report_source_truth import report_source_is_weak
 from app.tools.base import ToolResult
 
 GENE_THERAPY_MAP: dict[str, str] = {
-    "RPE65": (
-        "Luxturna (voretigene neparvovec) — FDA approved 2017, EMA approved 2018. "
-        "Subretinal injection of AAV2 vector. Indicated for RPE65-associated inherited retinal dystrophy. "
-        "Marketed by Spark Therapeutics (Eli Lilly). Requires biallelic RPE65 mutations with sufficient viable retinal cells."
-    ),
-    "RPGR": (
-        "No approved gene therapy. Multiple phase I/II trials active, including AGTC-501 and AAV-RPGR programmes. "
-        "Check ClinicalTrials.gov for current recruitment status."
-    ),
-    "CNGA3": (
-        "No approved gene therapy. Phase I/II trial active (NCT02610582) targeting achromatopsia due to CNGA3 mutations. "
-        "Check ClinicalTrials.gov for current recruitment status."
-    ),
-    "CNGB3": (
-        "No approved gene therapy. Phase I/II trial active targeting achromatopsia due to CNGB3 mutations. "
-        "Check ClinicalTrials.gov for current recruitment status."
-    ),
-    "ABCA4": (
-        "No approved gene therapy identified for ABCA4-related Stargardt disease. "
-        "Use the ClinicalTrials.gov discovery rows below for current recruitment status."
-    ),
+    gene: (
+        f"No source-backed regulatory therapy record was evaluated for {gene}. "
+        "ClinicalTrials.gov discovery results must be reviewed separately."
+    )
+    for gene in ("RPE65", "RPGR", "CNGA3", "CNGB3", "ABCA4")
 }
 
 SourceCachedResult = Callable[[str, Callable[[], ToolResult]], ToolResult]
@@ -73,12 +58,10 @@ def clinical_trials_no_rows_summary(gene: str, result: ToolResult) -> str:
     ]
     if "clinical_trials_no_active_matches" in warnings:
         return f"No active trials found for {gene} on ClinicalTrials.gov."
-    if result.status in {"fallback", "error", "failed"} or any(
+    if report_source_is_weak(result.status) or any(
         warning.startswith("clinical_trials_fetch_failed") for warning in warnings
     ):
-        return (
-            f"Clinical trials lookup unavailable for {gene}. " "Check ClinicalTrials.gov directly."
-        )
+        return f"Clinical trials lookup unavailable for {gene}. Check ClinicalTrials.gov directly."
     return "No structured ClinicalTrials.gov rows are available for this lookup."
 
 
@@ -296,6 +279,21 @@ def trials_section_from_result(result: ToolResult) -> TherapiesTrialsSection:
             *result.warnings,
         ]
     )
+    if report_source_is_weak(result.status):
+        section_warnings = dedupe_values([*section_warnings, "clinical_trials_source_unavailable"])
+        return TherapiesTrialsSection(
+            warnings=section_warnings,
+            provenance=[
+                SourceProvenance(
+                    source="ClinicalTrials.gov",
+                    status=result.status,
+                    query={},
+                    source_url=result.source_url,
+                    warnings=section_warnings,
+                    version=result.source_version,
+                )
+            ],
+        )
 
     trial_rows: list[TrialMatch] = []
     raw_rows = summary.get("trial_rows", [])
@@ -365,9 +363,9 @@ def build_therapeutic_landscape(
     source_cached_result: SourceCachedResult,
     record_result: RecordResult,
 ) -> TherapeuticLandscapeResult:
-    therapy_text = GENE_THERAPY_MAP.get(gene) or (
-        f"No approved gene therapy identified for {gene}. "
-        "Check ClinicalTrials.gov for active trials."
+    therapy_text = (
+        f"No source-backed regulatory therapy record was evaluated for {gene}. "
+        "ClinicalTrials.gov discovery results, when available, are listed separately below."
     )
     trials_tool = tool_registry.get("clinical_trials")
     cached_trials_result = cached_report_source_results.get("clinical_trials")
@@ -397,7 +395,11 @@ def build_therapeutic_landscape(
             if isinstance(trials_result.summary, dict)
             else []
         )
-        trial_rows = [row for row in trial_rows_raw if isinstance(row, dict)]
+        trial_rows = (
+            [row for row in trial_rows_raw if isinstance(row, dict)]
+            if not report_source_is_weak(trials_result.status)
+            else []
+        )
     if trial_rows:
         trials_text = format_clinical_trials_summary(gene, trial_rows)
     elif trials_result is not None and trials_result.status != "fixture":

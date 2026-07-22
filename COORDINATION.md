@@ -58,7 +58,7 @@ No lane owns source materialization, providers, cloud, Supabase, or deploys._
 |------|-------|---------------------|--------|--------|------------|-------------|
 | Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | merged · PR #22 · `641c0e5` | Lane D merged + verified | 1 |
 | W workbench-engines | `/root/workbench_engines` | `plan.md` Lane W paths | `agent/live/workbench-engines` | review | Contract V2 merged | 2 |
-| R report-evidence | `/root/report_evidence` | `plan.md` Lane R paths | `agent/live/report-evidence` | pending | Contract V2 merged | 3 |
+| R report-evidence | `/root/report_evidence` | `plan.md` Lane R paths | `agent/live/report-evidence` | review | Contract V2 merged | 3 |
 | P paper-deterministic | `/root/paper_deterministic` | `plan.md` Lane P paths | `agent/live/paper-deterministic` | pending | Contract V2 merged | 4 |
 | B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | pending | Contract V2 merged | 5 |
 | runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | pending | W + R + P + B merged | 6 |

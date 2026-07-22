@@ -38,6 +38,14 @@ from app.services.report_data_currency import (
     build_source_version_pins,
     current_report_timestamp,
 )
+from app.services.report_execution_truth import report_identity_mismatched_sources
+from app.services.report_narrative_truth import (
+    acmg_classification_snapshot as acmg_classification_snapshot,
+    build_report_safe_decision as _report_safe_decision,
+    report_safe_evidence_map as _report_safe_evidence_map,
+    safe_clinvar_classification as _safe_clinvar_classification,
+)
+from app.services.report_source_truth import report_source_allows_payload
 from app.services.variant_decoder import decode_variant
 from app.tools.base import ToolResult
 
@@ -55,16 +63,6 @@ class LookupReportPayloadAssembly:
     rebuild_functional_evidence_cache: bool
     gene_context_snapshot_cache: dict[str, Any] | None
     rebuild_gene_context_snapshot_cache: bool
-
-
-def acmg_classification_snapshot(gene: str, cdna: str, clinvar: dict[str, Any]) -> str:
-    classification = clinvar.get("classification", "Unavailable")
-    review_status_text = clinvar.get("review_status", "review status unavailable")
-    return (
-        f"ClinVar currently lists {gene} {cdna} as {classification} ({review_status_text}). "
-        "This is a source snapshot only and should not be read as formal ACMG evidence-code "
-        "assignment or a final laboratory classification."
-    )
 
 
 def build_lookup_report_payload(
@@ -101,11 +99,23 @@ def build_lookup_report_payload(
     timing_start: TimingStart,
     record_phase: RecordPhase,
 ) -> LookupReportPayloadAssembly:
+    mismatched_sources = report_identity_mismatched_sources(
+        resolution=input_resolution,
+        evidence=evidence,
+    )
+    for source in sorted(mismatched_sources):
+        evidence_statuses[source] = "fallback"
+        warnings.append(f"report_source_identity_mismatch:{source}")
+    report_safe_evidence_map = _report_safe_evidence_map(
+        evidence_map,
+        evidence_statuses,
+    )
+    report_safe_decision = _report_safe_decision(evidence_map, evidence_statuses)
     phase_started = timing_start()
     therapeutic_landscape_result = build_therapeutic_landscape(
         gene=gene,
         variant=variant,
-        evidence_map=evidence_map,
+        evidence_map=report_safe_evidence_map,
         tool_registry=tool_registry,
         cached_report_source_results=cached_report_source_results,
         source_cached_result=source_cached_result,
@@ -117,12 +127,12 @@ def build_lookup_report_payload(
         metadata={"tool_present": therapeutic_landscape_result.clinical_trials_tool_present},
     )
 
-    pubmed_articles = pubmed_articles_from_evidence_map(evidence_map)
-    clinvar = evidence_map.get("clinvar", {})
-    classification = clinvar.get("classification", "Unavailable")
+    pubmed_articles = pubmed_articles_from_evidence_map(report_safe_evidence_map)
+    clinvar = report_safe_evidence_map.get("clinvar", {})
+    classification = _safe_clinvar_classification(clinvar.get("classification")) or "Unavailable"
     acmg_classification = acmg_classification_snapshot(gene, cdna, clinvar)
 
-    lines = list(decision.evidence_lines)
+    lines = list(report_safe_decision.evidence_lines)
     degraded = sorted(
         n.upper()
         for n, status in evidence_statuses.items()
@@ -132,16 +142,19 @@ def build_lookup_report_payload(
         lines.append(f"Source quality note: {', '.join(degraded)} evidence was not fully live.")
     expanded_evidence = "\n".join(line for line in lines if line).strip() or None
 
-    consequence = evidence_map.get("vep", {}).get("most_severe_consequence", "")
+    consequence = report_safe_evidence_map.get("vep", {}).get(
+        "most_severe_consequence",
+        "",
+    )
     clinical_integration = (
-        f'{variant_label}: {consequence or "consequence pending VEP annotation"}. '
+        f"{variant_label}: {consequence or 'consequence pending VEP annotation'}. "
         f"External classification: {classification}. "
         "Interpret in the context of the clinical phenotype and family history before drawing "
         "conclusions."
     )
     recommendations = (
         f"Confirm the reported variant {gene} {cdna} against the original sequencing data. "
-        f"{decision.next_step} "
+        f"{report_safe_decision.next_step} "
         "Seek specialist review before drawing clinical conclusions."
     )
 
@@ -152,7 +165,7 @@ def build_lookup_report_payload(
         source_filenames=[],
         patient_context=None,
         clinical_phenotype=None,
-        ai_clinical_summary=decision.recommendation,
+        ai_clinical_summary=report_safe_decision.recommendation,
         variant_summary_rows=[variant_row],
         expanded_evidence=expanded_evidence,
         acmg_classification=acmg_classification,
@@ -181,7 +194,7 @@ def build_lookup_report_payload(
         warnings=warnings,
     )
 
-    litvar_summary = evidence_map.get("litvar2", {})
+    litvar_summary = report_safe_evidence_map.get("litvar2", {})
     phase_started = timing_start()
     literature = build_lookup_publication_literature(
         publication_literature=publication_literature,
@@ -211,9 +224,20 @@ def build_lookup_report_payload(
             cached_functional_evidence,
         )
     )
+    functional_source_available = any(
+        report_source_allows_payload(evidence_statuses.get(source, "missing"))
+        for source in ("clingen", "clinvar", "pubmed", "mavedb")
+    )
+    reuse_cached_functional_evidence = (
+        isinstance(cached_functional_evidence, dict)
+        and not rebuild_functional_evidence_cache
+        and functional_source_available
+    )
+    if isinstance(cached_functional_evidence, dict) and not reuse_cached_functional_evidence:
+        rebuild_functional_evidence_cache = True
     phase_started = timing_start()
     try:
-        if isinstance(cached_functional_evidence, dict) and not rebuild_functional_evidence_cache:
+        if reuse_cached_functional_evidence:
             functional_summary = FunctionalEvidenceSummary.model_validate(
                 cached_functional_evidence
             )
@@ -225,6 +249,12 @@ def build_lookup_report_payload(
                 source_statuses=evidence_statuses,
                 allow_live=bool(settings is not None and settings.use_real_apis),
             )
+        if functional_summary.source_breakdown.mavedb > 0:
+            evidence_statuses["mavedb"] = (
+                "fixture"
+                if getattr(functional_evidence, "include_nonpublic_mavedb_fixtures", False)
+                else "local"
+            )
         payload.functional_evidence = functional_summary
         warnings.extend(functional_summary.warnings)
     except Exception as exc:
@@ -232,10 +262,7 @@ def build_lookup_report_payload(
     record_phase(
         "functional_evidence",
         phase_started,
-        metadata={
-            "cached": isinstance(cached_functional_evidence, dict)
-            and not rebuild_functional_evidence_cache
-        },
+        metadata={"cached": reuse_cached_functional_evidence},
     )
 
     phase_started = timing_start()
@@ -338,15 +365,16 @@ def finalize_lookup_report_payload(
     record_phase: RecordPhase,
 ) -> None:
     phase_started = timing_start()
-    if draft_render_service is not None:
+    report_safe_decision = _report_safe_decision(evidence_map, evidence_statuses)
+    if draft_render_service is not None and report_safe_decision.evidence_lines:
         draft_payload, draft_warnings = draft_render_service.render(
             case_title=f"{gene}:{cdna}",
             patient_context=None,
             clinical_phenotype=None,
             variant_summary=variant_label,
-            decision=decision,
+            decision=report_safe_decision,
             evidence_statuses=evidence_statuses,
-            warnings=[*warnings, *decision.warnings],
+            warnings=report_safe_decision.warnings,
             base_payload=payload,
         )
         payload.ai_clinical_summary = draft_payload.ai_clinical_summary
@@ -355,6 +383,8 @@ def finalize_lookup_report_payload(
         payload.recommendations = draft_payload.recommendations
         payload.limitations = draft_payload.limitations
         warnings.extend(draft_warnings)
+    elif draft_render_service is not None:
+        warnings.append("llm_draft_skipped:no_source_backed_evidence")
     record_phase(
         "draft_render",
         phase_started,
@@ -385,7 +415,7 @@ def finalize_lookup_report_payload(
     try:
         payload.eamos_computed_classification = compute_report_acmg_classification(
             payload,
-            evidence_map,
+            _report_safe_evidence_map(evidence_map, evidence_statuses),
             evidence_statuses,
         )
     except Exception as exc:
@@ -438,7 +468,9 @@ def _hydrate_sequence_context(
     )
     if result.context is not None:
         evidence_map["sequence_context"] = result.context.model_dump(mode="json")
-        evidence_statuses["sequence_context"] = result.context.source
+        evidence_statuses["sequence_context"] = (
+            "live" if result.context.source == "resolver" else result.context.source
+        )
     elif result.warnings:
         evidence_map["sequence_context"] = {"warnings": list(result.warnings)}
         evidence_statuses["sequence_context"] = "missing"

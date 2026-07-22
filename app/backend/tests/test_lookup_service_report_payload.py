@@ -19,6 +19,7 @@ from app.services.lookup_service_cache import (
     GENE_CONTEXT_SNAPSHOT_CACHE_VERSION,
 )
 from app.services.lookup_service_report_payload import (
+    _report_safe_decision,
     build_lookup_report_payload,
     finalize_lookup_report_payload,
 )
@@ -45,6 +46,36 @@ def _variant() -> SimpleNamespace:
         consequence="missense_variant",
         dbsnp_rsid="rs61751299",
     )
+
+
+def test_report_safe_decision_filters_weak_source_facts() -> None:
+    evidence_map = {
+        "clinvar": {"classification": "Pathogenic"},
+        "vep": {"most_severe_consequence": "missense_variant"},
+        "spliceai": {"acceptor_loss": 0.99},
+        "gnomad": {"allele_frequency": 0.42},
+    }
+
+    safe = _report_safe_decision(
+        evidence_map,
+        {"clinvar": "live", "vep": "fallback", "spliceai": "failed", "gnomad": "missing"},
+    )
+
+    assert safe.evidence_lines == ["ClinVar classification: Pathogenic."]
+
+    unavailable = _report_safe_decision(
+        evidence_map,
+        {"clinvar": "fallback", "vep": "failed", "spliceai": "missing"},
+    )
+    assert unavailable.evidence_lines == []
+    assert "Pathogenic" not in unavailable.recommendation
+    assert unavailable.warnings == ["report_sources_unavailable"]
+
+    unsafe = _report_safe_decision(
+        {"clinvar": {"classification": "/srv/private/provider-error"}},
+        {"clinvar": "live"},
+    )
+    assert "/srv/private" not in " ".join(unsafe.evidence_lines)
 
 
 def _variant_row() -> VariantSummaryRow:

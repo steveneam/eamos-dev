@@ -16,6 +16,10 @@ from app.schemas.run import (
     PublicationYearCount,
     PubMedArticle,
 )
+from app.services.report_source_truth import (
+    combined_report_source_status,
+    report_source_allows_payload,
+)
 
 _AA3_TO_1 = {
     "Ala": "A",
@@ -235,9 +239,9 @@ class PublicationPmidAggregator:
 
 
 def _source_failed(source: str, source_statuses: dict[str, str] | None) -> bool:
-    if not source_statuses:
+    if source_statuses is None:
         return False
-    return source_statuses.get(source) in {"fallback", "error", "failed"}
+    return not report_source_allows_payload(source_statuses.get(source, "missing"))
 
 
 def _source_status(source: str, source_statuses: dict[str, str] | None) -> str | None:
@@ -251,20 +255,13 @@ def _aggregate_source_status(
     if not source_statuses:
         return None
     statuses = [
-        source_statuses.get(source)
-        for source, count in (
-            ("pubmed", breakdown.pubmed),
-            ("litvar2", breakdown.litvar2),
-            ("clinvar", breakdown.clinvar),
-            ("clingen", breakdown.clingen),
-        )
-        if count > 0 and source_statuses.get(source)
+        source_statuses[source]
+        for source in ("pubmed", "litvar2", "clinvar", "clingen")
+        if source in source_statuses and source_statuses[source]
     ]
     if not statuses:
         return None
-    if len(set(statuses)) == 1:
-        return statuses[0]
-    return "mixed"
+    return combined_report_source_status(statuses)
 
 
 def _optional_int(value: Any) -> int | None:

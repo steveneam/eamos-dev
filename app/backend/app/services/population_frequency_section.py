@@ -18,6 +18,10 @@ from app.schemas.run import (
     PopulationSequencingAgeDistribution,
 )
 from app.services.report_provenance import provenance_for_source
+from app.services.report_source_truth import (
+    normalize_report_source_status,
+    report_source_is_weak,
+)
 
 SECTION_ID = "section-3-population-frequency"
 PANEL_ID = "gnomad-expansion"
@@ -59,16 +63,39 @@ def build_population_frequency_section(
 ) -> PopulationFrequencyReportSection:
     """Project canonical gnomAD detail into the Section 3 render model."""
 
+    normalized_status = normalize_report_source_status(source_status)
     if detail is None:
         return PopulationFrequencyReportSection(
-            source_status=source_status or "missing",
+            source_status=normalized_status,
             unavailable_reason="detail_unavailable",
             warnings=["population_frequency_detail_unavailable"],
             provenance=[
                 provenance_for_source(
                     "gnomAD",
-                    status=source_status or "missing",
+                    status=normalized_status,
                     warnings=["population_frequency_detail_unavailable"],
+                )
+            ],
+        )
+
+    if report_source_is_weak(normalized_status):
+        warnings = [
+            "population_frequency_source_unavailable",
+            "allele_frequency_unavailable",
+            "genetic_ancestry_groups_unavailable",
+        ]
+        if detail is not None:
+            warnings.extend(detail.warnings)
+        warnings = list(dict.fromkeys(warnings))
+        return PopulationFrequencyReportSection(
+            source_status=normalized_status,
+            unavailable_reason="source_unavailable",
+            warnings=warnings,
+            provenance=[
+                provenance_for_source(
+                    "gnomAD",
+                    status=normalized_status,
+                    warnings=warnings,
                 )
             ],
         )
@@ -76,9 +103,9 @@ def build_population_frequency_section(
     groups = _visual_groups(detail, gnomad_summary=gnomad_summary)
     warnings = _section_warnings(detail, groups)
     return PopulationFrequencyReportSection(
-        source_status=source_status or "missing",
+        source_status=normalized_status,
         unavailable_reason=detail.unavailable_reason
-        or _section_unavailable_reason(detail, groups, source_status),
+        or _section_unavailable_reason(detail, groups, normalized_status),
         dataset=detail.dataset,
         variant_id=detail.variant_id,
         sequencing_type=detail.sequencing_type,
@@ -92,7 +119,7 @@ def build_population_frequency_section(
         provenance=[
             provenance_for_source(
                 detail.source,
-                status=source_status or "missing",
+                status=normalized_status,
                 query={
                     "variant_id": detail.variant_id,
                     "dataset": detail.dataset,
