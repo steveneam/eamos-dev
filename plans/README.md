@@ -2,7 +2,7 @@
 
 Active and historical work plans for Eamos.
 
-Plan index refreshed: 2026-07-19 09:48 +0000 · Codex.
+Plan index refreshed: 2026-07-22 16:29 +0000 · Codex.
 
 ## Universal-Free Product Ratchet
 
@@ -28,7 +28,8 @@ do not recreate a second hand-maintained frontend or contract mirror.
 
 | File | Owner | Scope |
 | ---- | ----- | ----- |
-| [`product-workflow-integration/`](product-workflow-integration/) | Codex | **Approved; Lane A queued.** Evidence-backed V1 contract and five-lane Mode B delivery for Report, Paper, Batch/Compare, Workbench, persistence, handoffs, privacy, accessibility, and executable product ratchets. Supabase follows the serialized Task F lead-apply convention. |
+| [`live-product-completion/`](live-product-completion/) | Codex | **Proposed; planning complete, not launched.** Four-surface scientific-live campaign for Workbench engines, Variant Report evidence truth, Selom-informed deterministic Paper extraction, and WES/panel-first Batch, followed by runtime/material/UI/ratchet waves. Fresh per-session lane approvals and separate material/cloud/deploy gates remain required. |
+| [`product-workflow-integration/`](product-workflow-integration/) | Codex | **Lane D active; A/B/Task F/C integrated.** The approved V1 workflow foundation is being closed at Lane D. Its unlaunched Lane E is re-chartered by `live-product-completion/plan.md` after the broader scientific-live stack, rather than launched against a stale target. |
 | [`evidence-source-expansion/`](evidence-source-expansion/) | Codex | **Proposed.** REVEL-led computational evidence within the existing four independent call-card axes; calibration/source-contract repairs; clean ESM-1b regeneration; safe OMIM/LOVD slices; corrected CC0 MaveDB ingestion; OddsPath hardening; final-publication gate for SVC v4. |
 | [`variant-report-experience/plan.md`](variant-report-experience/plan.md) | Codex | **Complete.** Four call cards hand directly to Clinical, with one coherent chapter system across all report sections. |
 | [`landing-free-public/plan.md`](landing-free-public/plan.md) | Codex | **Complete.** Free-public landing, universal-free predictor presentation, responsive product gallery, safe share paths, and privacy-safe discovery telemetry. |
