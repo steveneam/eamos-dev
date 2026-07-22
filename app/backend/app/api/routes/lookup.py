@@ -27,9 +27,7 @@ from app.schemas.workflow import (
     build_report_href_v1,
 )
 from app.schemas.workbench import SourceDisclosure
-from app.services.lookup_service_clinvar_distribution import (
-    local_clinvar_curated_variant_page,
-)
+from app.services.lookup_service_curated_variants import local_clinvar_curated_variant_page
 from app.services.lookup_timing import LOOKUP_TIMING_HEADER
 
 router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
