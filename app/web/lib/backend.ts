@@ -2253,6 +2253,7 @@ export type PrimerTemplateStrand = 'Plus' | 'Minus'
 export type SsodnProtocol = 'lab_genomic' | 'guide_pam_block'
 export type SsodnOrientation = 'sense' | 'antisense'
 export type SsodnStrandRequest = 'auto' | '+' | '-'
+export type HdrEfficiencyStatus = 'executed' | 'not_assessed' | 'unavailable'
 
 export interface PrimerRequest {
   gene: string
@@ -2442,7 +2443,9 @@ export interface CrisprSsodnDesign {
   repair_template: string
   edits_encoded: string[]
   arm_lengths: Record<string, number>
-  estimated_hdr_efficiency: number
+  estimated_hdr_efficiency?: number | null
+  hdr_efficiency_status: HdrEfficiencyStatus
+  hdr_efficiency_disclosure: CapabilityExecutionDisclosureV2
   oligo_sequence: string
   oligo_length: number
   oligo_name: string
@@ -2574,15 +2577,26 @@ export interface CrisprTideSpectrumBin {
   predicted?: number | null
 }
 
+export interface CrisprTraceDifferenceBin {
+  size: number
+  observed_fraction: number
+}
+
 export interface CrisprTideResponse extends WorkbenchV2ResponseEnvelope {
-  source_backed?: boolean
-  analysis_kind?: 'tide' | 'descriptive_trace_comparison'
-  provider_label?: string
+  source_backed: boolean
+  analysis_kind: 'tide' | 'descriptive_trace_comparison'
+  provider_label: string
+  analysis_disclosure: CapabilityExecutionDisclosureV2
   source_disclosure?: SourceDisclosure | null
   cut_site_index: number
-  editing_efficiency: number
-  r_squared: number
+  editing_efficiency: number | null
+  r_squared: number | null
   spectrum: CrisprTideSpectrumBin[]
+  comparison_window_start: number | null
+  comparison_window_end: number | null
+  consensus_difference_fraction: number | null
+  sequence_identity: number | null
+  differences: CrisprTraceDifferenceBin[]
   predicted_available?: boolean
   notes: string
   warnings: string[]

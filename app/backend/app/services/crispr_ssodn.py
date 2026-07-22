@@ -8,10 +8,12 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.schemas.workbench import (
+    CrisprSsodnDesign,
     CrisprSsodnRequest,
     CrisprSsodnResponse,
     SourceDisclosure,
 )
+from app.schemas.capabilities import CapabilityExecutionDisclosureV2
 from app.services.crispr_design import reverse_complement
 from app.services.reference_genome import ReferenceGenomeStoreError, TwoBitReferenceGenomeStore
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
@@ -90,19 +92,106 @@ def design_ssodn(
     *,
     context_warnings: list[str] | None = None,
 ) -> CrisprSsodnResponse:
-    del payload, context
     warnings = list(context_warnings or [])
-    code = "crispr_ssodn_hdr_efficiency_contract_unavailable"
-    raise CrisprSsodnInputError(
-        code=code,
-        message=(
-            "ssODN output is unavailable until HDR efficiency can be represented "
-            "as a typed not-assessed state."
+    resolved_window = _local_transcript_window(payload)
+    if resolved_window is None:
+        if context is None or context.source != "resolver":
+            code = unsupported_input_warning("ssodn_sequence_context")
+            raise CrisprSsodnInputError(
+                code=code,
+                message="ssODN donor design requires a source-backed resolved sequence context.",
+                warnings=_dedupe_warnings([*warnings, code]),
+            )
+        resolved_window = _context_window(payload, context, warnings=warnings)
+
+    reference_bases = list(resolved_window.reference_sequence.upper())
+    variant_bases = list(resolved_window.variant_sequence.upper())
+    edits_encoded = [payload.cdna]
+
+    if payload.pam_blocking_enabled:
+        pam_warning = _apply_pam_blocking_edit(
+            variant_bases,
+            variant_offset=resolved_window.variant_offset,
+            payload=payload,
+        )
+        warnings.append(pam_warning)
+        if pam_warning == SSODN_PAM_BLOCK_REVIEW_WARNING:
+            edits_encoded.append("candidate PAM-blocking edit")
+
+    reference_sequence = "".join(reference_bases)
+    variant_sequence = "".join(variant_bases)
+    output_offset = resolved_window.variant_offset
+    output_mask = resolved_window.intron_mask
+
+    if payload.orientation == "antisense":
+        reference_sequence, output_mask = _reverse_complement_with_mask(
+            reference_sequence,
+            output_mask,
+            apply_intron_case=False,
+        )
+        variant_sequence, output_mask = _reverse_complement_with_mask(
+            variant_sequence,
+            resolved_window.intron_mask,
+            apply_intron_case=False,
+        )
+        output_offset = payload.oligo_length - 1 - resolved_window.variant_offset
+
+    warnings.append("crispr_ssodn_hdr_efficiency_not_assessed")
+    bounded_warnings = _dedupe_warnings(warnings)
+    strand = _output_strand(payload, resolved_window.strand)
+    ssodn = CrisprSsodnDesign(
+        reference_arm=reference_sequence,
+        variant_arm=variant_sequence,
+        repair_template=variant_sequence,
+        edits_encoded=edits_encoded,
+        arm_lengths={
+            "left": output_offset,
+            "right": payload.oligo_length - output_offset - 1,
+        },
+        estimated_hdr_efficiency=None,
+        hdr_efficiency_status="not_assessed",
+        hdr_efficiency_disclosure=_hdr_efficiency_not_assessed_disclosure(),
+        oligo_sequence=variant_sequence,
+        oligo_length=payload.oligo_length,
+        oligo_name=_oligo_name(
+            payload,
+            codon_ref=resolved_window.codon_ref,
+            codon_alt=resolved_window.codon_alt,
         ),
-        warnings=[
-            *warnings,
-            code,
-            "required_contract_amendment:ssodn_hdr_efficiency_optional",
+        variant_offset=output_offset,
+        variant_genomic=resolved_window.variant_genomic,
+        intron_mask=output_mask,
+        strand=strand,
+        orientation=payload.orientation,
+        protocol=payload.protocol,
+        template_source=resolved_window.template_source,
+        genome_build=resolved_window.genome_build,
+    )
+    return CrisprSsodnResponse(
+        genome_build=ssodn.genome_build,
+        ssodn=ssodn,
+        warnings=bounded_warnings,
+        source_disclosure=_ssodn_source_disclosure(
+            ssodn.template_source,
+            warnings=bounded_warnings,
+        ),
+    )
+
+
+def _hdr_efficiency_not_assessed_disclosure() -> CapabilityExecutionDisclosureV2:
+    return CapabilityExecutionDisclosureV2(
+        capability_id="crispr.ssodn_hdr_efficiency",
+        claim="Estimate HDR efficiency for the designed ssODN and experimental context.",
+        execution="unavailable",
+        input_scope="resolved_ssodn_design_without_experimental_outcome_context",
+        source_status="unavailable",
+        applicability="applicable",
+        validation_status="unvalidated",
+        retention="none",
+        consent_required=False,
+        warnings=["crispr_ssodn_hdr_efficiency_not_assessed"],
+        requirements=[
+            "execute a validated HDR-efficiency model with the required cell and assay context"
         ],
     )
 

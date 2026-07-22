@@ -587,26 +587,10 @@ def _request_input_class(request: Request) -> Literal["paper_text", "pdf"]:
 
 
 def _processing_disclosure(
-    settings: Any,
+    _settings: Any,
     *,
     input_class: Literal["paper_text", "pdf"],
 ) -> ProcessingDisclosureV1:
-    provider = str(getattr(settings, "llm_provider", "mock") or "mock").lower()
-    if provider == "gateway":
-        return ProcessingDisclosureV1(
-            execution="external_provider",
-            provider_id="vercel_ai_gateway",
-            provider_label="Vercel AI Gateway",
-            input_classes=[input_class],
-            raw_input_persisted=False,
-            retention="none",
-            expires_at=None,
-            user_deletable=True,
-            consent_required=True,
-            warnings=[
-                "Publication input leaves Eamos for extraction; provider retention is governed by the configured gateway account."
-            ],
-        )
     return ProcessingDisclosureV1(
         execution="eamos_backend",
         provider_id="eamos_deterministic_extractor",

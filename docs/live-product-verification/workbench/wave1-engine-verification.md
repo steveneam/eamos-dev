@@ -23,7 +23,7 @@ is regression evidence, not a clinical or wet-lab validation claim.
 | CRISPR off-targets | Runs only with a verified guide identity plus an immutable indexed-artifact manifest and SHA-256; each returned site carries an explicit Hsu/MIT cutting score. | Mock sites, CFD, or an unmanifested index. |
 | Screening primers | Primer3 runs only on source-verified reference windows; a supplied template must match the verified window. | Generated/mock reference windows. |
 | Alignment and AB1 trace alignment | Bounded Biopython or Smith-Waterman alignment on the verified selection; 5,000 bases per input and 4,000,000 matrix cells maximum. | Positional fallback masquerading as alignment. |
-| ssODN | Typed HTTP 503 unavailable after V2 context verification. | Fixed or inferred HDR-efficiency values. |
+| ssODN | Designs a donor only from a local MANE/GRCh38 transcript artifact or source-backed resolver window. HDR efficiency is explicitly `not_assessed`, carries no number, and includes an unavailable capability disclosure. | Fixed or inferred HDR-efficiency values, or a donor derived from fixture-only sequence context. |
 | TIDE | Typed HTTP 503 before multipart trace bytes are read. The CLI is labelled descriptive consensus comparison. | Editing efficiency, R-squared, indel spectrum, or TIDE decomposition. |
 
 Legacy fixture mode remains available only when explicitly selected for test or
@@ -82,34 +82,33 @@ composition lane should benchmark one on-target authority, not silently blend
 their outputs. `crisprScore` remains the requested CFD/MIT authority because
 the current backend already has a fixed, sanitized R boundary.
 
-## Frozen Contract Amendments Required
+## Frozen Contract Amendments Applied
 
 ### ssODN
 
-`CrisprSsodnDesign.estimated_hdr_efficiency` is currently a mandatory `float`,
-which forces a fabricated value when no validated efficiency model ran. Amend
-it to a typed optional assessment, for example:
+`CrisprSsodnDesign.estimated_hdr_efficiency` is now nullable and paired with a
+required typed status and capability disclosure:
 
 ```text
 estimated_hdr_efficiency: float | null
 hdr_efficiency_status: executed | not_assessed | unavailable
-hdr_efficiency_disclosure: CapabilityExecutionDisclosureV2 | null
+hdr_efficiency_disclosure: CapabilityExecutionDisclosureV2
 ```
 
-Contract tests must reject a numeric value without an executed disclosure and
-must accept `not_assessed` with no number. Preserve the legacy field as nullable
-for compatibility. Until this amendment lands, the endpoint returns
-`crispr_ssodn_hdr_efficiency_contract_unavailable` and no donor sequence.
+Contract tests reject a numeric value without an executed disclosure and accept
+`not_assessed` with no number. The dedicated ssODN route now returns the donor
+sequence when its sequence basis is source-backed, while fixture-only and
+insufficient reference windows fail closed with typed client errors. The
+separate legacy `CrisprResponse.ssodn` shape remains unchanged and no new value
+is fabricated into it.
 
 ### TIDE
 
-`CrisprTideResponse.editing_efficiency` and `r_squared` are mandatory floats,
-so the existing contract cannot truthfully represent descriptive consensus
-comparison. Replace it with a discriminated union, or make those fields and
-the indel spectrum conditionally optional:
+`CrisprTideResponse` now carries a required `analysis_kind` discriminator and
+conditionally validated fields:
 
 ```text
-analysis_kind=tide_signal_decomposition
+analysis_kind=tide
   -> editing_efficiency, r_squared, indel_spectrum, executed disclosure required
 
 analysis_kind=descriptive_trace_comparison
@@ -117,9 +116,10 @@ analysis_kind=descriptive_trace_comparison
   -> editing_efficiency, r_squared, indel_spectrum forbidden
 ```
 
-Contract tests must reject descriptive payloads carrying TIDE claims. Until
-that amendment and an external truth-set validation land, the HTTP route does
-not read trace uploads and returns `crispr_tide_decomposition_unavailable`.
+Contract tests reject descriptive payloads carrying TIDE claims. The contract
+amendment does not manufacture validation: until an external truth-set
+validation lands, the HTTP route still does not read trace uploads and returns
+`crispr_tide_decomposition_unavailable`.
 
 ## Security and Negative Evidence
 

@@ -9,8 +9,8 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Live Product Completion ACTIVE — Contract V2 merged and verified;
-the four disjoint backend engine lanes are assigned and launching._ Historical
+**Status:** _Live Product Completion ACTIVE — all four backend engine lanes are
+merged; the serial truth amendment is in review before runtime composition._ Historical
 Mode-A dogfood completed 2026-07-03; its record remains below.
 
 ---
@@ -57,13 +57,14 @@ No lane owns source materialization, providers, cloud, Supabase, or deploys._
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
 | Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | merged · PR #22 · `641c0e5` | Lane D merged + verified | 1 |
-| W workbench-engines | `/root/workbench_engines` | `plan.md` Lane W paths | `agent/live/workbench-engines` | review | Contract V2 merged | 2 |
-| R report-evidence | `/root/report_evidence` | `plan.md` Lane R paths | `agent/live/report-evidence` | review | Contract V2 merged | 3 |
-| P paper-deterministic | `/root/paper_deterministic` | `plan.md` Lane P paths | `agent/live/paper-deterministic` | review | Contract V2 merged | 4 |
-| B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | review | Contract V2 merged | 5 |
-| runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | pending | W + R + P + B merged | 6 |
-| material/artifact cards | unassigned | `plan.md` Wave 3 card-approved surfaces only | card-specific branches | blocked:exact Steven approval | runtime-composition merged + named cards approved | 7 |
-| surface-truth | Codex lead | `plan.md` Wave 4 web paths | `agent/live/surface-truth` | pending | engines + composition + approved material contracts | 8 |
+| W workbench-engines | `/root/workbench_engines` | `plan.md` Lane W paths | `agent/live/workbench-engines` | merged · PR #24 · `e3529b2` | Contract V2 merged | 2 |
+| R report-evidence | `/root/report_evidence` | `plan.md` Lane R paths | `agent/live/report-evidence` | merged · PR #25 · `e8bc1e2` | Contract V2 merged | 3 |
+| P paper-deterministic | `/root/paper_deterministic` | `plan.md` Lane P paths | `agent/live/paper-deterministic` | merged · PR #23 · `d8dff1e` | Contract V2 merged | 4 |
+| B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | merged · PR #26 · `b8982a3` | Contract V2 merged | 5 |
+| truth amendment | Codex lead | Workbench contract/service/canary + deterministic Paper disclosure | `agent/live/contract-truth-amendment` | review | W + P merged | 6 |
+| runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | pending | truth amendment merged | 7 |
+| material/artifact cards | unassigned | `plan.md` Wave 3 card-approved surfaces only | card-specific branches | blocked:exact Steven approval | runtime-composition merged + named cards approved | 8 |
+| surface-truth | Codex lead | `plan.md` Wave 4 web paths | `agent/live/surface-truth` | pending | engines + composition + approved material contracts | 9 |
 | product-ratchets-v2 | Codex lead | `plan.md` final ratchet paths | `agent/live/product-ratchets-v2` | pending | composed product verified | final |
 
 ---

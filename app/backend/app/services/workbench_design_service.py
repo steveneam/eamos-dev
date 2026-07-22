@@ -35,6 +35,7 @@ from app.services.crispr_offtarget_screening import (
     ScreeningReferenceWindowProvider,
     design_screening_primers,
 )
+from app.services.crispr_ssodn import CrisprSsodnInputError, design_ssodn
 from app.services.sequence_context import (
     WORKBENCH_SEQUENCE_CONTEXT_UNAVAILABLE,
     SequenceContext,
@@ -315,19 +316,57 @@ class WorkbenchDesignService:
         )
 
     def design_crispr_ssodn(self, payload: CrisprSsodnRequest) -> CrisprSsodnResponse:
-        if payload.design_context_v2 is not None:
-            self._resolve_payload_context(payload, purpose="ssODN design")
-        raise WorkbenchDesignError(
-            code="crispr_ssodn_hdr_efficiency_contract_unavailable",
-            message=(
-                "ssODN output is unavailable until the mandatory legacy HDR-efficiency "
-                "field is replaced by a typed not-assessed state."
+        if not self.workbench_live_design_enabled and payload.design_context_v2 is None:
+            code = unsupported_input_warning("ssodn_live_design")
+            raise WorkbenchDesignError(
+                code=code,
+                message="ssODN donor design is disabled in fixture-only Workbench mode.",
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=[code],
+            )
+        sequence_result, context, verified = self._resolve_payload_context(
+            payload,
+            purpose="ssODN design",
+            transcript=payload.transcript,
+            species=payload.species,
+            prefer_resolver=(
+                self.workbench_live_design_enabled or payload.design_context_v2 is not None
             ),
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            warnings=[
-                "crispr_ssodn_hdr_efficiency_contract_unavailable",
-                "required_contract_amendment:ssodn_hdr_efficiency_optional",
-            ],
+        )
+        try:
+            response = design_ssodn(
+                payload,
+                context,
+                context_warnings=list(sequence_result.warnings),
+            )
+        except CrisprSsodnInputError as exc:
+            raise WorkbenchDesignError(
+                code=exc.code,
+                message=exc.message,
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=exc.warnings,
+            ) from exc
+        except WorkbenchDesignError:
+            raise
+        except Exception as exc:
+            raise WorkbenchDesignError(
+                code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:{type(exc).__name__}",
+                message="ssODN provider failed for the requested variant.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ) from exc
+        if verified is None:
+            return response
+        return bind_workbench_response_v2(
+            response,
+            verified=verified,
+            disclosure=executed_disclosure(
+                verified,
+                capability_id="crispr_ssodn_design",
+                claim="Designed an ssODN from the verified reference selection",
+                algorithm_id="eamos_ssodn_donor_design",
+                algorithm_version="2.0.0",
+                warnings=response.warnings,
+            ),
         )
 
     def align(self, payload: AlignRequest) -> AlignResponse:

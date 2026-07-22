@@ -21,6 +21,7 @@ PrimerTemplateStrand = Literal["Plus", "Minus"]
 SsodnProtocol = Literal["lab_genomic", "guide_pam_block"]
 SsodnOrientation = Literal["sense", "antisense"]
 SsodnStrandRequest = Literal["auto", "+", "-"]
+HdrEfficiencyStatus = Literal["executed", "not_assessed", "unavailable"]
 WORKBENCH_GENE_MAX_LENGTH = 64
 WORKBENCH_CDNA_MAX_LENGTH = 256
 WORKBENCH_USER_SEQUENCE_MAX_LENGTH = 10_000
@@ -361,7 +362,9 @@ class CrisprSsodnDesign(BaseModel):
     repair_template: str
     edits_encoded: list[str] = Field(default_factory=list)
     arm_lengths: dict[str, int] = Field(default_factory=dict)
-    estimated_hdr_efficiency: float
+    estimated_hdr_efficiency: float | None = Field(default=None, ge=0.0, le=1.0)
+    hdr_efficiency_status: HdrEfficiencyStatus
+    hdr_efficiency_disclosure: CapabilityExecutionDisclosureV2
     oligo_sequence: str
     oligo_length: int
     oligo_name: str
@@ -373,6 +376,29 @@ class CrisprSsodnDesign(BaseModel):
     protocol: SsodnProtocol
     template_source: str
     genome_build: str
+
+    @model_validator(mode="after")
+    def _validate_hdr_efficiency_truth(self):
+        disclosure_executed = self.hdr_efficiency_disclosure.execution in {
+            "eamos_local",
+            "mounted_artifact",
+            "external_provider",
+        }
+        if self.hdr_efficiency_status == "executed":
+            if self.estimated_hdr_efficiency is None or not disclosure_executed:
+                raise ValueError(
+                    "executed HDR efficiency requires a numeric value and executed model disclosure"
+                )
+        else:
+            if self.estimated_hdr_efficiency is not None:
+                raise ValueError(
+                    "non-executed HDR efficiency states must not carry a numeric estimate"
+                )
+            if self.hdr_efficiency_disclosure.execution != "unavailable":
+                raise ValueError(
+                    "non-executed HDR efficiency states require unavailable disclosure"
+                )
+        return self
 
 
 class CrisprResponse(_WorkbenchResponseV2Envelope):
@@ -683,18 +709,83 @@ class CrisprTideSpectrumBin(BaseModel):
     predicted: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
+class CrisprTraceDifferenceBin(BaseModel):
+    size: int = Field(ge=-50, le=50)
+    observed_fraction: float = Field(ge=0.0, le=1.0)
+
+
 class CrisprTideResponse(_WorkbenchResponseV2Envelope):
     source_backed: bool = True
-    analysis_kind: Literal["tide", "descriptive_trace_comparison"] = "tide"
-    provider_label: str = "Eamos observed-only TIDE-style analyzer"
+    analysis_kind: Literal["tide", "descriptive_trace_comparison"]
+    provider_label: str
+    analysis_disclosure: CapabilityExecutionDisclosureV2
     source_disclosure: SourceDisclosure | None = None
     cut_site_index: int = Field(ge=1)
-    editing_efficiency: float = Field(ge=0.0, le=1.0)
-    r_squared: float = Field(ge=0.0, le=1.0)
-    spectrum: list[CrisprTideSpectrumBin] = Field(default_factory=list)
+    editing_efficiency: float | None = Field(ge=0.0, le=1.0)
+    r_squared: float | None = Field(ge=0.0, le=1.0)
+    spectrum: list[CrisprTideSpectrumBin]
+    comparison_window_start: int | None = Field(ge=1)
+    comparison_window_end: int | None = Field(ge=1)
+    consensus_difference_fraction: float | None = Field(ge=0.0, le=1.0)
+    sequence_identity: float | None = Field(ge=0.0, le=1.0)
+    differences: list[CrisprTraceDifferenceBin]
     predicted_available: bool = False
     notes: str
     warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_analysis_kind_truth(self):
+        executed = self.analysis_disclosure.execution in {
+            "eamos_local",
+            "mounted_artifact",
+            "external_provider",
+        }
+        if not self.source_backed or not executed:
+            raise ValueError("trace analysis responses require executed source-backed disclosure")
+        if self.analysis_kind == "tide":
+            if self.analysis_disclosure.validation_status != "validated":
+                raise ValueError("TIDE output requires validated signal-decomposition disclosure")
+            if self.editing_efficiency is None or self.r_squared is None or not self.spectrum:
+                raise ValueError(
+                    "TIDE output requires editing efficiency, goodness-of-fit, and indel spectrum"
+                )
+            if (
+                any(
+                    value is not None
+                    for value in (
+                        self.comparison_window_start,
+                        self.comparison_window_end,
+                        self.consensus_difference_fraction,
+                        self.sequence_identity,
+                    )
+                )
+                or self.differences
+            ):
+                raise ValueError("TIDE output must not carry descriptive-comparison fields")
+        else:
+            if self.editing_efficiency is not None or self.r_squared is not None or self.spectrum:
+                raise ValueError(
+                    "descriptive trace comparison must not claim TIDE efficiency, fit, or spectrum"
+                )
+            if self.predicted_available:
+                raise ValueError("descriptive trace comparison cannot claim predicted outcomes")
+            if any(
+                value is None
+                for value in (
+                    self.comparison_window_start,
+                    self.comparison_window_end,
+                    self.consensus_difference_fraction,
+                    self.sequence_identity,
+                )
+            ):
+                raise ValueError("descriptive trace comparison requires bounded comparison metrics")
+            if (
+                self.comparison_window_start is not None
+                and self.comparison_window_end is not None
+                and self.comparison_window_start > self.comparison_window_end
+            ):
+                raise ValueError("descriptive trace comparison window must be ordered")
+        return self
 
 
 class AlignRequest(WorkbenchQuery):
