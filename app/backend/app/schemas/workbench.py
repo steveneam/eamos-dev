@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import re
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.schemas.source_disclosure import SourceDisclosure
+from app.schemas.workflow import WorkbenchDesignContextV1
 
 PrimerMode = Literal["sanger", "qpcr", "arms"]
 SecondaryStructureRisk = Literal["low", "moderate", "high", "not_assessed"]
@@ -11,14 +14,6 @@ PrimerTemplateStrand = Literal["Plus", "Minus"]
 SsodnProtocol = Literal["lab_genomic", "guide_pam_block"]
 SsodnOrientation = Literal["sense", "antisense"]
 SsodnStrandRequest = Literal["auto", "+", "-"]
-WorkbenchSourceStatus = Literal[
-    "source_backed",
-    "local_provider",
-    "fallback",
-    "fixture",
-    "gated",
-    "unavailable",
-]
 WORKBENCH_GENE_MAX_LENGTH = 64
 WORKBENCH_CDNA_MAX_LENGTH = 256
 WORKBENCH_USER_SEQUENCE_MAX_LENGTH = 10_000
@@ -36,27 +31,24 @@ def _strip_text(value):
 class WorkbenchQuery(BaseModel):
     gene: str = Field(min_length=1, max_length=WORKBENCH_GENE_MAX_LENGTH)
     cdna: str = Field(min_length=1, max_length=WORKBENCH_CDNA_MAX_LENGTH)
+    design_context: WorkbenchDesignContextV1 | None = None
 
     @field_validator("gene", "cdna", mode="before")
     @classmethod
     def _strip_query_text(cls, value):
         return _strip_text(value)
 
-
-class SourceDisclosure(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    source_status: WorkbenchSourceStatus
-    provider_id: str = Field(min_length=1, max_length=128)
-    provider_label: str = Field(min_length=1, max_length=160)
-    source_version: str | None = Field(default=None, min_length=1, max_length=128)
-    cache_status: str | None = Field(default=None, min_length=1, max_length=128)
-    warnings: list[Annotated[str, Field(min_length=1, max_length=512)]] = Field(
-        default_factory=list, max_length=64
-    )
-    requirements: list[Annotated[str, Field(min_length=1, max_length=512)]] = Field(
-        default_factory=list, max_length=64
-    )
+    @model_validator(mode="after")
+    def _validate_design_context(self):
+        if self.design_context is None:
+            return self
+        variant = self.design_context.variant
+        if self.gene.upper() != variant.gene or self.cdna != variant.cdna:
+            raise ValueError("query gene and cdna must match the design-context variant")
+        transcript = getattr(self, "transcript", None)
+        if transcript is not None and transcript != variant.transcript:
+            raise ValueError("query transcript must match the design-context variant")
+        return self
 
 
 class PrimerRequest(WorkbenchQuery):
@@ -258,6 +250,7 @@ class CrisprOffTargetRequest(BaseModel):
     genome_build: str = Field(default="GRCh38", min_length=1, max_length=32)
     max_mismatches: int = Field(default=3, ge=0, le=6)
     on_target_locus: CrisprOffTargetLocus | None = None
+    design_context: WorkbenchDesignContextV1 | None = None
 
     @field_validator("guide", "pam", "genome_build", mode="before")
     @classmethod
@@ -370,6 +363,7 @@ class CrisprScreeningPrimerTarget(BaseModel):
 
 class CrisprScreeningPrimerRequest(BaseModel):
     sites: list[CrisprScreeningPrimerTarget] = Field(min_length=1, max_length=50)
+    design_context: WorkbenchDesignContextV1 | None = None
     genome_build: str = Field(default="GRCh38", min_length=1, max_length=32)
     flank_bp: int = Field(default=400, ge=50, le=5_000)
     naming_prefix: str = Field(default="OTS", min_length=1, max_length=64)

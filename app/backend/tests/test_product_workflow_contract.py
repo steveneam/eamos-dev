@@ -12,19 +12,22 @@ from app.schemas.workflow import (
     RelatedVariantGroupV1,
     RelatedVariantItemV1,
     SelectionRangeV1,
+    WorkbenchDesignContextV1,
     WorkflowArtifactV1,
     WorkflowContextV1,
     WorkflowRunV1,
     build_compare_href_v1,
     build_paper_href_v1,
     build_report_href_v1,
+    build_workbench_design_context_digest_v1,
     build_workbench_href_v1,
 )
-from app.schemas.workbench import SourceDisclosure
+from app.schemas.workbench import AlignRequest, CrisprRequest, PrimerRequest, SourceDisclosure
 
 NOW = datetime(2026, 7, 19, 10, 0, tzinfo=UTC)
 SHA_A = "a" * 64
 SHA_B = "b" * 64
+DESIGN_CONTEXT_FIXTURE_SHA = "9efb20d9b43b2f9dcc8955d18a8d485e4f6bde905235fdb059dd7a4f24145038"
 
 
 def _variant(**overrides) -> CanonicalVariantRefV1:
@@ -81,6 +84,23 @@ def _source_disclosure() -> SourceDisclosure:
         cache_status="fresh",
         warnings=[],
         requirements=[],
+    )
+
+
+def _design_context(
+    *,
+    variant: CanonicalVariantRefV1 | None = None,
+    selection: SelectionRangeV1 | None = None,
+    digest: str | None = None,
+) -> WorkbenchDesignContextV1:
+    bound_variant = variant or _variant()
+    bound_selection = selection or _selection()
+    return WorkbenchDesignContextV1(
+        schema_version="workbench_design_context.v1",
+        variant=bound_variant,
+        selection=bound_selection,
+        context_digest=digest
+        or build_workbench_design_context_digest_v1(bound_variant, bound_selection),
     )
 
 
@@ -255,6 +275,67 @@ def test_context_binds_selection_and_design_tools_to_a_resolved_variant() -> Non
             selection=None,
             **base,
         )
+
+
+def test_design_context_binds_tool_requests_to_canonical_variant_and_selection() -> None:
+    design_context = _design_context()
+
+    for request_model in (PrimerRequest, CrisprRequest, AlignRequest):
+        request = request_model(
+            gene="rpe65",
+            cdna="c.260A>G",
+            design_context=design_context,
+        )
+        assert request.design_context == design_context
+
+    assert design_context.context_digest == build_workbench_design_context_digest_v1(
+        design_context.variant,
+        design_context.selection,
+    )
+    assert design_context.context_digest == DESIGN_CONTEXT_FIXTURE_SHA
+    assert (
+        WorkbenchDesignContextV1.model_validate_json(design_context.model_dump_json())
+        == design_context
+    )
+
+    assert (
+        _design_context(digest=DESIGN_CONTEXT_FIXTURE_SHA.upper()).context_digest
+        == DESIGN_CONTEXT_FIXTURE_SHA
+    )
+
+    with pytest.raises(ValidationError, match="gene and cdna"):
+        PrimerRequest(
+            gene="ABCA4",
+            cdna="c.260A>G",
+            design_context=design_context,
+        )
+
+    with pytest.raises(ValidationError, match="context_digest"):
+        _design_context(digest=SHA_B)
+
+    assert PrimerRequest(gene="RPE65", cdna="c.260A>G").design_context is None
+
+
+@pytest.mark.parametrize(
+    ("variant", "selection", "message"),
+    [
+        (_variant(resolution_status="ambiguous"), _selection(), "resolved"),
+        (_variant(variant_key="different-key"), _selection(), "variant_key"),
+        (
+            _variant(transcript="NM_000329.4"),
+            _selection(),
+            "transcript",
+        ),
+    ],
+)
+def test_design_context_rejects_unresolved_or_mismatched_context(
+    variant: CanonicalVariantRefV1,
+    selection: SelectionRangeV1,
+    message: str,
+) -> None:
+    digest = build_workbench_design_context_digest_v1(variant, selection)
+    with pytest.raises(ValidationError, match=message):
+        _design_context(variant=variant, selection=selection, digest=digest)
 
 
 def test_selection_rejects_ambiguous_or_internally_inconsistent_intervals() -> None:

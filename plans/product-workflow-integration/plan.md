@@ -1,9 +1,12 @@
 # Integrated Product Workflow Delivery Plan
 
-Status: active; Lane A integrated and verified on `main` as `6d2f6c9` through
-Steven's one-time manual CI substitute. B/C have not launched.
+Status: active; Lane A integrated and verified on `main` as `6d2f6c9`. Lanes B
+and C are pushed in PRs #16/#17 and remain unmerged. The approved serial
+design-binding amendment below blocks implementation from resuming.
 
 Plan stamped: 2026-07-19 09:48 +0000 · Codex lead.
+
+Design-binding amendment stamped: 2026-07-22 13:39 +0000 · Codex lead.
 
 ## Outcome And Authority
 
@@ -68,6 +71,60 @@ it without editing its owned files. If implementation proves the contract
 wrong or incomplete, the affected lane stops and proposes a versioned contract
 amendment; it does not drift a schema, duplicate a type, or add an unreviewed
 field. The lead then replans ownership and ordering before work resumes.
+
+### Approved Workbench design-binding amendment
+
+Steven approved this minimal frozen-contract re-plan on 2026-07-19. It adds
+one shared `WorkbenchDesignContextV1` envelope containing the resolved
+`CanonicalVariantRefV1`, exact `SelectionRangeV1`, and a normalized SHA-256
+`context_digest`. The nested selection is the single source of truth for
+GRCh38 build, transcript, closed interval, orientation, sequence basis, edit
+revision, and sequence hash; those fields are not duplicated beside it.
+
+The envelope is an additive `design_context` field on the existing
+Primer/CRISPR/Align query family. It is nullable only for the bounded legacy
+compatibility window needed to keep the already-shipped Workbench callers
+working while this sprint is serialized. Lane D must send it for every new
+tool run, Lane B/D must preserve its digest with the result, and Lane E must
+make a missing envelope release-blocking before Product Workflow V1 is called
+complete. When present, schema validation rejects unresolved variants and any
+variant-key, transcript, or build mismatch between the variant and selection;
+request validation rejects gene/cDNA drift from the embedded canonical variant.
+
+The serial amendment owns only:
+
+```text
+plans/product-workflow-integration/plan.md
+plans/product-workflow-integration/spec.md
+app/backend/app/schemas/__init__.py
+app/backend/app/schemas/source_disclosure.py                  # narrow cycle break
+app/backend/app/schemas/workbench.py
+app/backend/app/schemas/workflow.py
+app/web/lib/backend.ts
+app/backend/tests/test_product_workflow_contract.py
+app/backend/tests/test_frontend_contract.py
+app/web/package.json                                          # CI advisory repair
+app/web/package-lock.json                                     # CI advisory repair
+```
+
+Exit checklist:
+
+1. Pydantic and TypeScript expose one byte-semantics-equivalent envelope and
+   request field; required fields, enum values, nullability, digest casing, and
+   mismatch rejection have executable canaries.
+2. Existing unbound callers still parse during the compatibility window, while
+   a bound Primer/CRISPR/Align request cannot drift from its canonical variant.
+3. Focused contract tests, frontend-contract canary, backend/web boundary
+   ratchets, web test/type/lint/build, dependency audit, and required CI pass.
+4. The amendment is committed and pushed to its review branch. It is not merged
+   without Steven's explicit merge approval.
+
+Explicit exclusions: no Workbench UI implementation, result persistence or
+service enforcement beyond request-schema validation; no lane merge/rebase;
+no Supabase link/apply, provider/source/env/deploy action, Render cancellation,
+Phase 4, Phase 7, or cleanup. The production-dependency lock repair is included
+only because the newly executable required CI found current high-severity
+advisories that block every Product Workflow branch.
 
 ## Release-Blocking Order
 

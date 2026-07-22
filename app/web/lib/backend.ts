@@ -1999,6 +1999,7 @@ export type SsodnStrandRequest = 'auto' | '+' | '-'
 export interface PrimerRequest {
   gene: string
   cdna: string
+  design_context?: WorkbenchDesignContextV1 | null
   mode?: PrimerMode
   tm_min?: number
   tm_max?: number
@@ -2075,6 +2076,7 @@ export type CasEnzyme = 'SpCas9' | 'SaCas9' | 'Cas12a'
 export interface CrisprRequest {
   gene: string
   cdna: string
+  design_context?: WorkbenchDesignContextV1 | null
   cas?: CasEnzyme
   strand_filter?: 'both' | 'plus' | 'minus'
   off_target_tolerance?: number
@@ -2111,6 +2113,7 @@ export interface CrisprResponse {
 export interface CrisprSsodnRequest {
   gene: string
   cdna: string
+  design_context?: WorkbenchDesignContextV1 | null
   transcript?: string | null
   protein_change?: string | null
   species?: 'human' | 'mouse'
@@ -2165,6 +2168,7 @@ export interface CrisprOffTargetRequest {
   genome_build?: string
   max_mismatches?: number
   on_target_locus?: CrisprOffTargetLocus | null
+  design_context?: WorkbenchDesignContextV1 | null
 }
 
 export interface CrisprOffTargetSite {
@@ -2210,6 +2214,7 @@ export interface CrisprScreeningPrimerTarget {
 
 export interface CrisprScreeningPrimerRequest {
   sites: CrisprScreeningPrimerTarget[]
+  design_context?: WorkbenchDesignContextV1 | null
   genome_build?: string
   flank_bp?: number
   naming_prefix?: string
@@ -2273,6 +2278,7 @@ export interface CrisprTideResponse {
 export interface AlignRequest {
   gene: string
   cdna: string
+  design_context?: WorkbenchDesignContextV1 | null
   user_sequence?: string | null
   ab1_blob_base64?: string | null
 }
@@ -2280,6 +2286,7 @@ export interface AlignRequest {
 export interface AlignReferenceRequest {
   gene: string
   cdna: string
+  design_context?: WorkbenchDesignContextV1 | null
   transcript?: string | null
   species?: 'human' | 'mouse'
 }
@@ -3151,6 +3158,13 @@ export interface WorkflowContextV1 {
   selection: SelectionRangeV1 | null
   created_at: string
   expires_at: string | null
+}
+
+export interface WorkbenchDesignContextV1 {
+  schema_version: 'workbench_design_context.v1'
+  variant: CanonicalVariantRefV1
+  selection: SelectionRangeV1
+  context_digest: string
 }
 
 export interface ProcessingDisclosureV1 {

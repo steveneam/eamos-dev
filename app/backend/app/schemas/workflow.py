@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from datetime import UTC, datetime
 from typing import Annotated, Literal
@@ -8,7 +10,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.run import ClassificationTier, VariantReportCallCards
-from app.schemas.workbench import SourceDisclosure
+from app.schemas.source_disclosure import SourceDisclosure
 
 VariantResolutionStatusV1 = Literal["resolved", "ambiguous", "unresolved"]
 WorkflowOriginSurfaceV1 = Literal["report", "paper", "batch", "workbench", "library", "search"]
@@ -300,6 +302,58 @@ class WorkflowContextV1(_WorkflowContractModel):
                 or self.selection.transcript != self.variant.transcript
             ):
                 raise ValueError("selection transcript must match the context variant transcript")
+        return self
+
+
+def build_workbench_design_context_digest_v1(
+    variant: CanonicalVariantRefV1,
+    selection: SelectionRangeV1,
+) -> str:
+    payload = {
+        "schema_version": "workbench_design_context.v1",
+        "selection": selection.model_dump(mode="json"),
+        "variant": variant.model_dump(mode="json"),
+    }
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+class WorkbenchDesignContextV1(_WorkflowContractModel):
+    schema_version: Literal["workbench_design_context.v1"]
+    variant: CanonicalVariantRefV1
+    selection: SelectionRangeV1
+    context_digest: Sha256Hex
+
+    @field_validator("context_digest", mode="before")
+    @classmethod
+    def _normalize_context_digest(cls, value):
+        if not isinstance(value, str):
+            return value
+        return _validate_sha256(value)
+
+    @model_validator(mode="after")
+    def _validate_design_binding(self):
+        if self.variant.resolution_status != "resolved":
+            raise ValueError("Workbench design context requires a resolved canonical variant")
+        if self.selection.variant_key != self.variant.variant_key:
+            raise ValueError("selection variant_key must match the design-context variant_key")
+        if self.selection.genome_build != self.variant.genome_build:
+            raise ValueError("selection genome_build must match the design-context variant")
+        if self.variant.transcript is None or self.selection.transcript != self.variant.transcript:
+            raise ValueError(
+                "selection transcript must match the design-context variant transcript"
+            )
+        expected_digest = build_workbench_design_context_digest_v1(
+            self.variant,
+            self.selection,
+        )
+        if self.context_digest != expected_digest:
+            raise ValueError("context_digest must match the canonical variant and selection")
         return self
 
 

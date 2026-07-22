@@ -1,9 +1,12 @@
 # Integrated Product Workflow Specification
 
-Status: approved and frozen by Steven on 2026-07-19; Lane A launch is queued
-for the next `gogogo`.
+Status: approved and frozen by Steven on 2026-07-19; Lane A is integrated,
+Lanes B/C are in review, and the approved Workbench design-binding amendment
+below is the current serial contract gate.
 
 Spec stamped: 2026-07-19 09:48 +0000 · Codex.
+
+Design-binding amendment stamped: 2026-07-22 13:39 +0000 · Codex.
 
 ## Product Outcome
 
@@ -135,6 +138,38 @@ overlaps: Array<"utr5" | "utr3" | "cds" | "exon" | "intron">
 The backend supplies biological projection. The browser may calculate row-local
 geometry but may not invent cDNA/CDS/protein mappings. Mixed or intronic ranges
 legitimately have null transcript/protein bounds.
+
+### WorkbenchDesignContextV1
+
+```text
+schema_version: "workbench_design_context.v1"
+variant: CanonicalVariantRefV1
+selection: SelectionRangeV1
+context_digest: lowercase SHA-256 hex string
+```
+
+This envelope is the single request binding for the Primer, CRISPR, and Align
+query family. `selection.genome_build`, `selection.sequence_basis`,
+`selection.edit_revision`, and `selection.sequence_sha256` identify the exact
+reference/edit basis; `context_digest` identifies the complete canonical
+Workbench context used for staleness and artifact correlation. The server
+rejects an unresolved variant and any variant-key, transcript, or build
+mismatch between `variant` and `selection`.
+
+Digest byte semantics are frozen across Python and TypeScript: SHA-256 the UTF-8
+bytes of one compact JSON object containing exactly `schema_version`, `variant`,
+and `selection`; recursively sort object keys lexicographically, preserve array
+order, use JSON string escaping without forcing non-ASCII characters to `\\u`
+escapes, and emit no insignificant whitespace. Encode the digest as lowercase
+hex. The executable RPE65 fixture digest is
+`9efb20d9b43b2f9dcc8955d18a8d485e4f6bde905235fdb059dd7a4f24145038`.
+
+Existing Workbench endpoints receive the envelope through additive nullable
+`design_context` during one compatibility window, because the already-shipped
+callers predate this contract. This nullability is not product acceptance:
+Lane D supplies it on every newly initiated tool run, Lane B/D preserve the
+same digest with the result, and Lane E blocks release if a new tool run omits
+it. Once that ratchet is live, legacy-null removal is a versioned follow-up.
 
 ### ProcessingDisclosureV1
 

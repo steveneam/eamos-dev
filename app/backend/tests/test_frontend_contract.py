@@ -221,6 +221,7 @@ from app.schemas.workflow import (
     SelectionStrandV1,
     SequenceBasisV1,
     VariantResolutionStatusV1,
+    WorkbenchDesignContextV1,
     WorkbenchViewV1,
     WorkflowActiveToolV1,
     WorkflowArtifactDownloadStateV1,
@@ -439,6 +440,7 @@ MODEL_TO_TS_INTERFACE: dict[type[BaseModel], str] = {
     SearchAnswerResponse: "SearchAnswerResponse",
     CanonicalVariantRefV1: "CanonicalVariantRefV1",
     SelectionRangeV1: "SelectionRangeV1",
+    WorkbenchDesignContextV1: "WorkbenchDesignContextV1",
     WorkflowContextV1: "WorkflowContextV1",
     ProcessingDisclosureV1: "ProcessingDisclosureV1",
     WorkflowArtifactV1: "WorkflowArtifactV1",
@@ -587,6 +589,7 @@ def test_workflow_literal_values_match_typescript(literal_type, ts_name, backend
     [
         (CanonicalVariantRefV1, "CanonicalVariantRefV1"),
         (SelectionRangeV1, "SelectionRangeV1"),
+        (WorkbenchDesignContextV1, "WorkbenchDesignContextV1"),
         (WorkflowContextV1, "WorkflowContextV1"),
         (ProcessingDisclosureV1, "ProcessingDisclosureV1"),
         (WorkflowArtifactV1, "WorkflowArtifactV1"),
@@ -633,6 +636,7 @@ def test_workflow_schema_versions_and_url_builders_are_mirrored(backend_ts_path)
     expected_versions = {
         "CanonicalVariantRefV1": "canonical_variant_ref.v1",
         "SelectionRangeV1": "selection_range.v1",
+        "WorkbenchDesignContextV1": "workbench_design_context.v1",
         "WorkflowContextV1": "workflow_context.v1",
         "WorkflowRunV1": "workflow_run.v1",
     }
