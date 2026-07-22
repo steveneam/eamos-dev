@@ -34,7 +34,7 @@
   focused local verification, full CI, dependency audit, container contract,
   and Vercel passed.
 - **Wave 1:** W/R/P are assigned to disjoint agents and B is lead-owned. All
-  four launch from the same frozen-contract coordination checkpoint.
+  four launch from frozen-contract checkpoint `origin/main@0a3c980`.
 - **Four-wave approval:** Steven approved Codex to continue through the four
   implementation waves and orchestrate the named worktrees/agents as
   dependencies unlock. Lead-run serialized merge review remains mandatory.
@@ -43,7 +43,7 @@
 
 ## Log Edit-Lock
 
-LOCKED · 2026-07-22 18:18 +0000 · Codex — Contract V2 merge checkpoint and Wave 1 launch record
+UNLOCKED · 2026-07-22 18:21 +0000 · Codex
 
 ## Shared File Locks
 
@@ -59,7 +59,7 @@ LOCKED · 2026-07-22 18:18 +0000 · Codex — Contract V2 merge checkpoint and W
 ```text
 # Resume prompt · 2026-07-22 18:18 +0000 · Codex Live Product Engine Wave
 Read CURRENT.md, COORDINATION.md, and plans/live-product-completion/{research,spec,plan}.md first.
-Contract V2 is merged at 641c0e5; launch W/R/P agents and lead-owned Batch from the recorded coordination checkpoint.
+Contract V2 is merged at 641c0e5; launch W/R/P agents and lead-owned Batch from origin/main@0a3c980.
 Keep schemas/backend.ts/contract canaries frozen and enforce each exact lane glob plus evidence-security invariants.
 Review and merge only green in order W then R then P then B under Steven's explicit approval.
 Continue into the approved serial runtime-composition and frontend waves as dependencies unlock.
