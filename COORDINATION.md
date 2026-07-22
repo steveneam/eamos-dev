@@ -9,7 +9,7 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Product Workflow V1 ACTIVE — A/B/C integrated; D/E pending._ Historical
+**Status:** _Product Workflow V1 ACTIVE — A/B/C integrated; D in progress; E dependency-locked._ Historical
 Mode-A dogfood completed 2026-07-03; its record remains below.
 
 ---
@@ -31,6 +31,8 @@ approved Task F's filled exact mutation card on 2026-07-22; the two reviewed
 transaction-scoped two-owner verification. Lane C was then rebased, passed the
 full required CI/Vercel gate, and merged as PR #17. Post-merge `main` CI run
 `29930639353` passed every job, including immutable-image pull-back verification.
+Steven approved Lanes D and E on 2026-07-22; D launched first from
+`origin/main@24ca1de`, while E remains blocked on D's separately approved merge.
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
@@ -39,7 +41,7 @@ full required CI/Vercel gate, and merged as PR #17. Post-merge `main` CI run
 | B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | merged · PR #16 · `5c5a950` | design-binding merged | 3 |
 | Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | complete · remote ledger `20260722144613` + `20260722144619`; post-apply proof green | B merged + fresh Steven approval | 4 |
 | C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | merged · PR #17 · `0d52e11` (head `f880655`) | A/B merged; merge after Task F | 5 |
-| D workbench-canvas | unassigned | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | pending | B + C merged | 6 |
+| D workbench-canvas | Codex(wt) | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | in_progress | B + C merged | 6 |
 | E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 7 |
 
 ---
@@ -150,6 +152,10 @@ own `status`. Messages are append-only; you replace only your own state.
   Vercel. PR #17 was rebased to `84c8655` and is fully green; it remains held
   behind Task F. Read-only `eamos-dev` inventory confirms the new migration is
   absent and security advisors are clear; no Supabase mutation occurred.
+- 2026-07-22 15:21 +0000 (Codex, lead/owner): **Lane D launched.** Steven gave
+  fresh approval for named Lanes D and E. D starts alone from
+  `origin/main@24ca1de` in its frozen Workbench globs; E remains dependency-
+  locked until D is reviewed, explicitly approved, merged, and verified.
 
 ---
 
