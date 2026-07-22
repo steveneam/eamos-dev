@@ -679,7 +679,7 @@ export function DiseaseValidityDashboard({
                 Fixture aggregate: installed sample rows only, not all RPE65 ClinVar records.
               </div>
             )}
-            <CuratedVariantsGrid data={curated} />
+            <CuratedVariantsGrid data={curated} gene={gene} />
           </>
         ) : (
           <p style={emptyTextStyle}>No curated variant distribution is available for this gene.</p>

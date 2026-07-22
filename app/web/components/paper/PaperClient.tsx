@@ -1,7 +1,9 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/components/auth/AuthProvider'
+import { openAuthMenu } from '@/components/auth/AuthMenu'
 import { TopNav } from '@/components/layout/TopNav'
 import { ModePill } from '@/components/layout/ModePill'
 import { WorkRail } from '@/components/layout/WorkRail'
@@ -12,22 +14,55 @@ import { CandidateCard, formatToken } from '@/components/report/CandidateCard'
 import { PaperAiPanel } from './PaperAiPanel'
 import { saveVariant } from '@/lib/variant-library'
 import { reportHrefForQuery } from '@/lib/variant-search'
+import { clearPaperTarget, readPaperTarget } from '@/lib/report-workflow'
 import { stashCompareVariants, type ParsedVariant } from '@/lib/variant-file'
-import { extractPaperVariants, isMockResponse } from '@/lib/paperVariants'
+import {
+  cancelPaperRun,
+  deletePaperRun,
+  extractPaperVariants,
+  getPaperProcessingDisclosure,
+  getPaperRun,
+  getPaperRunResult,
+  isMockResponse,
+  PaperRequestError,
+  sanitizeTsvCell,
+  type PaperInputClass,
+} from '@/lib/paperVariants'
 import type { PaperChatScope } from '@/lib/chat'
+import { buildReportHrefV1, buildWorkbenchHrefV1 } from '@/lib/backend'
 import type {
+  CanonicalVariantRefV1,
   PaperPdfMeta,
   PaperSourceMetadata,
   PaperVariantsResponse,
+  ProcessingDisclosureV1,
   SearchInputCandidate,
   ValidatedPaperVariant,
+  WorkflowAsyncStateV1,
+  WorkflowActiveToolV1,
+  WorkflowRunV1,
 } from '@/lib/backend'
 
-type Phase = 'idle' | 'loading' | 'ready' | 'error'
+type Phase = WorkflowAsyncStateV1
 type ResultView = 'merged' | 'by-paper'
 
-const MOCK_TIP =
-  'Mock extraction — the paper → variants endpoint is not yet wired to live data. The fail-closed gating, dedup, provenance and actions are real.'
+const FRONTEND_FIXTURE_TIP =
+  'Frontend fixture. It demonstrates fail-closed review states and is not source-backed extraction.'
+const PAPER_CONCURRENCY = 2
+
+function waitForPaperPoll(signal: AbortSignal, milliseconds: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      window.clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, milliseconds)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
 
 // ─── input model ────────────────────────────────────────────────────────
 // Each dropped/attached file is a source; a non-empty paste box is also a
@@ -39,6 +74,17 @@ interface AttachedSource {
   text?: string
   file?: File
   charCount?: number
+}
+
+type SourceRunState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+
+interface SourceRunRecord {
+  source: AttachedSource
+  state: SourceRunState
+  response?: PaperVariantsResponse
+  error?: string
+  runId?: string
+  disclosure?: ProcessingDisclosureV1
 }
 
 // ─── merge model ────────────────────────────────────────────────────────
@@ -62,6 +108,8 @@ interface SourceGroup {
   pdf: PaperPdfMeta | null
   metadata: PaperSourceMetadata | null
   variants: ValidatedPaperVariant[]
+  runId: string | null
+  disclosure: ProcessingDisclosureV1 | null
 }
 
 // A paper is identified by its citation, not its filename. Use backend
@@ -124,6 +172,59 @@ interface ExtractResult {
   warnings: string[]
   provenance: string[]
   mock: boolean
+}
+
+function sourceInputClass(source: AttachedSource): PaperInputClass {
+  return source.kind === 'pdf' ? 'pdf' : 'paper_text'
+}
+
+function processingKey(disclosures: ProcessingDisclosureV1[]): string {
+  return disclosures
+    .map((item) =>
+      [
+        item.provider_id,
+        item.execution,
+        item.retention,
+        item.consent_required ? 'consent' : 'direct',
+        [...item.input_classes].sort().join(','),
+      ].join(':'),
+    )
+    .sort()
+    .join('|')
+}
+
+function resultFromRuns(runs: SourceRunRecord[]): ExtractResult | null {
+  const completed = runs.filter(
+    (run): run is SourceRunRecord & { response: PaperVariantsResponse } => Boolean(run.response),
+  )
+  if (completed.length === 0) return null
+  const tagged: Array<{ source: string; v: ValidatedPaperVariant }> = []
+  const bySource: SourceGroup[] = []
+  const warnings: string[] = []
+  const provenance = new Set<string>()
+  let mock = false
+  for (const run of completed) {
+    const response = run.response
+    if (isMockResponse(response)) mock = true
+    response.variants.forEach((variant) => tagged.push({ source: run.source.name, v: variant }))
+    response.warnings.forEach((warning) => warnings.push(`${run.source.name}: ${warning}`))
+    response.provenance.forEach((item) => provenance.add(item))
+    bySource.push({
+      name: run.source.name,
+      kind: run.source.kind,
+      pdf: response.pdf,
+      metadata: response.source_metadata,
+      variants: response.variants,
+      runId: run.runId ?? null,
+      disclosure: run.disclosure ?? null,
+    })
+  }
+  return { tagged, bySource, warnings, provenance: [...provenance], mock }
+}
+
+function safePaperError(error: unknown): string {
+  if (error instanceof PaperRequestError) return error.message
+  return 'Paper extraction failed. Retry this source.'
 }
 
 function dedupKey(v: ValidatedPaperVariant): string {
@@ -197,11 +298,8 @@ function bestHgvs(v: ValidatedPaperVariant): string {
 // Build the report query for a source-backed candidate — mirrors
 // ReportClient.handleSelectCandidate so a paper candidate opens the same report.
 function candidateReportHref(c: SearchInputCandidate): string | null {
-  if (!c.gene || !c.cdna) return null
-  const p = new URLSearchParams({ gene: c.gene, cdna: c.cdna })
-  if (c.transcript) p.set('transcript', c.transcript)
-  if (c.protein_change) p.set('protein_change', c.protein_change)
-  return `/report?${p.toString()}`
+  const canonical = canonicalCandidate(c)
+  return canonical ? buildReportHrefV1(canonical, 'paper') : null
 }
 function variantReportHref(v: ValidatedPaperVariant): string | null {
   const resolved =
@@ -212,9 +310,8 @@ function variantReportHref(v: ValidatedPaperVariant): string | null {
     const m = v.transcript_hgvs.match(/^(.+?):(c\..+)$/)
     const cdna = m ? m[2] : v.transcript_hgvs.startsWith('c.') ? v.transcript_hgvs : null
     if (!cdna) return null
-    const p = new URLSearchParams({ gene: v.gene, cdna })
+    const p = new URLSearchParams({ gene: v.gene, cdna, from: 'paper' })
     if (m) p.set('transcript', m[1])
-    if (v.protein_change) p.set('protein_change', v.protein_change)
     return `/report?${p.toString()}`
   }
   return null
@@ -256,10 +353,67 @@ function candidateKey(c: SearchInputCandidate): string {
   return p ? p.query.toLowerCase() : ''
 }
 
-// ─── TSV export of the merged table ─────────────────────────────────────
-function tsvCell(s: string): string {
-  return s.replace(/[\t\r\n]+/g, ' ')
+function canonicalCandidate(c: SearchInputCandidate): CanonicalVariantRefV1 | null {
+  if (!c.gene || !c.cdna || !c.candidate_id) return null
+  return {
+    schema_version: 'canonical_variant_ref.v1',
+    gene: c.gene.toUpperCase(),
+    cdna: c.cdna,
+    transcript: c.transcript ?? null,
+    protein_hgvs: c.protein_change ?? null,
+    genomic_hg38: c.genomic_hg38 ?? null,
+    variant_key: c.candidate_id,
+    species: 'human',
+    genome_build: 'GRCh38',
+    resolution_status: c.genomic_hg38 && c.transcript ? 'resolved' : c.genomic_hg38 ? 'ambiguous' : 'unresolved',
+    source_support: c.source_support,
+    warnings: c.warnings,
+  }
 }
+
+function canonicalPaperVariant(v: ValidatedPaperVariant): CanonicalVariantRefV1 | null {
+  const candidate =
+    v.candidates.find((item) => item.candidate_id === v.resolved_candidate_id) ??
+    v.candidates.find((item) => item.gene && item.cdna)
+  if (candidate) return canonicalCandidate(candidate)
+  const parsed = variantToParsed(v)
+  const key = v.variant_id ?? v.resolved_candidate_id
+  if (!v.validated || !parsed?.gene || !parsed.variant || !key) return null
+  const transcriptMatch = v.transcript_hgvs?.match(/^(.+?):c\./)
+  return {
+    schema_version: 'canonical_variant_ref.v1',
+    gene: parsed.gene.toUpperCase(),
+    cdna: parsed.variant,
+    transcript: transcriptMatch?.[1] ?? null,
+    protein_hgvs: v.protein_hgvs ?? v.protein_change,
+    genomic_hg38: v.variant_id,
+    variant_key: key,
+    species: 'human',
+    genome_build: 'GRCh38',
+    resolution_status:
+      v.variant_id && transcriptMatch?.[1]
+        ? 'resolved'
+        : v.variant_id
+          ? 'ambiguous'
+          : 'unresolved',
+    source_support: v.source_support,
+    warnings: v.resolver_warnings,
+  }
+}
+
+function paperWorkbenchHref(
+  variant: CanonicalVariantRefV1 | null,
+  tool: WorkflowActiveToolV1 = 'viewer',
+): string | null {
+  if (!variant) return null
+  try {
+    return buildWorkbenchHrefV1(variant, { tool, view: 'window' })
+  } catch {
+    return null
+  }
+}
+
+// ─── TSV export of the merged table ─────────────────────────────────────
 function mergedToTsv(rows: MergedVariant[]): string {
   const header = [
     'gene',
@@ -293,7 +447,7 @@ function mergedToTsv(rows: MergedVariant[]): string {
         v.validated ? 'yes' : 'no',
         m.mentions.find((x) => x.quote)?.quote ?? '',
       ]
-        .map(tsvCell)
+        .map(sanitizeTsvCell)
         .join('\t'),
     )
   }
@@ -346,6 +500,7 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 function primaryBtn(enabled: boolean): React.CSSProperties {
   return {
+    minHeight: 44,
     padding: '7px 14px',
     borderRadius: 9,
     fontSize: 12.5,
@@ -358,6 +513,7 @@ function primaryBtn(enabled: boolean): React.CSSProperties {
 }
 function ghostBtn(): React.CSSProperties {
   return {
+    minHeight: 44,
     padding: '7px 14px',
     borderRadius: 9,
     fontSize: 12.5,
@@ -367,6 +523,149 @@ function ghostBtn(): React.CSSProperties {
     border: '0.5px solid var(--line-2, var(--line))',
     cursor: 'pointer',
   }
+}
+
+function disclosureExecutionLabel(item: ProcessingDisclosureV1): string {
+  if (item.execution === 'browser') return 'Browser only'
+  if (item.execution === 'eamos_backend') return 'Eamos backend'
+  return 'External provider'
+}
+
+function disclosureRetentionLabel(item: ProcessingDisclosureV1): string {
+  if (item.retention === 'none') return 'No retention'
+  if (item.retention === 'request_lifetime') return 'Request lifetime only'
+  if (item.retention === 'ttl') return item.expires_at ? `Expires ${item.expires_at}` : 'Time limited'
+  return 'Saved to account'
+}
+
+function ProcessingDisclosurePanel({
+  disclosures,
+  onAccept,
+}: {
+  disclosures: ProcessingDisclosureV1[]
+  onAccept: () => void
+}) {
+  return (
+    <section
+      className="mt-4"
+      aria-labelledby="paper-processing-title"
+      style={{
+        border: '0.5px solid var(--warn-bdr)',
+        borderRadius: 12,
+        background: 'var(--warn-tint)',
+        padding: '16px 18px',
+      }}
+    >
+      <h2 id="paper-processing-title" style={{ margin: 0, fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>
+        Review processing before upload
+      </h2>
+      <p style={{ margin: '6px 0 12px', maxWidth: '70ch', fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink-2)' }}>
+        Publications can contain case or person language. Eamos does not ask you to upload patient records. Review the named processing path before sending this text or PDF.
+      </p>
+      <div className="flex flex-col gap-2">
+        {disclosures.map((item) => (
+          <div
+            key={`${item.provider_id}-${item.input_classes.join('-')}`}
+            style={{
+              border: '0.5px solid var(--warn-bdr)',
+              borderRadius: 9,
+              background: 'var(--bg)',
+              padding: '10px 12px',
+            }}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <strong style={{ fontSize: 12.5, color: 'var(--ink)' }}>{item.provider_label}</strong>
+              <Badge tone="var(--warn-text)">{disclosureExecutionLabel(item)}</Badge>
+              {item.input_classes.map((inputClass) => (
+                <Chip key={inputClass}>{formatToken(inputClass)}</Chip>
+              ))}
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-3)' }}>
+              {item.raw_input_persisted ? 'Raw input is persisted.' : 'Raw input is not persisted.'}{' '}
+              {disclosureRetentionLabel(item)}. {item.user_deletable ? 'You can delete the saved run.' : 'No raw input is retained for later deletion.'}
+            </p>
+            {item.warnings.length > 0 && (
+              <ul style={{ margin: '7px 0 0', paddingLeft: 18, fontSize: 11.5, color: 'var(--warn-text)' }}>
+                {item.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+      <p style={{ margin: '10px 0 0', maxWidth: '74ch', fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-3)' }}>
+        You can cancel this Eamos run while it is queued or running. Cancellation cannot recall input already received by an external provider.
+      </p>
+      <button type="button" onClick={onAccept} style={{ ...primaryBtn(true), marginTop: 13 }}>
+        I understand, send these sources
+      </button>
+    </section>
+  )
+}
+
+function SourceRunStatusList({
+  runs,
+  onRetry,
+  onRemove,
+}: {
+  runs: SourceRunRecord[]
+  onRetry: () => void
+  onRemove: (run: SourceRunRecord) => void
+}) {
+  if (runs.length === 0) return null
+  const canRetry = runs.some((run) => run.state === 'failed' || run.state === 'cancelled')
+  return (
+    <section className="mt-4" aria-labelledby="paper-source-status-title">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="paper-source-status-title" style={{ margin: 0, fontSize: 12.5, fontWeight: 650, color: 'var(--ink-2)' }}>
+          Source status
+        </h2>
+        {canRetry && <button type="button" onClick={onRetry} style={ghostBtn()}>Retry failed sources</button>}
+      </div>
+      <ul className="mt-2 flex flex-col gap-1.5" style={{ padding: 0 }}>
+        {runs.map((run) => {
+          const tone = run.state === 'failed'
+            ? 'var(--err)'
+            : run.state === 'cancelled'
+              ? 'var(--warn-text)'
+              : run.state === 'completed'
+                ? 'var(--teal-deep)'
+                : 'var(--ink-3)'
+          return (
+            <li
+              key={run.source.id}
+              className="flex flex-wrap items-center justify-between gap-2"
+              style={{
+                listStyle: 'none',
+                border: '0.5px solid var(--line)',
+                borderRadius: 9,
+                background: 'var(--bg)',
+                padding: '8px 10px',
+              }}
+            >
+              <span style={{ minWidth: 0, fontSize: 12, color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>
+                {run.source.name}
+                {run.error ? <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: tone }}>{run.error}</span> : null}
+              </span>
+              <span className="flex flex-wrap items-center gap-1.5">
+                {run.disclosure && <Chip>{run.disclosure.provider_label}</Chip>}
+                <Badge tone={tone}>{run.state}</Badge>
+                {(run.state === 'completed' || run.state === 'failed' || run.state === 'cancelled') && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(run)}
+                    aria-label={`Remove ${run.source.name} from this extraction`}
+                    style={{ ...ghostBtn(), padding: '4px 8px', fontSize: 11 }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
 }
 
 const citationLink: React.CSSProperties = {
@@ -409,6 +708,9 @@ function PaperCandidateRow({
   const showOpen = isClinicalActionable(variant) && Boolean(variantReportHref(variant))
   const showSave = canSaveVariant(variant)
   const repSaved = savedKeys.has(variantKey(variant))
+  const repParsed = variantToParsed(variant)
+  const batchParsed = isClinicalActionable(variant) ? repParsed : null
+  const workbenchHref = paperWorkbenchHref(canonicalPaperVariant(variant))
   const multiPaper = merged.sources.length > 1
   const resolverNotes = [...variant.resolver_warnings, ...variant.resolver_provenance]
   // Saveable rows are draggable straight into the WorkRail library box.
@@ -505,7 +807,7 @@ function PaperCandidateRow({
         </div>
       )}
 
-      {(showOpen || showSave) && !hasRecommendations && (
+      {(showOpen || showSave || workbenchHref || batchParsed) && !hasRecommendations && (
         <div className="mt-3.5 flex flex-wrap gap-2">
           {showOpen && (
             <button type="button" onClick={() => onOpenReport(variant)} style={primaryBtn(true)}>
@@ -515,6 +817,23 @@ function PaperCandidateRow({
           {showSave && (
             <button type="button" disabled={repSaved} onClick={() => onAddVariant(variant)} style={ghostBtn()}>
               {repSaved ? 'In library ✓' : '+ Library'}
+            </button>
+          )}
+          {workbenchHref && (
+            <button type="button" onClick={() => router.push(workbenchHref)} style={ghostBtn()}>
+              Open Workbench
+            </button>
+          )}
+          {batchParsed && (
+            <button
+              type="button"
+              onClick={() => {
+                stashCompareVariants([batchParsed], `Paper · ${variant.gene ?? 'variant'}`)
+                router.push('/compare')
+              }}
+              style={ghostBtn()}
+            >
+              Add to Batch
             </button>
           )}
         </div>
@@ -537,6 +856,10 @@ function PaperCandidateRow({
           <div className="flex flex-col gap-2.5">
             {variant.candidates.map((c) => {
               const cSaved = savedKeys.has(candidateKey(c))
+              const parsedCandidate = candidateToParsed(c)
+              const candidateWorkbenchHref = isResearchContext
+                ? null
+                : paperWorkbenchHref(canonicalCandidate(c))
               return (
                 <div key={c.candidate_id} className="flex flex-col gap-1.5">
                   <CandidateCard
@@ -546,15 +869,38 @@ function PaperCandidateRow({
                       if (href) router.push(href)
                     }}
                   />
-                  {candidateToParsed(c) && (
-                    <button
-                      type="button"
-                      disabled={cSaved}
-                      onClick={() => onAddCandidate(c)}
-                      style={{ ...ghostBtn(), alignSelf: 'flex-start', padding: '5px 11px', fontSize: 11.5 }}
-                    >
-                      {cSaved ? 'In library ✓' : '+ Library'}
-                    </button>
+                  {parsedCandidate && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={cSaved}
+                        onClick={() => onAddCandidate(c)}
+                        style={{ ...ghostBtn(), padding: '5px 11px', fontSize: 11.5 }}
+                      >
+                        {cSaved ? 'In library ✓' : '+ Library'}
+                      </button>
+                      {!isResearchContext && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            stashCompareVariants([parsedCandidate], `Paper · ${c.gene}`)
+                            router.push('/compare')
+                          }}
+                          style={{ ...ghostBtn(), padding: '5px 11px', fontSize: 11.5 }}
+                        >
+                          Add to Batch
+                        </button>
+                      )}
+                      {candidateWorkbenchHref && (
+                        <button
+                          type="button"
+                          onClick={() => router.push(candidateWorkbenchHref)}
+                          style={{ ...ghostBtn(), padding: '5px 11px', fontSize: 11.5 }}
+                        >
+                          Open Workbench
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -611,12 +957,23 @@ function PaperCandidateRow({
 
 export function PaperClient() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedRunId = searchParams.get('run_id')
+  const { user, loading: authLoading, getAccessToken } = useAuth()
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<AttachedSource[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<ExtractResult | null>(null)
+  const [sourceRuns, setSourceRuns] = useState<SourceRunRecord[]>([])
+  const [disclosures, setDisclosures] = useState<ProcessingDisclosureV1[]>([])
+  const [acceptedProcessingKey, setAcceptedProcessingKey] = useState<string | null>(null)
+  const [pendingSources, setPendingSources] = useState<AttachedSource[]>([])
+  const [pendingPreserve, setPendingPreserve] = useState(false)
+  const [resumeAfterAuth, setResumeAfterAuth] = useState(false)
+  const [activeRun, setActiveRun] = useState<WorkflowRunV1 | null>(null)
+  const [confirmDeleteRun, setConfirmDeleteRun] = useState(false)
+  const [paperTarget, setPaperTarget] = useState(() => readPaperTarget())
   const [view, setView] = useState<ResultView>('merged')
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set())
   const [collapsedPapers, setCollapsedPapers] = useState<Set<string>>(() => new Set())
@@ -633,9 +990,19 @@ export function PaperClient() {
   const idRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const runSeq = useRef(0)
+  const resumedRunRef = useRef<string | null>(null)
 
-  const totalSources = attachments.length + (text.trim() ? 1 : 0)
-  const canExtract = phase !== 'loading' && totalSources > 0
+  const currentSources = useMemo(() => {
+    const sources: AttachedSource[] = []
+    if (text.trim()) sources.push({ id: 'paste', name: 'Pasted text', kind: 'text', text })
+    sources.push(...attachments)
+    return sources
+  }, [attachments, text])
+  const totalSources = currentSources.length
+  const busy = phase === 'validating' || phase === 'queued' || phase === 'running'
+  const canExtract = !busy && !authLoading && totalSources > 0
+  const result = useMemo(() => resultFromRuns(sourceRuns), [sourceRuns])
 
   const flash = (msg: string) => {
     setToast(msg)
@@ -662,6 +1029,7 @@ export function PaperClient() {
         next.push({ id, name: file.name, kind: 'text', text: content, charCount: content.length })
       }
     }
+    setAcceptedProcessingKey(null)
     setAttachments((prev) => [...prev, ...next])
   }
   const onDrop = (e: React.DragEvent) => {
@@ -669,53 +1037,311 @@ export function PaperClient() {
     setDragActive(false)
     if (e.dataTransfer.files?.length) void addFiles(e.dataTransfer.files)
   }
-  const removeAttachment = (id: string) => setAttachments((prev) => prev.filter((a) => a.id !== id))
+  const removeAttachment = (id: string) => {
+    setAcceptedProcessingKey(null)
+    setAttachments((prev) => prev.filter((attachment) => attachment.id !== id))
+    setSourceRuns((prev) => prev.filter((run) => run.source.id !== id))
+  }
 
-  const run = async () => {
+  const executeSources = useCallback(async (
+    sources: AttachedSource[],
+    token: string,
+    processingConsent: boolean,
+    runDisclosures: ProcessingDisclosureV1[],
+    preserve: boolean,
+  ) => {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
-    setPhase('loading')
+    const sequence = runSeq.current + 1
+    runSeq.current = sequence
+    const targetIds = new Set(sources.map((source) => source.id))
+    const baseRuns = preserve
+      ? sourceRuns.filter((record) => !targetIds.has(record.source.id))
+      : []
+    const queued = sources.map<SourceRunRecord>((source) => ({ source, state: 'queued' }))
+    setSourceRuns([...baseRuns, ...queued])
+    setPhase('queued')
     setError(null)
 
-    const sources: AttachedSource[] = []
-    if (text.trim()) sources.push({ id: 'paste', name: 'Pasted text', kind: 'text', text })
-    sources.push(...attachments)
-
-    try {
-      const tagged: Array<{ source: string; v: ValidatedPaperVariant }> = []
-      const bySource: SourceGroup[] = []
-      const warnings: string[] = []
-      const provenance = new Set<string>()
-      let mock = false
-
-      for (const src of sources) {
-        const res: PaperVariantsResponse =
-          src.kind === 'pdf'
-            ? await extractPaperVariants({ pdf: src.file, sourceName: src.name }, { signal: controller.signal })
-            : await extractPaperVariants({ text: src.text ?? '', sourceName: src.name }, { signal: controller.signal })
-        if (isMockResponse(res)) mock = true
-        res.variants.forEach((v) => tagged.push({ source: src.name, v }))
-        res.warnings.forEach((w) => warnings.push(`${src.name}: ${w}`))
-        res.provenance.forEach((p) => provenance.add(p))
-        bySource.push({
-          name: src.name,
-          kind: src.kind,
-          pdf: res.pdf,
-          metadata: res.source_metadata,
-          variants: res.variants,
-        })
+    const outcomes = new Map<string, SourceRunRecord>()
+    let cursor = 0
+    const updateRecord = (id: string, patch: Partial<SourceRunRecord>) => {
+      setSourceRuns((prev) =>
+        prev.map((record) => (record.source.id === id ? { ...record, ...patch } : record)),
+      )
+    }
+    const worker = async () => {
+      while (cursor < sources.length && !controller.signal.aborted) {
+        const source = sources[cursor]
+        cursor += 1
+        const disclosure =
+          runDisclosures.find((item) => item.input_classes.includes(sourceInputClass(source))) ?? null
+        updateRecord(source.id, { state: 'running', disclosure: disclosure ?? undefined })
+        setPhase('running')
+        let workflowRunId: string | undefined
+        try {
+          const response = await extractPaperVariants(
+            source.kind === 'pdf'
+              ? { pdf: source.file, sourceName: source.name }
+              : { text: source.text ?? '', sourceName: source.name },
+            {
+              signal: controller.signal,
+              accessToken: token,
+              processingConsent,
+              onWorkflowRunId: (runId) => {
+                workflowRunId = runId
+              },
+            },
+          )
+          const completed: SourceRunRecord = {
+            source,
+            state: 'completed',
+            response,
+            runId: workflowRunId,
+            disclosure: disclosure ?? undefined,
+          }
+          outcomes.set(source.id, completed)
+          updateRecord(source.id, completed)
+        } catch (caught) {
+          if (caught instanceof DOMException && caught.name === 'AbortError') {
+            const cancelled: SourceRunRecord = { source, state: 'cancelled' }
+            outcomes.set(source.id, cancelled)
+            updateRecord(source.id, cancelled)
+            continue
+          }
+          const failed: SourceRunRecord = {
+            source,
+            state: 'failed',
+            error: safePaperError(caught),
+            disclosure: disclosure ?? undefined,
+          }
+          outcomes.set(source.id, failed)
+          updateRecord(source.id, failed)
+        }
       }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(PAPER_CONCURRENCY, sources.length) }, () => worker()),
+    )
+    if (runSeq.current !== sequence) return
 
-      setResult({ tagged, bySource, warnings, provenance: [...provenance], mock })
-      setSavedKeys(new Set())
-      setPhase('ready')
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(err instanceof Error ? err.message : 'Extraction failed')
-      setPhase('error')
+    for (const source of sources) {
+      if (!outcomes.has(source.id)) {
+        outcomes.set(source.id, { source, state: 'cancelled' })
+      }
+    }
+    const combined = [
+      ...baseRuns,
+      ...sources.map((source) => outcomes.get(source.id) ?? { source, state: 'cancelled' as const }),
+    ]
+    setSourceRuns(combined)
+    if (controller.signal.aborted) {
+      setPhase('cancelled')
+      return
+    }
+    const completedCount = combined.filter((record) => record.state === 'completed').length
+    const failedCount = combined.filter((record) => record.state === 'failed').length
+    setSavedKeys(new Set())
+    if (completedCount === 0) {
+      setError(combined.find((record) => record.error)?.error ?? 'Paper extraction failed.')
+      setPhase('failed')
+    } else if (failedCount > 0) {
+      setPhase('partial')
+    } else {
+      const hasCandidates = combined.some((record) => (record.response?.variants.length ?? 0) > 0)
+      setPhase(hasCandidates ? 'completed' : 'empty')
+    }
+  }, [sourceRuns])
+
+  const beginRun = useCallback(async (
+    sources: AttachedSource[] = currentSources,
+    preserve = false,
+  ) => {
+    if (sources.length === 0) return
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setPhase('validating')
+    setError(null)
+    setPendingSources(sources)
+    setPendingPreserve(preserve)
+    const token = await getAccessToken()
+    if (!token) {
+      setResumeAfterAuth(true)
+      setPhase('auth_required')
+      openAuthMenu()
+      return
+    }
+    setResumeAfterAuth(false)
+    try {
+      const inputClasses = [...new Set(sources.map(sourceInputClass))]
+      const nextDisclosures = await Promise.all(
+        inputClasses.map((inputClass) =>
+          getPaperProcessingDisclosure(inputClass, {
+            accessToken: token,
+            signal: controller.signal,
+          }),
+        ),
+      )
+      setDisclosures(nextDisclosures)
+      const key = processingKey(nextDisclosures)
+      const consentRequired = nextDisclosures.some((item) => item.consent_required)
+      if (consentRequired && acceptedProcessingKey !== key) {
+        setPhase('consent_required')
+        return
+      }
+      await executeSources(sources, token, consentRequired, nextDisclosures, preserve)
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === 'AbortError') return
+      const message = safePaperError(caught)
+      setError(message)
+      if (
+        caught instanceof PaperRequestError &&
+        (caught.code === 'auth_required' || caught.code === 'auth_expired')
+      ) {
+        setResumeAfterAuth(true)
+        setPhase('auth_required')
+        openAuthMenu()
+      } else {
+        setPhase('failed')
+      }
+    }
+  }, [acceptedProcessingKey, currentSources, executeSources, getAccessToken])
+
+  useEffect(() => {
+    if (!resumeAfterAuth || !user || phase !== 'auth_required' || pendingSources.length === 0) return
+    window.queueMicrotask(() => void beginRun(pendingSources, pendingPreserve))
+  }, [beginRun, pendingPreserve, pendingSources, phase, resumeAfterAuth, user])
+
+  const acceptAndContinue = async () => {
+    const key = processingKey(disclosures)
+    setAcceptedProcessingKey(key)
+    const token = await getAccessToken()
+    if (!token) {
+      setResumeAfterAuth(true)
+      setPhase('auth_required')
+      openAuthMenu()
+      return
+    }
+    await executeSources(pendingSources, token, true, disclosures, pendingPreserve)
+  }
+
+  const cancelCurrentRun = () => {
+    runSeq.current += 1
+    abortRef.current?.abort()
+    setSourceRuns((prev) =>
+      prev.map((record) =>
+        record.state === 'queued' || record.state === 'running'
+          ? { ...record, state: 'cancelled' }
+          : record,
+      ),
+    )
+    setPhase('cancelled')
+  }
+
+  const retryFailedSources = () => {
+    const failed = sourceRuns
+      .filter((record) => record.state === 'failed' || record.state === 'cancelled')
+      .map((record) => record.source)
+    void beginRun(failed, true)
+  }
+
+  const removeSourceRun = async (record: SourceRunRecord) => {
+    if (record.runId) {
+      const token = await getAccessToken()
+      if (!token) {
+        setPhase('auth_required')
+        openAuthMenu()
+        return
+      }
+      try {
+        await deletePaperRun(record.runId, { accessToken: token })
+      } catch (caught) {
+        setError(safePaperError(caught))
+        setPhase('failed')
+        return
+      }
+    }
+    setSourceRuns((prev) => prev.filter((run) => run.source.id !== record.source.id))
+    if (record.source.id === 'paste') setText('')
+    else setAttachments((prev) => prev.filter((source) => source.id !== record.source.id))
+    if (sourceRuns.every((run) => run.source.id === record.source.id)) {
+      setActiveRun(null)
+      setConfirmDeleteRun(false)
+      setError(null)
+      setPhase('idle')
     }
   }
+
+  useEffect(() => {
+    if (!requestedRunId || authLoading || resumedRunRef.current === requestedRunId) return
+    if (!user) {
+      window.queueMicrotask(() => {
+        setPhase('auth_required')
+        setResumeAfterAuth(false)
+        openAuthMenu()
+      })
+      return
+    }
+    resumedRunRef.current = requestedRunId
+    const controller = new AbortController()
+    abortRef.current = controller
+    void (async () => {
+      await Promise.resolve()
+      if (controller.signal.aborted) return
+      setPhase('validating')
+      const token = await getAccessToken()
+      if (!token) throw new PaperRequestError('Sign in to resume this Paper run.', { code: 'auth_required' })
+      let run = await getPaperRun(requestedRunId, { accessToken: token, signal: controller.signal })
+      setActiveRun(run)
+      while (run.status === 'queued' || run.status === 'running') {
+        setPhase(run.status)
+        await waitForPaperPoll(controller.signal, 1800)
+        run = await getPaperRun(requestedRunId, { accessToken: token, signal: controller.signal })
+        setActiveRun(run)
+      }
+      if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'failed') {
+        setPhase(run.status)
+        return
+      }
+      const response = await getPaperRunResult(requestedRunId, {
+        accessToken: token,
+        signal: controller.signal,
+      })
+      const source: AttachedSource = {
+        id: `run-${run.run_id}`,
+        name: response.source_metadata?.title ?? 'Saved Paper extraction',
+        kind: response.pdf ? 'pdf' : 'text',
+      }
+      setDisclosures(run.processing_disclosure ? [run.processing_disclosure] : [])
+      setSourceRuns([
+        {
+          source,
+          state: 'completed',
+          response,
+          runId: run.run_id,
+          disclosure: run.processing_disclosure ?? undefined,
+        },
+      ])
+      setPhase(run.status === 'partial' ? 'partial' : response.variants.length ? 'completed' : 'empty')
+    })().catch((caught: unknown) => {
+      if (caught instanceof DOMException && caught.name === 'AbortError') return
+      resumedRunRef.current = null
+      const message = safePaperError(caught)
+      setError(message)
+      if (
+        caught instanceof PaperRequestError &&
+        (caught.code === 'auth_required' || caught.code === 'auth_expired')
+      ) {
+        setPhase('auth_required')
+        openAuthMenu()
+      } else {
+        setPhase('failed')
+      }
+    })
+    return () => controller.abort()
+  }, [authLoading, getAccessToken, requestedRunId, user])
 
   const merged = useMemo(() => (result ? mergeVariants(result.tagged) : []), [result])
   const counts = useMemo(() => {
@@ -790,6 +1416,45 @@ export function PaperClient() {
     stashCompareVariants(parsed, 'Paper extraction')
     router.push('/compare')
   }
+  const cancelSavedRun = async () => {
+    if (!activeRun) return
+    const token = await getAccessToken()
+    if (!token) {
+      setPhase('auth_required')
+      openAuthMenu()
+      return
+    }
+    try {
+      const cancelled = await cancelPaperRun(activeRun.run_id, { accessToken: token })
+      setActiveRun(cancelled)
+      setPhase('cancelled')
+    } catch (caught) {
+      setError(safePaperError(caught))
+      setPhase('failed')
+    }
+  }
+  const deleteSavedRun = async () => {
+    if (!activeRun) return
+    const token = await getAccessToken()
+    if (!token) {
+      setPhase('auth_required')
+      openAuthMenu()
+      return
+    }
+    try {
+      await deletePaperRun(activeRun.run_id, { accessToken: token })
+      setActiveRun(null)
+      setConfirmDeleteRun(false)
+      setSourceRuns([])
+      setDisclosures([])
+      setPhase('idle')
+      router.replace('/paper')
+      flash('Paper run deleted')
+    } catch (caught) {
+      setError(safePaperError(caught))
+      setPhase('failed')
+    }
+  }
   const exportTsv = () => {
     if (!merged.length) return
     downloadTextFile('paper-variants.tsv', mergedToTsv(merged), 'text/tab-separated-values')
@@ -811,6 +1476,75 @@ export function PaperClient() {
           allele becomes a clinical action. Save any to the library on the left to open in a report later.
         </p>
       </header>
+
+      {paperTarget && (
+        <section
+          className="mt-4 flex flex-wrap items-center justify-between gap-3"
+          aria-label="Paper variant target"
+          style={{
+            border: '0.5px solid var(--teal-bdr)',
+            borderRadius: 10,
+            background: 'var(--teal-tint)',
+            padding: '10px 12px',
+          }}
+        >
+          <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+            Finding mentions of <strong>{paperTarget.variant.gene} {paperTarget.variant.cdna}</strong>
+            <span style={{ display: 'block', marginTop: 3, color: 'var(--ink-4)' }}>
+              Target carried from another surface. No publication text was prefilled.
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              clearPaperTarget()
+              setPaperTarget(null)
+            }}
+            style={ghostBtn()}
+          >
+            Discard target
+          </button>
+        </section>
+      )}
+
+      {activeRun && (
+        <section
+          className="mt-4 flex flex-wrap items-center justify-between gap-3"
+          aria-label="Saved Paper run"
+          style={{
+            border: '0.5px solid var(--line)',
+            borderRadius: 10,
+            background: 'var(--bg)',
+            padding: '10px 12px',
+          }}
+        >
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            Saved run · <strong style={{ color: 'var(--ink-2)' }}>{formatToken(activeRun.status)}</strong>
+            {' · '}{new Date(activeRun.updated_at).toLocaleString()}
+          </span>
+          <span className="flex flex-wrap items-center gap-2">
+            {(activeRun.status === 'queued' || activeRun.status === 'running') && (
+              <button type="button" onClick={() => void cancelSavedRun()} style={ghostBtn()}>
+                Cancel run
+              </button>
+            )}
+            {confirmDeleteRun ? (
+              <>
+                <button type="button" onClick={() => setConfirmDeleteRun(false)} style={ghostBtn()}>
+                  Keep run
+                </button>
+                <button type="button" onClick={() => void deleteSavedRun()} style={ghostBtn()}>
+                  Confirm delete
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmDeleteRun(true)} style={ghostBtn()}>
+                Delete run
+              </button>
+            )}
+          </span>
+        </section>
+      )}
 
       {/* Input zone */}
       <section
@@ -901,7 +1635,10 @@ export function PaperClient() {
 
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setAcceptedProcessingKey(null)
+            setText(e.target.value)
+          }}
           placeholder="…or paste publication text here (abstract, results, methods)"
           aria-label="Paste publication text"
           rows={5}
@@ -921,23 +1658,112 @@ export function PaperClient() {
         />
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <span className="eamos-mock" title={MOCK_TIP}>
-            Mock extraction
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {disclosures.length > 0 ? (
+              disclosures.map((item) => (
+                <Badge
+                  key={`${item.provider_id}-${item.input_classes.join('-')}`}
+                  tone={item.execution === 'external_provider' ? 'var(--warn-text)' : 'var(--teal-deep)'}
+                >
+                  {disclosureExecutionLabel(item)} · {item.provider_label}
+                </Badge>
+              ))
+            ) : (
+              <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>
+                Auth and processing details are checked before upload
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             {totalSources > 0 && (
               <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
                 {totalSources} source{totalSources === 1 ? '' : 's'} ready
               </span>
             )}
-            <button type="button" disabled={!canExtract} onClick={run} style={primaryBtn(canExtract)}>
-              {phase === 'loading' ? 'Extracting…' : 'Extract →'}
+            {busy && (
+              <button type="button" onClick={cancelCurrentRun} style={ghostBtn()}>
+                Cancel
+              </button>
+            )}
+            <button type="button" disabled={!canExtract} onClick={() => void beginRun()} style={primaryBtn(canExtract)}>
+              {phase === 'validating'
+                ? 'Checking…'
+                : phase === 'queued' || phase === 'running'
+                  ? 'Extracting…'
+                  : 'Extract →'}
             </button>
           </div>
         </div>
       </section>
 
-      {phase === 'error' && (
+      {phase === 'auth_required' && (
+        <section
+          className="mt-4"
+          role="status"
+          style={{
+            fontSize: 13,
+            color: 'var(--ink-2)',
+            background: 'var(--warn-tint)',
+            border: '0.5px solid var(--warn-bdr)',
+            borderRadius: 10,
+            padding: '14px 16px',
+          }}
+        >
+          <strong style={{ display: 'block', color: 'var(--ink)' }}>Sign in before processing</strong>
+          <span style={{ display: 'block', marginTop: 4 }}>
+            Your attached sources remain staged in this tab. Extraction resumes after sign-in.
+          </span>
+          <button type="button" onClick={openAuthMenu} style={{ ...primaryBtn(true), marginTop: 10 }}>
+            Sign in
+          </button>
+        </section>
+      )}
+
+      {phase === 'consent_required' && disclosures.length > 0 && (
+        <ProcessingDisclosurePanel disclosures={disclosures} onAccept={() => void acceptAndContinue()} />
+      )}
+
+      <SourceRunStatusList
+        runs={sourceRuns}
+        onRetry={retryFailedSources}
+        onRemove={(record) => void removeSourceRun(record)}
+      />
+
+      {phase === 'cancelled' && (
+        <p
+          className="mt-4"
+          role="status"
+          style={{
+            fontSize: 13,
+            color: 'var(--warn-text)',
+            background: 'var(--warn-tint)',
+            border: '0.5px solid var(--warn-bdr)',
+            borderRadius: 10,
+            padding: '12px 14px',
+          }}
+        >
+          Extraction cancelled. Staged sources remain available to retry.
+        </p>
+      )}
+
+      {phase === 'expired' && (
+        <p
+          className="mt-4"
+          role="alert"
+          style={{
+            fontSize: 13,
+            color: 'var(--ink-3)',
+            background: 'var(--bg-soft)',
+            border: '0.5px solid var(--line-2)',
+            borderRadius: 10,
+            padding: '12px 14px',
+          }}
+        >
+          This saved Paper run expired. Its result is no longer available; attach the source again to create a new run.
+        </p>
+      )}
+
+      {phase === 'failed' && error && (
         <p
           className="mt-4"
           role="alert"
@@ -955,8 +1781,24 @@ export function PaperClient() {
       )}
 
       {/* Results */}
-      {result && counts && phase === 'ready' && (
+      {result && counts && (phase === 'completed' || phase === 'partial' || phase === 'empty') && (
         <section className="mt-6">
+          {phase === 'partial' && (
+            <p
+              role="status"
+              style={{
+                margin: '0 0 12px',
+                padding: '10px 12px',
+                borderRadius: 9,
+                border: '0.5px solid var(--warn-bdr)',
+                background: 'var(--warn-tint)',
+                color: 'var(--warn-text)',
+                fontSize: 12.5,
+              }}
+            >
+              Partial result. Completed sources are preserved; retry only the failed sources above.
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h2 style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 650, margin: 0, color: 'var(--ink)' }}>
@@ -967,8 +1809,8 @@ export function PaperClient() {
                 {counts.mentions === 1 ? '' : 's'} · {counts.distinct} distinct · {counts.validated} validated
               </span>
               {result.mock && (
-                <span className="eamos-mock" title={MOCK_TIP}>
-                  Mock
+                <span className="eamos-mock" title={FRONTEND_FIXTURE_TIP}>
+                  Frontend fixture
                 </span>
               )}
             </div>
@@ -1113,6 +1955,11 @@ export function PaperClient() {
                           {heading.byline && (
                             <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 3 }}>{heading.byline}</div>
                           )}
+                          {!s.metadata && (
+                            <div style={{ fontSize: 11.5, color: 'var(--ink-4)', marginTop: 3 }}>
+                              Bibliographic metadata unavailable; filename shown.
+                            </div>
+                          )}
                           <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 5 }}>
                             {heading.pmid && (
                               <a
@@ -1203,9 +2050,20 @@ export function PaperClient() {
                   ))}
                 </div>
                 <div className="mt-3" style={{ fontSize: 11, color: 'var(--ink-4)', lineHeight: 1.6 }}>
-                  Guardrails — patient data not used · raw paper text blocked · secrets blocked. Only the short
-                  evidence quote per candidate is surfaced, never the full paper.
+                  Eamos does not ask for patient records, but publications can contain case or person language.
+                  Only the short evidence quote per candidate is returned to this view, never the full paper body.
                 </div>
+                {disclosures.map((item) => (
+                  <div
+                    key={`${item.provider_id}-${item.input_classes.join('-')}`}
+                    className="mt-2"
+                    style={{ fontSize: 11, color: 'var(--ink-4)', lineHeight: 1.6 }}
+                  >
+                    {item.provider_label}: {disclosureExecutionLabel(item).toLowerCase()} ·{' '}
+                    {item.raw_input_persisted ? 'raw input persisted' : 'raw input not persisted'} ·{' '}
+                    {disclosureRetentionLabel(item).toLowerCase()}.
+                  </div>
+                ))}
               </div>
             )}
           </div>

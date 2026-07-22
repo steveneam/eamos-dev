@@ -49,6 +49,12 @@
   opacity: 0.85;
 }
 
+.cmp-separator:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--teal) 18%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cmp-cta {
     transition: background var(--dur-1, 120ms) ease, border-color var(--dur-1, 120ms) ease;

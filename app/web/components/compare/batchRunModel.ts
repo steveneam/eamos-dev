@@ -128,7 +128,7 @@ export function progressFromError(
     }
     return { ...base, stage: 'failed', error: error.message }
   }
-  const message = error instanceof Error ? error.message : 'Batch lookup failed.'
+  const message = error instanceof Error ? error.message : ''
   if (message === 'Batch lookup is still running') {
     return {
       ...base,
@@ -136,7 +136,11 @@ export function progressFromError(
       error: 'Batch is still running. Try again in a moment, or reduce the cohort size.',
     }
   }
-  return { ...base, stage: 'failed', error: message }
+  return {
+    ...base,
+    stage: 'failed',
+    error: 'Batch lookup failed. Retry the run, or return later if the service remains unavailable.',
+  }
 }
 
 export function isBatchIssue(stage?: BatchProgressStage): boolean {

@@ -1,15 +1,26 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { WorkRailSection } from '@/components/layout/WorkRail'
 import { IconRelated } from '@/components/icons/Icon'
-import { tierFromText } from '@/components/library/tier'
 import { ClassificationBadge } from '@/components/ui/ClassificationBadge'
 import { CARD_ORDER, themeForCallCard } from '@/components/report/CallCardsGrid'
-import { reportHrefForQuery } from '@/lib/variant-search'
-import { getReportView, type VariantViewMetric } from '@/lib/report-views'
-import type { LookupResponse, NearbyVariant } from '@/lib/backend'
+import { useLibrary } from '@/components/library/useLibrary'
+import {
+  buildReportHrefV1,
+  buildWorkbenchHrefV1,
+  type RelatedVariantItemV1,
+  type RelatedVariantRelationshipV1,
+} from '@/lib/backend'
+import {
+  getRelatedVariants,
+  saveCanonicalVariant,
+  sendCanonicalVariantToBatch,
+  stashPaperTarget,
+} from '@/lib/report-workflow'
+import type { LookupResponse } from '@/lib/backend'
 
 const TIER_LABEL_FULL: Record<string, string> = {
   pathogenic: 'Pathogenic',
@@ -18,13 +29,30 @@ const TIER_LABEL_FULL: Record<string, string> = {
   likely_benign: 'Likely benign',
   benign: 'Benign',
 }
-/**
- * Evidence-grounded related-variants feed (Phase 4). Lanes come from data the
- * report already computes: in-gene and same-class rows from
- * locus_context.nearby_variants, plus same-condition rows from
- * associated_conditions. Closed by default (spec §5 guardrail).
- * Design: phase-3-4-design.md §4.
- */
+
+const RELATION_LABEL: Record<RelatedVariantRelationshipV1, string> = {
+  nearby: 'Nearby',
+  same_gene: 'Same gene',
+  same_class: 'Same class',
+  same_condition: 'Same condition',
+}
+
+interface MergedRelated {
+  item: RelatedVariantItemV1
+  relationships: RelatedVariantRelationshipV1[]
+}
+
+function backendReportHref(item: RelatedVariantItemV1): string {
+  const href = item.report_href.trim()
+  if (href.startsWith('/report?') && !href.startsWith('//')) {
+    return href.includes('from=') ? href : `${href}&from=report`
+  }
+  return buildReportHrefV1(item.variant, 'report')
+}
+
+/** Backend-derived related variants only. The former same-condition summary
+ *  rows and frontend reclassification lanes were removed because neither was a
+ *  variant identity that could safely hand off to another surface. */
 export function RelatedVariants({
   data,
   viewMetricsEnabled = true,
@@ -33,208 +61,163 @@ export function RelatedVariants({
   viewMetricsEnabled?: boolean
 }) {
   const router = useRouter()
+  const { variants: savedVariants } = useLibrary()
   const payload = data.report_payload
-  const locus = payload.locus_context
   const header = payload.report_profile?.header
-  const gene = header?.gene ?? locus?.gene ?? payload.variant_summary_rows[0]?.gene ?? null
-  const queriedTier = tierFromText(header?.classification)
-
-  const goReport = (hgvs: string) => {
-    if (!gene) return
-    const href = reportHrefForQuery(`${gene} ${hgvs}`)
-    if (href) router.push(href)
-  }
-
-  const nearby = useMemo(() => locus?.nearby_variants ?? [], [locus])
-  const sameClass = useMemo(
-    () => (queriedTier ? nearby.filter((nv) => nv.classification === queriedTier) : []),
-    [nearby, queriedTier],
-  )
-  const conditions = payload.associated_conditions ?? []
-  const populationAf = payload.report_profile?.population_frequency?.overall?.total?.allele_frequency ?? null
-  const callCards = payload.call_cards?.cards ?? []
-  const railAxisThemes = CARD_ORDER.map((cardId) => {
-    const card = callCards.find((candidate) => candidate.card_id === cardId)
-    return card ? themeForCallCard(card, populationAf) : null
-  })
-  const relatedQueryIds = useMemo(() => {
-    if (!gene) return []
-    return Array.from(new Set(nearby.map((nv) => relatedVariantQueryId(gene, nv))))
-  }, [gene, nearby])
-  const relatedQueryKey = relatedQueryIds.join('\u001f')
-  const [viewMetrics, setViewMetrics] = useState<Record<string, VariantViewMetric | null>>({})
+  const row = payload.variant_summary_rows[0]
+  const transcriptHgvs = row?.transcript_hgvs ?? null
+  const gene = header?.gene ?? row?.gene ?? null
+  const cdna = header?.cdna ?? transcriptHgvs?.split(':').at(-1) ?? null
+  const transcript =
+    header?.transcript ?? (transcriptHgvs?.includes(':') ? transcriptHgvs.split(':')[0] : null)
+  const requestKey = `${gene ?? ''}\u001f${cdna ?? ''}\u001f${transcript ?? ''}`
+  const [state, setState] = useState<
+    | { kind: 'loading' }
+    | { kind: 'ready'; requestKey: string; items: RelatedVariantItemV1[]; warnings: string[] }
+    | { kind: 'error'; requestKey: string }
+  >({ kind: 'loading' })
 
   useEffect(() => {
-    let cancelled = false
-    if (!viewMetricsEnabled || relatedQueryIds.length === 0) return () => {
-      cancelled = true
-    }
-    void Promise.all(
-      relatedQueryIds.map(async (queryId) => [queryId.toLowerCase(), await getReportView(queryId)] as const),
-    ).then((entries) => {
-      if (!cancelled) setViewMetrics(Object.fromEntries(entries))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [relatedQueryKey, relatedQueryIds, viewMetricsEnabled])
+    if (!viewMetricsEnabled || !gene || !cdna) return
+    const controller = new AbortController()
+    void getRelatedVariants({ gene, cdna, transcript }, controller.signal)
+      .then((result) => setState({ kind: 'ready', requestKey, items: result.items, warnings: result.warnings }))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setState({ kind: 'error', requestKey })
+      })
+    return () => controller.abort()
+  }, [cdna, gene, requestKey, transcript, viewMetricsEnabled])
 
-  const hasAny = nearby.length > 0 || conditions.length > 0
-  if (!hasAny) return null
+  const activeState = state.kind !== 'loading' && state.requestKey !== requestKey ? { kind: 'loading' as const } : state
 
-  const nearbyRow = (nv: NearbyVariant, relationLabel: string) => {
-    const clsLabel = nv.classification ? TIER_LABEL_FULL[nv.classification] ?? null : null
-    const queryId = gene ? relatedVariantQueryId(gene, nv) : null
-    const metricKey = queryId?.toLowerCase() ?? ''
-    const metricLoaded = viewMetricsEnabled && metricKey ? Object.prototype.hasOwnProperty.call(viewMetrics, metricKey) : false
-    const metric = metricKey ? viewMetrics[metricKey] ?? null : null
-    return (
-      <button
-        type="button"
-        className="rel-card"
-        key={`${nv.cds_pos}-${nv.hgvs}`}
-        onClick={() => goReport(nv.hgvs)}
-        title={`Open the report for ${gene} ${nv.hgvs}`}
-      >
-        {/* Top — New tag (left) + variant, classification pill (right) */}
-        <div className="rel-card-top">
-          <span className="rel-id">
-            <span className="rel-tag">{relationLabel}</span>
-            <span className="rel-gene">{gene}</span>
-            <span className="rel-cdna">{nv.hgvs}</span>
-          </span>
-          {clsLabel && <ClassificationBadge classification={clsLabel} />}
-        </div>
-        {/* Bottom — views · exact date (left) + 4 axis squares (right) */}
-        <div className="rel-card-bottom">
-          <span className="rel-meta" title={queryId ? `Backend view metadata for ${queryId}` : undefined}>
-            {formatVariantViewMetric(metric, metricLoaded, viewMetricsEnabled)}
-          </span>
-          <span
-            className="rel-chips"
-            role="img"
-            aria-label="Evidence axes: Computational, Clinical, Population, Lab & Functional"
-            title="Evidence axes match the report call cards: Computational, Clinical, Population, Lab & Functional."
-          >
-            {railAxisThemes.map((theme, i) => (
-              <span
-                key={i}
-                className={theme ? 'rel-chip' : 'rel-chip ghost'}
-                style={theme ? { background: theme.bg, borderColor: theme.border } : undefined}
-              />
-            ))}
-          </span>
-        </div>
-      </button>
-    )
+  const items: MergedRelated[] = (() => {
+    if (activeState.kind !== 'ready') return []
+    const merged = new Map<string, MergedRelated>()
+    for (const item of activeState.items) {
+      const existing = merged.get(item.variant.variant_key)
+      if (existing) {
+        if (!existing.relationships.includes(item.relationship)) existing.relationships.push(item.relationship)
+      } else {
+        merged.set(item.variant.variant_key, { item, relationships: [item.relationship] })
+      }
+    }
+    return [...merged.values()]
+  })()
+
+  const openPaper = (item: RelatedVariantItemV1) => {
+    stashPaperTarget(item.variant)
+    router.push('/paper')
+  }
+
+  const openBatch = (item: RelatedVariantItemV1) => {
+    sendCanonicalVariantToBatch(item.variant, 'Related variants')
+    router.push('/compare')
   }
 
   return (
-    <WorkRailSection title="Related variants" icon={<IconRelated size={14} />} defaultOpen={false}>
-      {nearby.length > 0 && (
-        <Lane label="In this gene" count={nearby.length}>
-          {nearby.map((nv) => nearbyRow(nv, 'Gene'))}
-        </Lane>
-      )}
-
-      {sameClass.length > 0 && (
-        <Lane label="Same class · region" count={sameClass.length}>
-          {sameClass.map((nv) => nearbyRow(nv, 'Class'))}
-        </Lane>
-      )}
-
-      {conditions.length > 0 && (
-        <Lane label="Same condition" count={conditions.length}>
-          {conditions.map((c) => (
-            <div className="lib-cond-row" key={c.name}>
-              <span className="cond-n">{c.case_count}</span>
-              <span className="cond-name" title={c.name}>{c.name}</span>
-              <span className="cond-ev">{c.evidence_level}</span>
-            </div>
-          ))}
-        </Lane>
+    <WorkRailSection title="Related variants" icon={<IconRelated size={14} />} defaultOpen={false} meta={items.length}>
+      {!viewMetricsEnabled ? (
+        <p className="lib-guardrail">Related variants are unavailable in the offline fixture.</p>
+      ) : !gene || !cdna ? (
+        <p className="lib-guardrail">A resolved gene and cDNA change are required.</p>
+      ) : activeState.kind === 'loading' ? (
+        <p className="lib-guardrail" role="status">Loading source-backed relationships…</p>
+      ) : activeState.kind === 'error' ? (
+        <p className="lib-guardrail" role="status">Related variants are temporarily unavailable.</p>
+      ) : items.length === 0 ? (
+        <p className="lib-guardrail">No source-backed related variants were returned.</p>
+      ) : (
+        <div className="rel-list">
+          {items.map(({ item, relationships }) => {
+            const variant = item.variant
+            const identity = `${variant.gene} ${variant.cdna}`.toLowerCase()
+            const saved = savedVariants.some((candidate) => candidate.id === identity)
+            const themes = CARD_ORDER.map((cardId) => {
+              const card = item.evidence_axis_summary?.cards.find((candidate) => candidate.card_id === cardId)
+              return card ? themeForCallCard(card) : null
+            })
+            return (
+              <article className="rel-card" key={variant.variant_key}>
+                <Link
+                  className="rel-card-main"
+                  href={backendReportHref(item)}
+                  title={`Open the report for ${variant.gene} ${variant.cdna}`}
+                >
+                  <div className="rel-card-top">
+                    <span className="rel-id">
+                      <span className="rel-gene">{variant.gene}</span>
+                      <span className="rel-cdna">{variant.cdna}</span>
+                    </span>
+                    {item.classification && (
+                      <ClassificationBadge classification={TIER_LABEL_FULL[item.classification]} />
+                    )}
+                  </div>
+                  <div className="rel-card-bottom">
+                    <span className="rel-tags">
+                      {relationships.map((relationship) => (
+                        <span className="rel-tag" key={relationship}>{RELATION_LABEL[relationship]}</span>
+                      ))}
+                    </span>
+                    <span className="rel-chips" aria-label="Available evidence axes">
+                      {themes.map((theme, index) => (
+                        <span
+                          key={CARD_ORDER[index]}
+                          className={theme ? 'rel-chip' : 'rel-chip ghost'}
+                          style={theme ? { background: theme.bg, borderColor: theme.border } : undefined}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                </Link>
+                <div className="rel-actions" aria-label={`Actions for ${variant.gene} ${variant.cdna}`}>
+                  <Link href={buildWorkbenchHrefV1(variant, { tool: 'viewer' })}>Workbench</Link>
+                  <button type="button" onClick={() => openPaper(item)}>Papers</button>
+                  <button type="button" onClick={() => openBatch(item)}>Batch</button>
+                  <button
+                    type="button"
+                    disabled={saved}
+                    onClick={() => saveCanonicalVariant(variant, item.classification)}
+                  >
+                    {saved ? 'Saved' : 'Save'}
+                  </button>
+                </div>
+                <p className="rel-source">
+                  {item.source_disclosure.provider_label} · {item.source_disclosure.source_status}
+                </p>
+              </article>
+            )
+          })}
+          {activeState.kind === 'ready' && activeState.warnings.length > 0 && (
+            <p className="lib-guardrail">Some related records carry source warnings.</p>
+          )}
+        </div>
       )}
 
       <p className="lib-guardrail">
-        Suggestions are based on real genomic relationships in this report — shared gene, condition,
-        genomic region, or variant class — not popularity.
+        Relationships and evidence axes come from the typed backend response. They are not popularity rankings.
       </p>
 
       <style>{`
-        .rel-card {
-          display: block; width: 100%; text-align: left;
-          border: 0.5px solid var(--line);
-          border-radius: var(--r-md);
-          background: var(--bg);
-          padding: 9px 11px;
-          margin-bottom: 7px;
-          box-shadow: var(--elev-1);
-          cursor: pointer;
-          font: inherit;
-          transition: border-color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard);
-        }
-        .rel-card:hover { border-color: var(--ink-5); box-shadow: var(--elev-2); }
-        .rel-card:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(29,158,117,0.14); border-color: var(--teal); }
-        .rel-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .rel-id { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-        .rel-tag {
-          flex-shrink: 0;
-          font-size: 8.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-          color: var(--teal-deep); background: var(--teal-tint);
-          border: 0.5px solid var(--teal-bdr); border-radius: 4px;
-          padding: 1px 5px;
-        }
-        .rel-gene { font-family: var(--body); font-size: 12.5px; font-weight: 600; color: var(--ink); flex-shrink: 0; }
-        .rel-cdna { font-family: var(--body); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .rel-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; }
-        .rel-meta { font-size: 10.5px; color: var(--ink-4); }
-        .rel-chips { display: inline-flex; gap: 3px; flex-shrink: 0; }
+        .rel-list { display: grid; gap: 8px; }
+        .rel-card { border: 0.5px solid var(--line); border-radius: var(--r-md); background: var(--bg); box-shadow: var(--elev-1); overflow: hidden; }
+        .rel-card-main { display: block; padding: 9px 11px 7px; color: inherit; text-decoration: none; }
+        .rel-card-main:hover { background: var(--bg-soft); }
+        .rel-card-main:focus-visible, .rel-actions a:focus-visible, .rel-actions button:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+        .rel-card-top, .rel-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .rel-id, .rel-tags, .rel-chips { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+        .rel-gene { font-size: 12.5px; font-weight: 650; color: var(--ink); }
+        .rel-cdna { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rel-card-bottom { margin-top: 7px; }
+        .rel-tag { font-size: 8.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--teal-deep); background: var(--teal-tint); border: 0.5px solid var(--teal-bdr); border-radius: 4px; padding: 1px 4px; }
         .rel-chip { width: 10px; height: 10px; border-radius: 2px; border: 1px solid transparent; }
-        .rel-chip.ghost { background: transparent; border: 1px dashed var(--ink-5); }
+        .rel-chip.ghost { background: transparent; border-style: dashed; border-color: var(--ink-5); }
+        .rel-actions { display: flex; flex-wrap: wrap; border-top: 0.5px solid var(--line); }
+        .rel-actions a, .rel-actions button { min-height: 44px; flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; padding: 5px 7px; border: 0; border-right: 0.5px solid var(--line); background: transparent; color: var(--ink-3); font: 600 10.5px var(--body); text-decoration: none; cursor: pointer; }
+        .rel-actions a:hover, .rel-actions button:hover:not(:disabled) { background: var(--bg-soft); color: var(--ink); }
+        .rel-actions button:disabled { color: var(--ink-5); cursor: default; }
+        .rel-source { margin: 0; padding: 5px 9px; background: var(--bg-soft); color: var(--ink-4); font-size: 9.5px; }
       `}</style>
     </WorkRailSection>
-  )
-}
-
-function relatedVariantQueryId(gene: string, variant: NearbyVariant): string {
-  return `${gene} ${variant.hgvs}`.trim()
-}
-
-function formatVariantViewMetric(
-  metric: VariantViewMetric | null,
-  loaded: boolean,
-  enabled: boolean,
-): string {
-  if (!enabled) return 'Views unavailable · Updated unavailable'
-  if (!loaded) return 'Views loading · Updated loading'
-  if (!metric) return 'Views unavailable · Updated unavailable'
-  const views = `${metric.view_count.toLocaleString()} ${metric.view_count === 1 ? 'view' : 'views'}`
-  const updated = metric.last_viewed ? `Updated ${formatDate(metric.last_viewed)}` : 'Updated unavailable'
-  return `${views} · ${updated}`
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function Lane({ label, count, children }: { label: string; count: number; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="lib-lane" data-open={open ? 'true' : 'false'}>
-      <button type="button" className="lib-lane-head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="lib-lane-chev" aria-hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width="11" height="11">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </span>
-        <span className="lib-lane-label">{label}</span>
-        <span className="lib-count">{count}</span>
-      </button>
-      <div className="lib-lane-body">
-        <div className="lib-lane-rows">{children}</div>
-      </div>
-    </div>
   )
 }

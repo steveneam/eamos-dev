@@ -1,15 +1,15 @@
 import type {
   PaperSourceMetadata,
   PaperVariantsResponse,
+  ProcessingDisclosureV1,
   SearchInputCandidate,
   ValidatedPaperVariant,
+  WorkflowRunV1,
 } from './backend'
 
-// Paper → variants client. The backend HTTP route is CLI-only today
-// (eamos_paper_variants.py), so this renders the .eamos-mock fixture below until
-// Codex ships `POST /api/v1/paper-variants/extract`, then swaps to live with no
-// shape change. next.config.ts rewrites `/api/*` to the FastAPI dev server.
-// Set NEXT_PUBLIC_API_BASE_URL to an absolute origin to call a remote backend.
+// Paper → variants client. next.config.ts rewrites `/api/*` to FastAPI in
+// local development. Set NEXT_PUBLIC_API_BASE_URL to an absolute origin to call
+// a remote backend.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? ''
 
 export interface PaperExtractInput {
@@ -23,6 +23,65 @@ export interface PaperExtractInput {
   sourceName?: string
 }
 
+export type PaperRequestErrorCode =
+  | 'auth_required'
+  | 'auth_expired'
+  | 'consent_required'
+  | 'validation'
+  | 'rate_limited'
+  | 'timeout'
+  | 'unavailable'
+  | 'request_failed'
+
+/**
+ * Safe, presentation-ready failure from the Paper API boundary. Response
+ * bodies are deliberately not copied into this error: they can contain
+ * validation internals, request fragments, or framework JSON that does not
+ * belong in the product surface.
+ */
+export class PaperRequestError extends Error {
+  readonly code: PaperRequestErrorCode
+  readonly status?: number
+
+  constructor(message: string, options: { code: PaperRequestErrorCode; status?: number }) {
+    super(message)
+    this.name = 'PaperRequestError'
+    this.code = options.code
+    this.status = options.status
+    Object.setPrototypeOf(this, PaperRequestError.prototype)
+  }
+}
+
+export interface PaperExtractOptions {
+  signal?: AbortSignal
+  /** Current verified Supabase session token. Never place it in a URL or log. */
+  accessToken?: string | null
+  /** Explicit fixture mode for local demos/tests. Network failures never enable it. */
+  fixture?: boolean
+  /** Sent only after the user accepts the server-issued disclosure. */
+  processingConsent?: boolean
+  /** Receives the safe opaque run id returned in the response header. */
+  onWorkflowRunId?: (runId: string) => void
+}
+
+export type PaperInputClass = 'paper_text' | 'pdf'
+
+export interface PaperRunPage {
+  runs: WorkflowRunV1[]
+  nextCursor: string | null
+  total: number | null
+}
+
+const OPAQUE_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/
+const SPREADSHEET_FORMULA_PREFIX = /^[=+\-@]/
+
+/** Flatten one TSV field and force formula-looking values to remain text when
+ * opened in spreadsheet software. Publication-derived fields are untrusted. */
+export function sanitizeTsvCell(value: string): string {
+  const flattened = value.replace(/[\t\r\n]+/g, ' ')
+  return SPREADSHEET_FORMULA_PREFIX.test(flattened) ? `'${flattened}` : flattened
+}
+
 /** True when the response came from the local .eamos-mock fixture rather than a
  *  live extraction — drives the "Mock" marker on the surface. */
 export function isMockResponse(res: PaperVariantsResponse): boolean {
@@ -31,8 +90,17 @@ export function isMockResponse(res: PaperVariantsResponse): boolean {
 
 export async function extractPaperVariants(
   input: PaperExtractInput,
-  init: { signal?: AbortSignal } = {},
+  options: PaperExtractOptions = {},
 ): Promise<PaperVariantsResponse> {
+  if (options.fixture) return mockResponse(input)
+
+  const token = options.accessToken?.trim()
+  if (!token) {
+    throw new PaperRequestError('Sign in before extracting variants from a publication.', {
+      code: 'auth_required',
+    })
+  }
+
   try {
     let response: Response
     if (input.pdf) {
@@ -40,31 +108,229 @@ export async function extractPaperVariants(
       form.append('pdf', input.pdf)
       response = await fetch(`${API_BASE_URL}/api/v1/paper-variants/extract`, {
         method: 'POST',
+        headers: paperHeaders(token, options.processingConsent),
         body: form,
-        signal: init.signal,
+        signal: options.signal,
       })
     } else {
       response = await fetch(`${API_BASE_URL}/api/v1/paper-variants/extract`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...paperHeaders(token, options.processingConsent),
+        },
         body: JSON.stringify({ text: input.text ?? '' }),
-        signal: init.signal,
+        signal: options.signal,
       })
     }
-    // Route not built yet (CLI-only) → render the mock fixture. 404 = no route,
-    // 501 = explicitly not-implemented. Swaps to live the moment Codex ships it.
-    if (response.status === 404 || response.status === 501) {
-      return mockResponse(input)
-    }
     if (!response.ok) {
-      throw new Error((await response.text()) || `Request failed with status ${response.status}`)
+      throw paperErrorForStatus(response.status)
     }
+    const runId = response.headers.get('X-Workflow-Run-Id')?.trim()
+    if (runId && OPAQUE_RUN_ID.test(runId)) options.onWorkflowRunId?.(runId)
     return (await response.json()) as PaperVariantsResponse
   } catch (err) {
-    // Backend unreachable (fetch throws TypeError) → mock-first fallback.
-    if (err instanceof TypeError) return mockResponse(input)
+    if (err instanceof PaperRequestError) throw err
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    if (err instanceof TypeError) {
+      throw new PaperRequestError(
+        'Paper extraction is unavailable. Check your connection, then try again.',
+        { code: 'unavailable' },
+      )
+    }
     throw err
   }
+}
+
+export async function listPaperRuns(
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'> & {
+    limit?: number
+    cursor?: string | null
+  },
+): Promise<PaperRunPage> {
+  const params = new URLSearchParams({ limit: String(options.limit ?? 20) })
+  if (options.cursor) params.set('cursor', options.cursor)
+  const response = await paperFetch(`/api/v1/paper-variants/runs?${params.toString()}`, options)
+  const runs = (await response.json()) as WorkflowRunV1[]
+  const totalHeader = response.headers.get('X-Total-Count')
+  const parsedTotal = totalHeader == null ? null : Number.parseInt(totalHeader, 10)
+  return {
+    runs,
+    nextCursor: response.headers.get('X-Next-Cursor'),
+    total: parsedTotal != null && Number.isFinite(parsedTotal) ? parsedTotal : null,
+  }
+}
+
+export async function getPaperRun(
+  runId: string,
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'>,
+): Promise<WorkflowRunV1> {
+  const response = await paperFetch(
+    `/api/v1/paper-variants/runs/${encodeRunId(runId)}`,
+    options,
+  )
+  return (await response.json()) as WorkflowRunV1
+}
+
+export async function getPaperRunResult(
+  runId: string,
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'>,
+): Promise<PaperVariantsResponse> {
+  const response = await paperFetch(
+    `/api/v1/paper-variants/runs/${encodeRunId(runId)}/result`,
+    options,
+  )
+  return (await response.json()) as PaperVariantsResponse
+}
+
+export async function cancelPaperRun(
+  runId: string,
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'>,
+): Promise<WorkflowRunV1> {
+  const response = await paperFetch(
+    `/api/v1/paper-variants/runs/${encodeRunId(runId)}/cancel`,
+    options,
+    { method: 'POST' },
+  )
+  return (await response.json()) as WorkflowRunV1
+}
+
+export async function deletePaperRun(
+  runId: string,
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'>,
+): Promise<void> {
+  await paperFetch(`/api/v1/paper-variants/runs/${encodeRunId(runId)}`, options, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * Fetch the server-authoritative processing posture before any publication
+ * body is uploaded. Provider choice is derived from trusted server settings;
+ * the browser supplies only the bounded input class.
+ */
+export async function getPaperProcessingDisclosure(
+  inputClass: PaperInputClass,
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'> = {},
+): Promise<ProcessingDisclosureV1> {
+  const token = options.accessToken?.trim()
+  if (!token) {
+    throw new PaperRequestError('Sign in before extracting variants from a publication.', {
+      code: 'auth_required',
+    })
+  }
+  try {
+    const params = new URLSearchParams({ input_class: inputClass })
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/paper-variants/disclosure?${params.toString()}`,
+      { headers: paperHeaders(token), signal: options.signal },
+    )
+    if (!response.ok) throw paperErrorForStatus(response.status)
+    return (await response.json()) as ProcessingDisclosureV1
+  } catch (err) {
+    if (err instanceof PaperRequestError) throw err
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    if (err instanceof TypeError) {
+      throw new PaperRequestError(
+        'Processing details are unavailable. Check your connection, then try again.',
+        { code: 'unavailable' },
+      )
+    }
+    throw err
+  }
+}
+
+async function paperFetch(
+  path: string,
+  options: Pick<PaperExtractOptions, 'accessToken' | 'signal'>,
+  init: RequestInit = {},
+): Promise<Response> {
+  const token = options.accessToken?.trim()
+  if (!token) {
+    throw new PaperRequestError('Sign in before opening a saved Paper run.', {
+      code: 'auth_required',
+    })
+  }
+  try {
+    const headers = new Headers(init.headers)
+    headers.set('Authorization', `Bearer ${token}`)
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+      signal: options.signal,
+    })
+    if (!response.ok) throw paperErrorForStatus(response.status)
+    return response
+  } catch (err) {
+    if (err instanceof PaperRequestError) throw err
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    if (err instanceof TypeError) {
+      throw new PaperRequestError('Saved Paper runs are unavailable. Check your connection.', {
+        code: 'unavailable',
+      })
+    }
+    throw err
+  }
+}
+
+function encodeRunId(runId: string): string {
+  const normalized = runId.trim()
+  if (!OPAQUE_RUN_ID.test(normalized)) {
+    throw new PaperRequestError('This Paper run link is invalid.', { code: 'validation' })
+  }
+  return encodeURIComponent(normalized)
+}
+
+function paperHeaders(token: string, processingConsent = false): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    ...(processingConsent ? { 'X-Eamos-Processing-Consent': 'true' } : {}),
+  }
+}
+
+function paperErrorForStatus(status: number): PaperRequestError {
+  if (status === 401) {
+    return new PaperRequestError('Your session expired. Sign in again to continue.', {
+      code: 'auth_expired',
+      status,
+    })
+  }
+  if (status === 428) {
+    return new PaperRequestError('Review and accept the processing details before continuing.', {
+      code: 'consent_required',
+      status,
+    })
+  }
+  if (status === 400 || status === 413 || status === 415 || status === 422) {
+    return new PaperRequestError(
+      status === 413
+        ? 'This publication exceeds the upload limit.'
+        : 'Eamos could not accept this publication. Check the file or pasted text, then retry.',
+      { code: 'validation', status },
+    )
+  }
+  if (status === 429) {
+    return new PaperRequestError('Paper extraction is temporarily rate limited. Wait, then retry.', {
+      code: 'rate_limited',
+      status,
+    })
+  }
+  if (status === 504) {
+    return new PaperRequestError('Paper extraction timed out. Retry this source.', {
+      code: 'timeout',
+      status,
+    })
+  }
+  if (status === 404 || status === 501 || status === 503) {
+    return new PaperRequestError('Paper extraction is unavailable in this environment.', {
+      code: 'unavailable',
+      status,
+    })
+  }
+  return new PaperRequestError('Paper extraction failed. Retry this source.', {
+    code: 'request_failed',
+    status,
+  })
 }
 
 // ─── .eamos-mock fixture ────────────────────────────────────────────────
