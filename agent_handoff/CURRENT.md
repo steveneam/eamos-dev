@@ -25,26 +25,21 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** RUNNING @ 2026-07-22 15:21 +0000 — leading Product Workflow Lane D
-  in the isolated `agent/product/workbench-canvas` worktree from
-  `origin/main@24ca1de`.
-- **Product Workflow V1:** A/B/Task F/C are integrated and verified. Steven gave
-  fresh approval for named Lanes D and E. D is the sole active product writer;
-  E remains dependency-locked until D is reviewed, explicitly approved,
-  merged, and verified.
-- **Lane D boundary:** owns only the frozen Workbench app/components/api/lib
-  paths in `plan.md`. Schemas, `backend.ts`, shared layout/global CSS, backend,
-  cloud/provider/source/deploy/Phase-7 state, and cleanup remain excluded.
-- **Production posture:** syd2 through `preview-api.swordfish.cfd` and the
-  Vercel proxy remains authoritative. Render is a non-authoritative free shell,
-  not production capacity or rollback.
-- **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
-  materialization, live providers, new-ruleset activation, and Phase 7 remain
-  held behind their existing gates.
+- **Codex:** WRAPPED @ 2026-07-22 16:38 +0000 — Live Product Completion planning
+  is complete and not launched.
+- **Lane D:** lead-reviewed branch `agent/product/workbench-canvas-review` is in
+  PR #21. All local gates are green; CI/Vercel are running and source-backed
+  browser proof remains required. PR #20 is closed as superseded. No merge.
+- **Mode B:** Steven confirmed that next-session `gogogo` approves Codex to
+  launch and orchestrate the named Contract V2, Workbench, Report, Paper, and
+  Batch agents as dependencies unlock. Merge, material/source, provider/cloud,
+  Supabase, and deploy gates remain separate.
+- **Production posture:** unchanged. No source materialization, live-provider,
+  cloud, deploy, Supabase, or Phase-7 action occurred in this slice.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 15:21 +0000 · Codex
+UNLOCKED · 2026-07-22 16:38 +0000 · Codex
 
 ## Shared File Locks
 
@@ -53,49 +48,37 @@ UNLOCKED · 2026-07-22 15:21 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 15:21 +0000 · Codex Product Workflow Lane D
-Read CURRENT.md, COORDINATION.md, and plans/product-workflow-integration/{plan,spec}.md first.
-Lane D runs alone in .claude/worktrees/product-workbench-canvas from origin/main@24ca1de.
-Its owned globs are the frozen Workbench app/components/api/lib paths in plan.md.
-Exit requires mobile containment, continuous full-gene selection/editing, exact tool binding, exports, a11y, and browser performance.
-Lane E is approved but remains dependency-locked until D is explicitly approved, merged, and verified.
-Commit/push/open D's PR and stop at lead-reviewed green for Steven's merge approval.
-No backend/schema/global-CSS/cloud/provider/source/deploy/Phase-7 action is authorized.
-Preserve watcher-owned FROM-SWORDFISH.md and never stage it.
+# Resume prompt · 2026-07-22 16:38 +0000 · Codex Live Product Mode B
+Read CURRENT.md, COORDINATION.md, and plans/live-product-completion/{research,spec,plan}.md first.
+PR #21 is the lead-reviewed Lane D branch; local gates passed, CI/Vercel and source-backed browser proof remain.
+Inspect PR #21 checks and complete the browser/API gate; never merge without Steven's explicit approval.
+After D merges and verifies, next-session gogogo authorizes Contract V2 and the named W/R/P/B agents as dependencies unlock.
+Contract V2 is serial first; then Codex leads Batch and launches Workbench, Report, and Paper in parallel.
+Do not launch historical Lane E; the final ratchet is re-chartered as product-ratchets-v2 after the stack lands.
+No material/provider/source/cloud/deploy/Supabase action without its separate approval.
+Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Product workflow board: `COORDINATION.md`; frozen implementation contract:
-  `plans/product-workflow-integration/{plan,spec,research}.md`.
-- Lane D worktree: `.claude/worktrees/product-workbench-canvas`; branch:
-  `agent/product/workbench-canvas`; owned paths and exact prompt: `plan.md`.
-- Lane D consumes the integrated `WorkbenchDesignContextV1` and
-  `SelectionRangeV1` contract without editing schema or `backend.ts`.
-- Task F durable receipt: `docs/db/supabase-inventory.md`; Task F is complete
-  and no further Supabase action belongs to D or E.
-- Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
+- Live campaign: `plans/live-product-completion/{research,spec,plan}.md`.
+- Lane D review: PR #21, branch `agent/product/workbench-canvas-review`, worktree
+  `.claude/worktrees/product-workbench-canvas-review`.
+- Product Workflow V1 background: `plans/product-workflow-integration/`.
+- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` remains dirty and untouched.
 
 ## Delta
 
-- Steven's 2026-07-22 “you can do D and E” is the fresh named-lane launch
-  approval for both remaining Product Workflow V1 lanes; their dependency and
-  separate merge gates remain intact.
-- Lane D starts from verified `main@24ca1de` after B, Task F, and C integration.
-  It must extend the existing viewer, not fork one, and prove a distant-exon
-  selection/edit can feed Primer without cropping the full locus.
-- Secure implementation treats URLs, browser persistence, raw sequences,
-  edits, traces, notes, exports, and tool context as sensitive boundaries.
-- Impeccable product-register rules apply: dense clinical instrument, truthful
-  states, accessible interaction, muted sequence palette, and no decorative
-  redesign outside the frozen Workbench scope.
-- E stays pending until the lead merges D with Steven's explicit approval; E
-  then owns only the frozen scripts/docs/CI/root-package ratchet paths.
-- The watcher-owned inbox is dirty from external delivery and remains
-  untouched, un-staged, and outside all lane commits.
+- Planned a universal-free, no-mock completion campaign for Workbench, Variant
+  Report, deterministic Paper extraction, and WES/panel-first Batch.
+- Frozen a serial Contract V2 window, four disjoint engine lanes, later material
+  and runtime waves, one frontend writer, merge order, exact globs, gates, and
+  launch prompts. Steven authorized Codex orchestration on next `gogogo`.
+- Replayed Lane D onto current main, re-ran 251 tests plus type/lint/build and
+  structural guards, opened PR #21, and closed conflicted PR #20.
 
 ## Next Action
 
-- Complete Lane D to a verified, committed, pushed PR-review boundary. Lead-
-  audit its exact scope, contract, browser evidence, security/privacy behavior,
-  and CI; then pause for Steven's explicit merge approval before releasing E.
+- On `gogogo`, finish PR #21's CI and source-backed browser/API proof, pause at
+  its explicit merge gate, then begin the approved Mode B sequence with serial
+  Contract V2 as soon as Lane D is merged and verified.
