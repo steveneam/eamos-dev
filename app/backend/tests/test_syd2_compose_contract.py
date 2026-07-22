@@ -134,3 +134,8 @@ def test_syd2_compose_environment_is_an_exact_placeholder_only_allowlist() -> No
 
     assert not any(key.startswith("SUPABASE_STORAGE_S3_") for key in parsed)
     assert "ADMIN_MATERIALIZATION_TOKEN_SHA256" not in parsed
+    # Batch cursors domain-separate JWT_SECRET, so this deployment does not gain
+    # another mandatory secret. Unapproved Wave 3 normalizer paths also stay absent.
+    assert "BATCH_CURSOR_SIGNING_SECRET" not in parsed
+    assert "BATCH_NORMALIZER_MANIFEST_PATH" not in parsed
+    assert "BATCH_NORMALIZER_MANIFEST_SHA256" not in parsed

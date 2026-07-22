@@ -369,7 +369,7 @@ def test_cli_pdf_ingest(capsys) -> None:
     code = cli.main(["--pdf", str(pdf)])
     assert code == 0
     report = json.loads(capsys.readouterr().out)
-    assert report["pdf"]["engine"] == "pypdf"
+    assert report["pdf"]["engine"] == "pdfium"
     assert report["pdf"]["page_count"] >= 1
     assert report["source_metadata"] is None or report["source_metadata"]["title"]
     assert str(pdf) not in json.dumps(report)
@@ -464,7 +464,7 @@ def test_api_extract_pdf_upload_returns_pdf_meta(auth_client, pdf_bytes: bytes) 
 
     assert response.status_code == 200
     body = response.json()
-    assert body["pdf"]["engine"] == "pypdf"
+    assert body["pdf"]["engine"] == "pdfium"
     assert body["pdf"]["page_count"] >= 1
     assert body["source_metadata"] == {
         "title": "HSIL demo PDF fixture",

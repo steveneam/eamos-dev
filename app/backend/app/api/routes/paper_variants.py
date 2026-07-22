@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.deps import AuthenticatedPrincipal, require_authenticated_principal
 from app.core.rate_limit import RATE_LIMIT_CHAT, enforce_rate_limit
+from app.capabilities.pdf_worker import PdfWorkerDeadlineExceeded, PdfWorkerError
 from app.schemas.paper_variants import (
     PaperVariantsExtractRequest,
     PaperVariantsExtractResponse,
@@ -42,6 +43,7 @@ _CONSENT_HEADER = "X-Eamos-Processing-Consent"
 _UPLOAD_CHUNK_BYTES = 64 * 1024
 _MULTIPART_OVERHEAD_BYTES = 1024 * 1024
 _MAX_JSON_BODY_BYTES = 4_100_000
+_DEFAULT_PDF_TEXT_EXTRACTOR = extract_pdf_text
 
 
 @router.get("/disclosure", response_model=ProcessingDisclosureV1)
@@ -371,7 +373,7 @@ async def _text_from_pdf_upload(
             )
         extracted = await _run_with_deadline(
             request,
-            lambda: extract_pdf_text(
+            lambda: _runtime_pdf_text_extractor(request)(
                 temp_path,
                 engine=request.app.state.settings.pdf_text_engine,
                 limits=PdfTextLimits(max_file_bytes=size_limit),
@@ -400,6 +402,13 @@ async def _text_from_pdf_upload(
         warnings=list(extracted.get("warnings", [])),
     )
     return document, pdf_meta
+
+
+def _runtime_pdf_text_extractor(request: Request):
+    # Tests may replace the module seam with deterministic slow/failure probes.
+    if extract_pdf_text is not _DEFAULT_PDF_TEXT_EXTRACTOR:
+        return extract_pdf_text
+    return getattr(request.app.state, "pdf_text_extractor", extract_pdf_text)
 
 
 def _declared_content_length(request: Request) -> int | None:
@@ -563,6 +572,16 @@ async def _run_with_deadline(
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail=timeout_detail,
+        ) from exc
+    except PdfWorkerDeadlineExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=timeout_detail,
+        ) from exc
+    except PdfWorkerError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="PDF parser worker is unavailable.",
         ) from exc
 
 
