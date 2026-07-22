@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import hmac
 import os
 from pathlib import Path
 
@@ -119,6 +120,11 @@ class Settings(BaseSettings):
     batch_upload_registry_max_entries: int = 128
     batch_job_registry_max_entries: int = 256
     batch_registry_ttl_seconds: int = 3600
+    batch_cursor_signing_secret: str | None = None
+    batch_normalizer_manifest_path: Path | None = None
+    batch_normalizer_manifest_sha256: str | None = None
+    batch_normalizer_timeout_seconds: float = 15.0
+    runtime_build_inventory_path: Path = Path("/app/runtime-component-inventory.json")
 
     llm_provider: str = "mock"
     openai_api_key: str | None = None
@@ -142,6 +148,9 @@ class Settings(BaseSettings):
     paper_variants_pdf_timeout_seconds: float = 10.0
     paper_variants_extract_timeout_seconds: float = 20.0
     paper_variants_max_concurrency: int = 2
+    paper_pdf_worker_memory_mb: int = 1536
+    paper_pdf_worker_cpu_seconds: int = 30
+    paper_pdf_worker_max_output_bytes: int = 16_000_000
 
     # --- AI gateway (variant chat) — docs/ai-gateway/plan.md ---
     # Activated when llm_provider == "gateway"; key env var AI_GATEWAY_API_KEY.
@@ -203,9 +212,9 @@ class Settings(BaseSettings):
     rag_snippet_max_chars: int = 600
 
     # PDF text extraction engine for paper/report ingestion (docs/ai-gateway-paper-variants).
-    # "pypdf" (BSD, default, commercial-safe) | "pdfplumber" (MIT) | "fitz" (PyMuPDF —
-    # fastest, AGPL: needs an Artifex commercial licence for production SaaS use).
-    pdf_text_engine: str = "pypdf"
+    # PDFium is the pinned permissive primary; pypdf remains the typed fallback.
+    # PyMuPDF/fitz stays prohibited pending a separate commercial licence decision.
+    pdf_text_engine: str = "pdfium"
 
     use_real_apis: bool = False
     workbench_live_design_enabled: bool = True
@@ -384,6 +393,13 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [item.strip() for item in self.allowed_origins_raw.split(",") if item.strip()]
+
+    @property
+    def batch_cursor_secret(self) -> bytes:
+        """Return a restart-stable, domain-separated key without exposing its seed."""
+
+        seed = (self.batch_cursor_signing_secret or self.jwt_secret).encode("utf-8")
+        return hmac.digest(seed, b"eamos/batch/snapshot-cursor/v2", "sha256")
 
     @property
     def ai_gateway_provider_order(self) -> list[str]:

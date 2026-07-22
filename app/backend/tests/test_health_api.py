@@ -51,6 +51,33 @@ def test_healthz_returns_mode_flags(client):
     assert body["use_real_apis"] is False
 
 
+def test_runtime_capability_health_reports_executed_and_gated_truth(client) -> None:
+    response = client.get("/api/v1/health/capabilities")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schema_version"] == "runtime_capability_registry.v1"
+    assert body["status"] == "degraded"
+    assert body["core_services_ready"] is True
+    assert body["startup_metrics"]["composition_elapsed_ms"] >= 0
+    assert body["startup_metrics"]["process_peak_rss_bytes"] > 0
+    components = {item["component_id"]: item for item in body["components"]}
+    assert components["service.direct_lookup"]["probe"]["status"] == "passed"
+    assert components["python.primer3"]["probe"]["status"] == "passed"
+    assert components["python.biopython"]["probe"]["status"] == "passed"
+    assert components["python.pysam"]["probe"]["status"] == "passed"
+    assert components["python.pypdfium2"]["probe"]["status"] == "passed"
+    assert components["python.pypdf"]["probe"]["status"] == "passed"
+    assert components["material.paper_corpus"]["launch_posture"] == "gated"
+    capabilities = {item["capability_id"]: item for item in body["capabilities"]}
+    assert capabilities["batch.direct_report_lookup"]["execution"] == "eamos_local"
+    assert capabilities["batch.snapshot_cursor"]["validation_status"] == "validated"
+    assert capabilities["batch.variant_normalization"]["execution"] == "unavailable"
+    assert components["isolation.paper_pdf_worker"]["probe"]["status"] == "passed"
+    assert capabilities["paper.pdf_process_isolation"]["execution"] == "eamos_local"
+    assert "secret" not in json.dumps(body).lower().replace("secret_values_emitted", "")
+
+
 def test_provider_cache_health_returns_sanitized_empty_aggregates(client) -> None:
     response = client.get("/api/v1/health/provider-cache")
     assert response.status_code == 200

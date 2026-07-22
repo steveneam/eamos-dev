@@ -10,7 +10,8 @@ python-dotenv>=1,<2
 langchain-core>=1.2.22,<2
 langchain-openai>=1.1.14,<2
 langchain-text-splitters>=1.1.2,<2
-pypdf>=6.13.3,<7
+pypdf==6.13.3
+pypdfium2==5.12.1
 pytest>=9.0.3,<10
 pytest-xdist>=3,<4
 orjson>=3.10,<4
@@ -21,8 +22,8 @@ reportlab>=4.2,<5
 PyJWT>=2.9,<3
 cryptography>=48.0.1,<49
 argon2-cffi>=23.1,<24
-primer3-py>=2.3,<3
-biopython>=1.84,<2
+primer3-py==2.3.0
+biopython==1.87
 scipy>=1.14,<2
 twobitreader==3.1.8
 numpy>=2,<3; platform_system != "Windows"

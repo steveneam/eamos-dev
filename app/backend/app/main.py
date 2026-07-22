@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from time import perf_counter
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,10 @@ from app.agents.client import (
     build_run_chat_chain,
 )
 from app.api.routes import build_api_router
+from app.capabilities.batch_normalizer import build_batch_normalizer
+from app.capabilities.composition import build_runtime_composition
+from app.capabilities.pdf_worker import PdfTextWorker
+from app.capabilities.router import router as runtime_capabilities_router
 from app.core.config import ensure_runtime_dirs, get_settings
 from app.core.db import build_session_factory, initialize_database
 from app.core.logging import configure_logging, get_logger
@@ -94,6 +99,7 @@ logger = get_logger(__name__)
 
 
 def create_app(settings=None) -> FastAPI:
+    composition_started_at = perf_counter()
     settings = settings or get_settings()
     ensure_runtime_dirs(settings)
     configure_logging(settings.debug)
@@ -118,6 +124,15 @@ def create_app(settings=None) -> FastAPI:
             )
         initialize_database(db_session_factory)
         product_workflow_repo.initialize()
+        batch_service.bind_lookup_service(app.state.lookup_service)
+        app.state.runtime_capability_registry = build_runtime_composition(
+            settings=settings,
+            batch_service=batch_service,
+            lookup_service=app.state.lookup_service,
+            normalizer_runtime=normalizer_runtime,
+            pdf_worker=pdf_worker,
+            composition_started_at=composition_started_at,
+        )
         logger.info("Eamos backend ready at %s:%s", settings.host, settings.port)
         yield
 
@@ -201,8 +216,10 @@ def create_app(settings=None) -> FastAPI:
         source_provider=gene_viewer_source_provider if settings.use_real_apis else None,
     )
 
+    pdf_worker = PdfTextWorker.from_settings(settings)
     panel_service = PanelService()
     runtime_coordinate_resolver = build_runtime_coordinate_resolver(settings)
+    normalizer_runtime = build_batch_normalizer(settings)
     local_evidence_orchestrator = LocalEvidenceOrchestrator(
         coordinate_resolver=runtime_coordinate_resolver
     )
@@ -214,6 +231,8 @@ def create_app(settings=None) -> FastAPI:
         max_job_entries=settings.batch_job_registry_max_entries,
         entry_ttl_seconds=settings.batch_registry_ttl_seconds,
         workflow_service=product_workflow_service,
+        normalizer=normalizer_runtime.normalizer,
+        cursor_secret=settings.batch_cursor_secret,
     )
     search_service = SearchService(search_repo)
     search_index_service = SearchIndexService(search_repo, reports_repo, run_repo)
@@ -244,6 +263,7 @@ def create_app(settings=None) -> FastAPI:
     app.state.gene_viewer_source_client = gene_viewer_source_client
     app.state.gene_viewer_source_provider = gene_viewer_source_provider
     app.state.gene_context_snapshot_service = gene_context_snapshot_service
+    app.state.pdf_text_extractor = pdf_worker.extract
     app.state.panel_service = panel_service
     app.state.runtime_coordinate_resolver = runtime_coordinate_resolver
     app.state.local_evidence_orchestrator = local_evidence_orchestrator
@@ -331,6 +351,7 @@ def create_app(settings=None) -> FastAPI:
     )
 
     app.include_router(build_api_router())
+    app.include_router(runtime_capabilities_router)
     return app
 
 
