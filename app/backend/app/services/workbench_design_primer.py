@@ -13,7 +13,6 @@ from fastapi import status
 
 from app.core.config import Settings
 from app.schemas.workbench import PrimerPair, PrimerRequest, PrimerResponse
-from app.services.dbsnp_local import DbSnpLocalError, DbSnpLocalStore
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 from app.services.workbench_design_common import (
     HTTP_UNPROCESSABLE_ENTITY,
@@ -26,6 +25,16 @@ from app.services.workbench_design_common import (
     _clean_template,
     _reverse_complement,
 )
+from app.services.workbench_design_primer_snp import (
+    NoopPrimerSnpMaskingProvider,
+    PrimerSnpMaskingProvider,
+    PrimerSnpMaskingResult,
+    target_genomic_locus as _target_genomic_locus,
+    template_genomic_coordinate as _template_genomic_coordinate,
+    template_is_genomically_reversed as _template_is_genomically_reversed,
+)
+
+PRIMER_MAX_TEMPLATE_BASES = 20_000
 
 
 @dataclass(frozen=True)
@@ -59,56 +68,6 @@ class PrimerSpecificityResult:
 
 
 @dataclass(frozen=True)
-class PrimerSnpMaskingVariant:
-    rsid: str
-    chrom: str
-    position: int
-    template_offset: int
-    ref: str
-    alts: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class PrimerSnpMaskingResult:
-    requested: bool
-    provider: str
-    active: bool
-    source_version: str | None = None
-    queried_interval: str | None = None
-    variants: tuple[PrimerSnpMaskingVariant, ...] = ()
-    excluded_regions: tuple[tuple[int, int], ...] = ()
-    warnings: tuple[str, ...] = ()
-
-    def seq_args(self) -> dict[str, object]:
-        if not self.active or not self.excluded_regions:
-            return {}
-        return {
-            "SEQUENCE_EXCLUDED_REGION": [[start, length] for start, length in self.excluded_regions]
-        }
-
-    def risk_offsets(self) -> set[int]:
-        offsets: set[int] = set()
-        for start, length in self.excluded_regions:
-            offsets.update(range(start, start + max(1, length)))
-        return offsets
-
-    def note(self, *, rejected_pair_count: int = 0) -> str | None:
-        if not self.requested:
-            return None
-        if not self.active:
-            warning = self.warnings[0] if self.warnings else "primer_snp_masking_unavailable"
-            return f"{warning}: SNP masking was requested but no source-backed mask was applied."
-        interval = self.queried_interval or "unknown interval"
-        source = f"; source={self.source_version}" if self.source_version else ""
-        return (
-            "dbSNP local SNP masking active"
-            f"{source}; queried={interval}; snp_count={len(self.variants)}; "
-            f"excluded_regions={len(self.excluded_regions)}; "
-            f"rejected_3prime_pairs={rejected_pair_count}."
-        )
-
-
-@dataclass(frozen=True)
 class PrimerSecondaryStructureAssessment:
     risk: str
     notes: str
@@ -131,16 +90,6 @@ class PrimerSpecificityProvider(Protocol):
         product_max: int,
         context: SequenceContext,
     ) -> PrimerSpecificityResult: ...
-
-
-class PrimerSnpMaskingProvider(Protocol):
-    def prepare(
-        self,
-        *,
-        payload: PrimerRequest,
-        context: SequenceContext,
-        template: str,
-    ) -> PrimerSnpMaskingResult: ...
 
 
 class TemplateAmpliconSpecificityProvider:
@@ -177,99 +126,6 @@ class TemplateAmpliconSpecificityProvider:
                 intended_hits=intended_hits,
                 product_sizes=product_sizes,
             ),
-        )
-
-
-class NoopPrimerSnpMaskingProvider:
-    def prepare(
-        self,
-        *,
-        payload: PrimerRequest,
-        context: SequenceContext,
-        template: str,
-    ) -> PrimerSnpMaskingResult:
-        return PrimerSnpMaskingResult(
-            requested=bool(payload.avoid_snps),
-            provider="none",
-            active=False,
-            warnings=("primer_snp_masking_not_configured",) if payload.avoid_snps else (),
-        )
-
-
-class LocalDbSnpPrimerSnpMaskingProvider:
-    """Fixture/local dbSNP SNP mask for Primer3 design windows."""
-
-    def __init__(self, store: DbSnpLocalStore | None = None) -> None:
-        self.store = store or DbSnpLocalStore()
-
-    def prepare(
-        self,
-        *,
-        payload: PrimerRequest,
-        context: SequenceContext,
-        template: str,
-    ) -> PrimerSnpMaskingResult:
-        if not payload.avoid_snps:
-            return PrimerSnpMaskingResult(
-                requested=False,
-                provider="dbsnp_local",
-                active=False,
-            )
-        chrom, target_pos = _target_genomic_locus(context)
-        if chrom is None or target_pos is None:
-            return PrimerSnpMaskingResult(
-                requested=True,
-                provider="dbsnp_local",
-                active=False,
-                warnings=("primer_snp_masking_locus_unavailable",),
-            )
-        template_start = target_pos - context.target_offset
-        template_end = template_start + len(template) - 1
-        if template_start < 1 or template_end < template_start:
-            return PrimerSnpMaskingResult(
-                requested=True,
-                provider="dbsnp_local",
-                active=False,
-                warnings=("primer_snp_masking_interval_invalid",),
-            )
-
-        variants: dict[tuple[str, int, str], PrimerSnpMaskingVariant] = {}
-        try:
-            for position in range(template_start, template_end + 1):
-                for record in self.store.records_at(chrom, position):
-                    offset = record.position - template_start
-                    variants[(record.chrom, record.position, record.rsid)] = (
-                        PrimerSnpMaskingVariant(
-                            rsid=record.rsid,
-                            chrom=record.chrom,
-                            position=record.position,
-                            template_offset=offset,
-                            ref=record.ref,
-                            alts=record.alts,
-                        )
-                    )
-        except DbSnpLocalError as exc:
-            return PrimerSnpMaskingResult(
-                requested=True,
-                provider="dbsnp_local",
-                active=False,
-                warnings=(f"primer_snp_masking_{exc.code}",),
-            )
-
-        ordered_variants = tuple(
-            sorted(variants.values(), key=lambda variant: (variant.template_offset, variant.rsid))
-        )
-        excluded_regions = tuple(
-            (variant.template_offset, max(1, len(variant.ref))) for variant in ordered_variants
-        )
-        return PrimerSnpMaskingResult(
-            requested=True,
-            provider="dbsnp_local",
-            active=True,
-            source_version=self.store.provenance().source_version,
-            queried_interval=f"{chrom}:{template_start}-{template_end}",
-            variants=ordered_variants,
-            excluded_regions=excluded_regions,
         )
 
 
@@ -344,13 +200,9 @@ class LocalIsPcrSpecificityProvider:
             ) from exc
 
         if completed.returncode != 0:
-            stderr = (completed.stderr or "").strip()
-            message = "UCSC isPcr specificity check failed."
-            if stderr:
-                message = f"{message} {stderr[:240]}"
             raise WorkbenchDesignError(
                 code=f"{WORKBENCH_PROVIDER_FAILED_PREFIX}:isPcr",
-                message=message,
+                message="UCSC isPcr specificity check failed.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -397,10 +249,7 @@ class LocalIsPcrSpecificityProvider:
         if missing:
             raise WorkbenchDesignError(
                 code=WORKBENCH_PROVIDER_UNAVAILABLE,
-                message=(
-                    "UCSC isPcr specificity provider is not configured. "
-                    f"Missing local asset(s): {', '.join(missing)}."
-                ),
+                message="UCSC isPcr is missing one or more required local assets.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -428,6 +277,17 @@ class Primer3PrimerProvider:
 
         primer3 = self._primer3()
         template = _clean_template(context.window_sequence)
+        if len(template) > PRIMER_MAX_TEMPLATE_BASES:
+            code = unsupported_input_warning("primer_template_length")
+            raise WorkbenchDesignError(
+                code=code,
+                message=(
+                    "Primer design exceeds the bounded local template envelope "
+                    f"({PRIMER_MAX_TEMPLATE_BASES} bases)."
+                ),
+                status_code=HTTP_UNPROCESSABLE_ENTITY,
+                warnings=[code],
+            )
         if context.target_offset < 0 or context.target_offset >= len(template):
             raise WorkbenchDesignError(
                 code=WORKBENCH_PROVIDER_MALFORMED,
@@ -455,20 +315,11 @@ class Primer3PrimerProvider:
         try:
             raw_result = primer3.bindings.design_primers(
                 seq_args=seq_args,
-                global_args={
-                    "PRIMER_NUM_RETURN": 3,
-                    "PRIMER_OPT_SIZE": 20,
-                    "PRIMER_MIN_SIZE": 18,
-                    "PRIMER_MAX_SIZE": 25,
-                    "PRIMER_MIN_TM": payload.tm_min,
-                    "PRIMER_OPT_TM": (payload.tm_min + payload.tm_max) / 2,
-                    "PRIMER_MAX_TM": payload.tm_max,
-                    "PRIMER_MIN_GC": 35.0,
-                    "PRIMER_MAX_GC": 70.0,
-                    "PRIMER_MAX_NS_ACCEPTED": 0,
-                    "PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT": 1,
-                    "PRIMER_PRODUCT_SIZE_RANGE": [[product_min, product_max]],
-                },
+                global_args=_primer3_global_args(
+                    payload,
+                    product_min=product_min,
+                    product_max=product_max,
+                ),
             )
         except Exception as exc:
             raise WorkbenchDesignError(
@@ -585,18 +436,6 @@ def _template_specificity_note(
 
 def _settings_path(settings: Settings, path: Path) -> Path:
     return path if path.is_absolute() else settings.backend_root / path
-
-
-def _target_genomic_locus(context: SequenceContext) -> tuple[str | None, int | None]:
-    if not context.genomic_hg38:
-        return None, None
-    parts = context.genomic_hg38.split("-")
-    if len(parts) < 2 or not parts[1].isdigit():
-        return None, None
-    chrom = parts[0]
-    if not chrom.startswith("chr"):
-        chrom = f"chr{chrom}"
-    return chrom, int(parts[1])
 
 
 def _fasta_records(output: str) -> list[tuple[str, str]]:
@@ -865,21 +704,39 @@ def _primer3_pair_placement(
     if chrom is None or target_pos is None:
         return placement
 
-    template_genomic_start = target_pos - context.target_offset
+    def genomic_pos(template_pos: int) -> int | None:
+        return _template_genomic_coordinate(context, template_pos - 1)
 
-    def genomic_pos(template_pos: int) -> int:
-        return template_genomic_start + template_pos - 1
+    template_reversed = _template_is_genomically_reversed(context)
+    forward_genomic_start = genomic_pos(forward_template_start)
+    forward_genomic_stop = genomic_pos(forward_template_stop)
+    reverse_genomic_start = genomic_pos(reverse_template_start)
+    reverse_genomic_stop = genomic_pos(reverse_template_stop)
+    amplicon_start = genomic_pos(amplicon_template_start)
+    amplicon_end = genomic_pos(amplicon_template_end)
+    genomic_positions = (
+        forward_genomic_start,
+        forward_genomic_stop,
+        reverse_genomic_start,
+        reverse_genomic_stop,
+        amplicon_start,
+        amplicon_end,
+    )
+    if any(position is None for position in genomic_positions):
+        return placement
 
     placement.update(
         {
+            "forward_strand": "Minus" if template_reversed else "Plus",
+            "reverse_strand": "Plus" if template_reversed else "Minus",
             "genomic_chromosome": chrom,
             "genome_build": context.genome_build,
-            "forward_genomic_start": genomic_pos(forward_template_start),
-            "forward_genomic_stop": genomic_pos(forward_template_stop),
-            "reverse_genomic_start": genomic_pos(reverse_template_start),
-            "reverse_genomic_stop": genomic_pos(reverse_template_stop),
-            "amplicon_genomic_start": genomic_pos(amplicon_template_start),
-            "amplicon_genomic_end": genomic_pos(amplicon_template_end),
+            "forward_genomic_start": forward_genomic_start,
+            "forward_genomic_stop": forward_genomic_stop,
+            "reverse_genomic_start": reverse_genomic_start,
+            "reverse_genomic_stop": reverse_genomic_stop,
+            "amplicon_genomic_start": min(amplicon_start, amplicon_end),
+            "amplicon_genomic_end": max(amplicon_start, amplicon_end),
         }
     )
     return placement
@@ -1017,3 +874,44 @@ def _default_specificity_provider(settings: Settings | None) -> PrimerSpecificit
             raise ValueError("UCSC isPcr specificity requires backend settings.")
         return LocalIsPcrSpecificityProvider(settings)
     raise ValueError(f"Unknown primer specificity provider: {provider_name}")
+
+
+def _primer3_global_args(
+    payload: PrimerRequest,
+    *,
+    product_min: int,
+    product_max: int,
+) -> dict[str, object]:
+    """Exact versioned Sanger/qPCR constraint profiles passed to Primer3."""
+
+    args: dict[str, object] = {
+        "PRIMER_TASK": "generic",
+        "PRIMER_NUM_RETURN": 3,
+        "PRIMER_OPT_SIZE": 20,
+        "PRIMER_MIN_SIZE": 18,
+        "PRIMER_MAX_SIZE": 25,
+        "PRIMER_MIN_TM": payload.tm_min,
+        "PRIMER_OPT_TM": (payload.tm_min + payload.tm_max) / 2,
+        "PRIMER_MAX_TM": payload.tm_max,
+        "PRIMER_MIN_GC": 35.0,
+        "PRIMER_MAX_GC": 70.0,
+        "PRIMER_MAX_NS_ACCEPTED": 0,
+        "PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT": 1,
+        "PRIMER_PRODUCT_SIZE_RANGE": [[product_min, product_max]],
+    }
+    if payload.mode == "sanger":
+        args.update(
+            {
+                "PRIMER_MAX_POLY_X": 5,
+                "PRIMER_GC_CLAMP": 0,
+            }
+        )
+    elif payload.mode == "qpcr":
+        args.update(
+            {
+                "PRIMER_MAX_POLY_X": 4,
+                "PRIMER_GC_CLAMP": 1,
+                "PRIMER_MAX_END_GC": 3,
+            }
+        )
+    return args

@@ -29,7 +29,6 @@ from app.services.crispr_offtarget_index import (
 )
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 
-MOCK_SCREENING_TEMPLATE_WARNING = "crispr_screening_mock_template"
 SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING = "crispr_screening_reference_window_unavailable"
 CRISPR_OFFTARGET_PROVIDER_AUTO = "auto"
 CRISPR_OFFTARGET_PROVIDER_INDEXED_SQLITE = "indexed_sqlite"
@@ -150,6 +149,24 @@ class MockCasOffinderOffTargetProvider:
         )
 
 
+class UnavailableCrisprOffTargetProvider:
+    """Fail-closed release seam used until a verified genome index is mounted."""
+
+    def enumerate(self, payload: CrisprOffTargetRequest) -> CrisprOffTargetResponse:
+        del payload
+        raise CrisprOffTargetScreeningProviderUnavailable(
+            code="crispr_offtarget_index_unavailable",
+            message="The verified GRCh38 CRISPR off-target index is unavailable.",
+        )
+
+
+@dataclass(frozen=True)
+class CrisprOffTargetArtifactIdentity:
+    manifest_id: str
+    sha256: str
+    source_release: str
+
+
 class IndexedSqliteCrisprOffTargetProvider:
     """Whole-genome SpCas9 off-target lookup against a local immutable SQLite index."""
 
@@ -158,12 +175,29 @@ class IndexedSqliteCrisprOffTargetProvider:
         index_path,
         *,
         max_results: int = 200,
+        artifact_manifest_id: str | None = None,
+        artifact_sha256: str | None = None,
+        source_release: str | None = None,
     ) -> None:
         self.index_path = index_path
         self.max_results = max_results
+        self.artifact_manifest_id = artifact_manifest_id
+        self.artifact_sha256 = artifact_sha256
+        self.source_release = source_release
 
     def available(self) -> bool:
         return inspect_crispr_offtarget_index(self.index_path).ready
+
+    def execution_artifact(self) -> CrisprOffTargetArtifactIdentity | None:
+        if not self.artifact_manifest_id or not self.artifact_sha256 or not self.source_release:
+            return None
+        if re.fullmatch(r"[0-9a-fA-F]{64}", self.artifact_sha256) is None:
+            return None
+        return CrisprOffTargetArtifactIdentity(
+            manifest_id=self.artifact_manifest_id,
+            sha256=self.artifact_sha256.lower(),
+            source_release=self.source_release,
+        )
 
     def enumerate(self, payload: CrisprOffTargetRequest) -> CrisprOffTargetResponse:
         try:
@@ -398,6 +432,27 @@ def _template_sequence(
     reference_window_provider: ScreeningReferenceWindowProvider | None,
 ) -> tuple[str, str, list[str]]:
     if target.template_sequence:
+        if reference_window_provider is not None:
+            try:
+                window = reference_window_provider.get_sequence(
+                    _normalize_chromosome(region.chromosome),
+                    region.start,
+                    region.end,
+                    build=region.genome_build,
+                )
+                expected = _clean_reference_sequence(getattr(window, "sequence", ""))
+            except Exception as exc:
+                raise CrisprOffTargetScreeningProviderUnavailable(
+                    code=SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING,
+                    message="The source-backed screening reference window is unavailable.",
+                ) from exc
+            if not expected or expected != target.template_sequence:
+                code = unsupported_input_warning("screening_template_mismatch")
+                raise CrisprOffTargetScreeningInputError(
+                    code=code,
+                    message="The supplied screening template does not match the verified reference window.",
+                    warnings=[code],
+                )
         return target.template_sequence, "template_sequence", []
 
     if reference_window_provider is not None:
@@ -411,46 +466,24 @@ def _template_sequence(
             sequence = _clean_reference_sequence(getattr(window, "sequence", ""))
             if sequence and target_offset < len(sequence):
                 return sequence, "reference_window", []
-        except Exception:
-            pass
-        return (
-            _mock_reference_window(
-                length=region.end - region.start + 1,
-                target_offset=target_offset,
-                site_sequence=target.sequence,
-            ),
-            "mock_screening_window",
-            [SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING, MOCK_SCREENING_TEMPLATE_WARNING],
+        except Exception as exc:
+            raise CrisprOffTargetScreeningProviderUnavailable(
+                code=SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING,
+                message="The source-backed screening reference window is unavailable.",
+            ) from exc
+        raise CrisprOffTargetScreeningProviderUnavailable(
+            code=SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING,
+            message="The source-backed screening reference window is unavailable.",
         )
 
-    length = region.end - region.start + 1
-    return (
-        _mock_reference_window(
-            length=length,
-            target_offset=target_offset,
-            site_sequence=target.sequence,
-        ),
-        "mock_screening_window",
-        [MOCK_SCREENING_TEMPLATE_WARNING],
+    raise CrisprOffTargetScreeningProviderUnavailable(
+        code=SCREENING_REFERENCE_WINDOW_UNAVAILABLE_WARNING,
+        message="A source-backed reference-window provider is required for screening primers.",
     )
 
 
 def _clean_reference_sequence(sequence: str) -> str:
     return re.sub(r"[^ACGTN]", "N", sequence.upper())
-
-
-def _mock_reference_window(
-    *,
-    length: int,
-    target_offset: int,
-    site_sequence: str | None,
-) -> str:
-    motif = "ACGTTGCAAGTCGATCGTACGATGCTAGCTAGCATCGATGCGTAC"
-    sequence = list((motif * ((length // len(motif)) + 1))[:length])
-    if site_sequence and len(site_sequence) <= length:
-        start = min(max(0, target_offset - (len(site_sequence) // 2)), length - len(site_sequence))
-        sequence[start : start + len(site_sequence)] = list(site_sequence)
-    return "".join(sequence)
 
 
 def _parse_point(point: str | None) -> tuple[str, int] | None:

@@ -7,10 +7,13 @@ import pytest
 
 from app.schemas.workbench import CrisprRequest
 from app.services.crispr_design import (
+    CRISPR_MAX_SEQUENCE_BASES,
     HSU_DISTANCE_PENALTY_CONSTANT,
     HSU_MISMATCH_PENALTIES,
+    CrisprScoreCandidate,
     CrisprScoreRAdapter,
     CrisprScoreRBackedCrisprProvider,
+    CrisprScoreProviderError,
     CrisprDesignInputError,
     LocalDeterministicCrisprProvider,
     discover_spcas9_pam_sites,
@@ -96,7 +99,7 @@ def test_hsu_specificity_score_aggregates_local_off_target_risk() -> None:
     assert hsu_specificity_score([25.0, 25.0]) == pytest.approx(66.666667)
 
 
-def test_local_deterministic_provider_returns_guides_and_source_backed_ssodn() -> None:
+def test_local_deterministic_provider_returns_guides_without_unmodelled_ssodn() -> None:
     sequence = "TGGACAAGACAGTCGCCATTCGGTGCCTACATTCAAGAGAACAACGAA"
     response = LocalDeterministicCrisprProvider().design(
         CrisprRequest(gene="RPE65", cdna="c.260A>G"),
@@ -120,11 +123,7 @@ def test_local_deterministic_provider_returns_guides_and_source_backed_ssodn() -
     assert "DeepHF/DeepCpf1/enPAM+GB=platform-gated Windows-unavailable" in response.guides[0].notes
     assert "not DeepHF" in response.guides[0].notes
     assert "not a genome-wide Bowtie/BWA" in response.guides[0].notes
-    assert response.ssodn is not None
-    left_length = response.ssodn.arm_lengths["left"]
-    assert response.ssodn.reference_arm[left_length] == "A"
-    assert response.ssodn.variant_arm[left_length] == "G"
-    assert response.ssodn.edits_encoded == ["c.260A>G"]
+    assert response.ssodn is None
 
 
 def test_local_deterministic_provider_returns_empty_result_when_no_pam_exists() -> None:
@@ -145,6 +144,16 @@ def test_local_deterministic_provider_rejects_too_short_sequence_context() -> No
         )
 
     assert error.value.code == unsupported_input_warning("sequence_too_short")
+
+
+def test_local_deterministic_provider_rejects_oversized_sequence_context() -> None:
+    with pytest.raises(CrisprDesignInputError) as error:
+        LocalDeterministicCrisprProvider().design(
+            CrisprRequest(gene="RPE65", cdna="c.260A>G"),
+            _context("A" * (CRISPR_MAX_SEQUENCE_BASES + 1)),
+        )
+
+    assert error.value.code == unsupported_input_warning("crispr_sequence_length")
 
 
 def test_crisprscore_r_backed_provider_falls_back_when_rscript_is_unavailable(tmp_path) -> None:
@@ -266,3 +275,39 @@ def test_crisprscore_r_backed_provider_applies_source_score_payload() -> None:
     assert "CFD=88.0 specificity" in guide.notes
     assert "Primary on-target provider: RuleSet1" in guide.notes
     assert "primary off-target provider: CFD" in guide.notes
+
+
+def test_crisprscore_r_adapter_does_not_expose_stderr_or_candidate_sequence() -> None:
+    sequence = "TGGACAAGACAGTCGCCATTCGGTGCCTACATTCAAGAGAACAACGAA"
+
+    def runner(command, **kwargs):
+        payload = json.loads(kwargs["input"])
+        candidate = payload["rows"][0]["spacer"]
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr=f"failed on private candidate {candidate} at /private/runtime/model.rds",
+        )
+
+    adapter = CrisprScoreRAdapter(rscript_path=__file__, runner=runner)
+    site = discover_spcas9_pam_sites(sequence, strand_filter="both")[0]
+    candidates = (
+        CrisprScoreCandidate(
+            id="private-row",
+            site=site,
+            off_targets=(),
+            ruleset_context=None,
+            crisprscan_context=None,
+            lindel_context=None,
+        ),
+    )
+
+    with pytest.raises(CrisprScoreProviderError) as captured:
+        adapter.score(candidates)
+
+    rendered = str(captured.value)
+    assert sequence not in rendered
+    assert site.spacer not in rendered
+    assert "/private/runtime" not in rendered
+    assert "private candidate" not in rendered

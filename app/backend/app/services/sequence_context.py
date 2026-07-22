@@ -303,6 +303,10 @@ class SequenceContext(BaseModel):
     codon_alt: str | None = None
     source: SequenceContextSource
     source_metadata: dict[str, str] = Field(default_factory=dict)
+    # Internal request-lifetime mapping used by Workbench Context V2 engines.
+    # ``None`` marks an inserted base that has no GRCh38 coordinate. Ordinary
+    # resolver contexts omit the field and retain their historical shape.
+    genomic_coordinates: tuple[int | None, ...] | None = None
     warnings: list[str] = Field(default_factory=list)
 
 

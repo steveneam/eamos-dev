@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
 from difflib import SequenceMatcher
 
-from app.schemas.workbench import CrisprTideResponse, CrisprTideSpectrumBin, SourceDisclosure
 from app.services.trace_parser import ParsedTrace
 
 CRISPR_TIDE_INVALID_INPUT = "crispr_tide_invalid_input"
@@ -10,7 +10,7 @@ CRISPR_TIDE_LENGTH_MISMATCH = "crispr_tide_read_length_mismatch"
 CRISPR_TIDE_CONSENSUS_ONLY = "crispr_tide_consensus_only"
 CRISPR_TIDE_NO_INDEL_SHIFT = "crispr_tide_no_indel_shift_detected"
 CRISPR_TIDE_LOW_QUALITY = "crispr_tide_low_quality_window"
-CRISPR_TIDE_PROVIDER_LABEL = "Eamos observed-only TIDE-style analyzer"
+CRISPR_TRACE_COMPARISON_PROVIDER_LABEL = "Eamos descriptive consensus trace comparison"
 
 _ALIGN_UPSTREAM_BP = 30
 _DECOMPOSE_DOWNSTREAM_BP = 140
@@ -31,18 +31,36 @@ class CrisprTideInputError(Exception):
         self.warnings = warnings if warnings is not None else [code]
 
 
-def analyze_crispr_tide_observed(
+@dataclass(frozen=True)
+class DescriptiveTraceDifference:
+    size: int
+    observed_fraction: float
+
+
+@dataclass(frozen=True)
+class DescriptiveTraceComparison:
+    analysis_kind: str
+    provider_label: str
+    cut_site_index: int
+    comparison_window_start: int
+    comparison_window_end: int
+    consensus_difference_fraction: float
+    sequence_identity: float
+    differences: tuple[DescriptiveTraceDifference, ...]
+    warnings: tuple[str, ...]
+    notes: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+def analyze_descriptive_trace_comparison(
     *,
     control_trace: ParsedTrace,
     edited_trace: ParsedTrace,
     cut_site_index: int,
-) -> CrisprTideResponse:
-    """Build a source-backed, observed-only TIDE-style result from parsed traces.
-
-    This intentionally does not copy or embed the NKI/TIDE NNLS solver. It
-    exposes the Workbench result surface expected from TIDE-like analysis while
-    keeping provenance explicit until a validated decomposition backend lands.
-    """
+) -> DescriptiveTraceComparison:
+    """Compare two called consensus strings without claiming TIDE decomposition."""
 
     cut_zero = cut_site_index - 1
     control_sequence = control_trace.sequence.upper()
@@ -75,47 +93,53 @@ def analyze_crispr_tide_observed(
     if not event_weights:
         if control_window != edited_window:
             warnings.append(CRISPR_TIDE_NO_INDEL_SHIFT)
-        return CrisprTideResponse(
-            provider_label=CRISPR_TIDE_PROVIDER_LABEL,
-            source_disclosure=_tide_source_disclosure(warnings),
+        return DescriptiveTraceComparison(
+            analysis_kind="descriptive_trace_comparison",
+            provider_label=CRISPR_TRACE_COMPARISON_PROVIDER_LABEL,
             cut_site_index=cut_site_index,
-            editing_efficiency=0.0,
-            r_squared=_fit_proxy(
+            comparison_window_start=max(1, cut_site_index - _ALIGN_UPSTREAM_BP),
+            comparison_window_end=max(1, cut_site_index - _ALIGN_UPSTREAM_BP)
+            + max(len(control_window), len(edited_window))
+            - 1,
+            consensus_difference_fraction=round(
+                mismatch_bases / max(len(control_window), len(edited_window), 1), 4
+            ),
+            sequence_identity=_sequence_identity(
                 window_length=max(len(control_window), len(edited_window)),
                 mismatch_bases=mismatch_bases,
             ),
-            spectrum=[CrisprTideSpectrumBin(size=0, observed=1.0, predicted=None)],
-            predicted_available=False,
+            differences=(),
             notes=_notes(),
-            warnings=warnings,
+            warnings=tuple(warnings),
         )
 
     total_weight = sum(event_weights.values())
     window_length = max(len(control_window), len(edited_window), 1)
     nonzero_mass = min(0.95, max(0.05, (total_weight + mismatch_bases) / window_length))
-    spectrum = [
-        CrisprTideSpectrumBin(size=0, observed=round(1.0 - nonzero_mass, 4), predicted=None)
-    ]
+    differences: list[DescriptiveTraceDifference] = []
     for size in sorted(event_weights):
         observed = nonzero_mass * (event_weights[size] / total_weight)
-        spectrum.append(
-            CrisprTideSpectrumBin(
+        differences.append(
+            DescriptiveTraceDifference(
                 size=size,
-                observed=round(observed, 4),
-                predicted=None,
+                observed_fraction=round(observed, 4),
             )
         )
 
-    return CrisprTideResponse(
-        provider_label=CRISPR_TIDE_PROVIDER_LABEL,
-        source_disclosure=_tide_source_disclosure(warnings),
+    return DescriptiveTraceComparison(
+        analysis_kind="descriptive_trace_comparison",
+        provider_label=CRISPR_TRACE_COMPARISON_PROVIDER_LABEL,
         cut_site_index=cut_site_index,
-        editing_efficiency=round(nonzero_mass, 4),
-        r_squared=_fit_proxy(window_length=window_length, mismatch_bases=mismatch_bases),
-        spectrum=sorted(spectrum, key=lambda item: item.size),
-        predicted_available=False,
+        comparison_window_start=max(1, cut_site_index - _ALIGN_UPSTREAM_BP),
+        comparison_window_end=max(1, cut_site_index - _ALIGN_UPSTREAM_BP) + window_length - 1,
+        consensus_difference_fraction=round((total_weight + mismatch_bases) / window_length, 4),
+        sequence_identity=_sequence_identity(
+            window_length=window_length,
+            mismatch_bases=mismatch_bases + total_weight,
+        ),
+        differences=tuple(sorted(differences, key=lambda item: item.size)),
         notes=_notes(),
-        warnings=warnings,
+        warnings=tuple(warnings),
     )
 
 
@@ -181,7 +205,7 @@ def _mean_quality_near_cut(trace: ParsedTrace, cut_zero: int) -> float | None:
     return sum(values) / len(values)
 
 
-def _fit_proxy(*, window_length: int, mismatch_bases: int) -> float:
+def _sequence_identity(*, window_length: int, mismatch_bases: int) -> float:
     if window_length <= 0:
         return 0.0
     return round(max(0.0, min(1.0, 1.0 - (mismatch_bases / window_length))), 4)
@@ -189,19 +213,7 @@ def _fit_proxy(*, window_length: int, mismatch_bases: int) -> float:
 
 def _notes() -> str:
     return (
-        "Observed-only TIDE-style result from parsed AB1 consensus traces. "
-        "The response provides the expected TIDE surface: editing efficiency, "
-        "fit readout, and indel-size spectrum. It does not run the NKI/TIDE "
-        "NNLS decomposition solver, does not estimate p-values, and does not "
-        "include Lindel or TIDER template-directed repair prediction."
-    )
-
-
-def _tide_source_disclosure(warnings: list[str]) -> SourceDisclosure:
-    return SourceDisclosure(
-        source_status="local_provider",
-        provider_id="observed_only_tide",
-        provider_label=CRISPR_TIDE_PROVIDER_LABEL,
-        warnings=warnings,
-        requirements=["parsed_control_trace", "parsed_edited_trace"],
+        "Descriptive comparison of parsed AB1 consensus calls. It does not use "
+        "chromatogram-signal decomposition, estimate editing efficiency, report "
+        "goodness-of-fit, or implement the TIDE method."
     )

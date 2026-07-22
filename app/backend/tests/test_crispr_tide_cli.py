@@ -8,7 +8,7 @@ from app.cli.eamos_crispr_tide import main
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "app" / "fixtures" / "workbench"
 
 
-def test_crispr_tide_cli_reports_source_backed_observed_result(capsys) -> None:
+def test_crispr_tide_cli_reports_descriptive_consensus_comparison(capsys) -> None:
     trace_path = FIXTURES_DIR / "rpe65_vus1.ab1"
 
     exit_code = main(
@@ -25,15 +25,16 @@ def test_crispr_tide_cli_reports_source_backed_observed_result(capsys) -> None:
 
     assert exit_code == 0
     output = json.loads(capsys.readouterr().out)
-    assert output["mode"] == "local_observed_tide"
+    assert output["mode"] == "descriptive_trace_comparison"
     assert output["guardrails"]["network"] == "not_used"
     assert output["guardrails"]["prediction"] == "not_used"
     assert output["inputs"]["control"]["name"] == "rpe65_vus1.ab1"
     assert output["inputs"]["control_base_calls"] > 100
-    assert output["result"]["source_backed"] is True
-    assert output["result"]["analysis_kind"] == "tide"
-    assert output["result"]["predicted_available"] is False
-    assert output["result"]["spectrum"][0]["size"] == 0
+    assert output["result"]["analysis_kind"] == "descriptive_trace_comparison"
+    assert output["result"]["consensus_difference_fraction"] == 0.0
+    assert output["result"]["sequence_identity"] == 1.0
+    assert output["result"]["differences"] == []
+    assert "does not use chromatogram-signal decomposition" in output["result"]["notes"]
 
 
 def test_crispr_tide_cli_returns_structured_error_for_bad_trace(

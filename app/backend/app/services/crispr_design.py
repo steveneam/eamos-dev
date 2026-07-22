@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from app.schemas.workbench import CrisprGuide, CrisprRequest, CrisprResponse, HdrSsodn
+from app.schemas.workbench import CrisprGuide, CrisprRequest, CrisprResponse
 from app.services.sequence_context import SequenceContext, unsupported_input_warning
 
 CRISPR_PROVIDER_CRISPRSCORE_R = "crisprscore_r"
@@ -19,6 +19,7 @@ SPCAS9_PAM_LENGTH = 3
 SPCAS9_TARGET_LENGTH = SPCAS9_SPACER_LENGTH + SPCAS9_PAM_LENGTH
 HSU_DISTANCE_PENALTY_CONSTANT = 4.0
 MAX_RETURNED_GUIDES = 6
+CRISPR_MAX_SEQUENCE_BASES = 20_000
 CRISPRSCORE_R_TIMEOUT_SECONDS = 30.0
 
 # MIT/Hsu 2013 position penalties, indexed from PAM-distal to PAM-proximal.
@@ -500,12 +501,11 @@ class CrisprScoreRAdapter:
 
         if completed.returncode != 0:
             stderr = (completed.stderr or "").strip()
-            message = "crisprScore Rscript scoring failed."
-            if stderr:
-                message = f"{message} {stderr[:240]}"
             if "there is no package called" in stderr or "crisprScore" in stderr:
-                raise CrisprScoreProviderUnavailable(message)
-            raise CrisprScoreProviderError(message)
+                raise CrisprScoreProviderUnavailable(
+                    "crisprScore Rscript dependencies are unavailable."
+                )
+            raise CrisprScoreProviderError("crisprScore Rscript scoring failed.")
 
         try:
             decoded = json.loads(completed.stdout or "{}")
@@ -551,6 +551,16 @@ class LocalDeterministicCrisprProvider:
             )
 
         sequence = clean_dna(context.window_sequence)
+        if len(sequence) > CRISPR_MAX_SEQUENCE_BASES:
+            code = unsupported_input_warning("crispr_sequence_length")
+            raise CrisprDesignInputError(
+                code=code,
+                message=(
+                    "CRISPR guide discovery exceeds the bounded local search envelope "
+                    f"({CRISPR_MAX_SEQUENCE_BASES} bases)."
+                ),
+                warnings=[code],
+            )
         if len(sequence) < SPCAS9_TARGET_LENGTH:
             code = unsupported_input_warning("sequence_too_short")
             raise CrisprDesignInputError(
@@ -617,7 +627,10 @@ class LocalDeterministicCrisprProvider:
         return CrisprResponse(
             cas=payload.cas,
             guides=guides,
-            ssodn=_build_hdr_ssodn(context, sequence) if guides else None,
+            # Donor design is a separate capability. The legacy response shape
+            # requires a numeric HDR-efficiency claim, so no donor is emitted
+            # until that field can represent a typed not-assessed state.
+            ssodn=None,
         )
 
     def _guide_row(
@@ -1109,35 +1122,4 @@ def _guide_notes(
         f"within {mismatch_tolerance} mismatch(es); Hsu specificity {hsu_specificity:.1f}/100. "
         f"Cut offset {site.cut_position}; template {context.genome_build} {target}. "
         "This is not a genome-wide Bowtie/BWA off-target screen."
-    )
-
-
-def _build_hdr_ssodn(context: SequenceContext, sequence: str) -> HdrSsodn | None:
-    target_offset = context.target_offset
-    reference = (context.reference_base or "").upper()
-    alternate = (context.alternate_base or "").upper()
-    if (
-        target_offset < 0
-        or target_offset >= len(sequence)
-        or len(reference) != 1
-        or len(alternate) != 1
-        or reference not in "ACGT"
-        or alternate not in "ACGT"
-        or sequence[target_offset] != reference
-    ):
-        return None
-
-    left_start = max(0, target_offset - 30)
-    right_end = min(len(sequence), target_offset + 31)
-    left_arm = sequence[left_start:target_offset]
-    right_arm = sequence[target_offset + 1 : right_end]
-    reference_arm = left_arm + reference + right_arm
-    variant_arm = left_arm + alternate + right_arm
-    return HdrSsodn(
-        reference_arm=reference_arm,
-        variant_arm=variant_arm,
-        repair_template=variant_arm,
-        edits_encoded=[context.cdna],
-        arm_lengths={"left": len(left_arm), "right": len(right_arm)},
-        estimated_hdr_efficiency=0.12,
     )

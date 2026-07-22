@@ -32,21 +32,29 @@ from app.services.workbench_design_common import (
 )
 from app.services.workbench_design_fixture import WorkbenchFixtureProvider
 from app.services.workbench_design_primer import (
+    PRIMER_MAX_TEMPLATE_BASES,
     IsPcrProduct,
-    LocalDbSnpPrimerSnpMaskingProvider,
     LocalIsPcrSpecificityProvider,
-    NoopPrimerSnpMaskingProvider,
     Primer3PrimerProvider,
     PrimerAmplicon,
     PrimerSecondaryStructureAssessment,
-    PrimerSnpMaskingResult,
-    PrimerSnpMaskingVariant,
     PrimerSpecificityProvider,
     PrimerSpecificityResult,
     TemplateAmpliconSpecificityProvider,
     _default_specificity_provider,
+    _primer3_global_args,
     _primer3_pairs,
     _template_amplicons,
+)
+from app.services.workbench_design_primer_snp import (
+    PRIMER_SNP_MASK_MAX_INTERVAL_BASES,
+    PRIMER_SNP_MASK_MAX_RECORDS,
+    IndexedDbSnpPrimerSnpMaskingProvider,
+    LocalDbSnpPrimerSnpMaskingProvider,
+    NoopPrimerSnpMaskingProvider,
+    PrimerSnpMaskingResult,
+    PrimerSnpMaskingVariant,
+    default_snp_masking_provider as _default_snp_masking_provider,
 )
 from app.services.workbench_design_protocols import (
     AlignProvider,
