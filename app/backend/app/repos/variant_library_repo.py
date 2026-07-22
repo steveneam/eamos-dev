@@ -97,7 +97,7 @@ class VariantLibraryRepo:
             record = session.get(UserLibraryRecord, user_id)
             if record is None:
                 record = UserLibraryRecord(user_id=user_id)
-            record.variants = merge_library_variant_documents(
+            record.variants = reconcile_library_variant_documents(
                 list(record.variants or []),
                 variants,
             )
@@ -388,7 +388,7 @@ class SupabaseVariantLibraryRepo:
     ) -> UserLibraryDocumentRecord:
         for _attempt in range(SUPABASE_LIBRARY_MAX_WRITE_ATTEMPTS):
             existing = self.get_document(user_id=user_id)
-            merged_variants = merge_library_variant_documents(
+            merged_variants = reconcile_library_variant_documents(
                 existing.variants if existing is not None else [],
                 variants,
             )
@@ -931,9 +931,7 @@ def is_library_reserved_variant(item: dict[str, Any] | object) -> bool:
     if not isinstance(item, dict):
         return False
     variant_id = str(item.get("id") or "").strip().lower()
-    return variant_id == LIBRARY_SCHEMA_MARKER_ID or variant_id.startswith(
-        LIBRARY_TOMBSTONE_PREFIX
-    )
+    return variant_id == LIBRARY_SCHEMA_MARKER_ID or variant_id.startswith(LIBRARY_TOMBSTONE_PREFIX)
 
 
 def merge_library_variant_documents(
@@ -973,6 +971,25 @@ def merge_library_variant_documents(
     return ([marker] if marker is not None else []) + merged
 
 
+def reconcile_library_variant_documents(
+    existing: Iterable[dict[str, Any]],
+    incoming: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Preserve legacy whole-document PUT until an account adopts v2 rows.
+
+    A v2 marker or tombstone in either document makes the merge ratchet sticky,
+    so an older client cannot erase deletion history and resurrect stale data.
+    Accounts that have never emitted a reserved v2 row retain the original
+    replacement behavior, including clearing the library with an empty list.
+    """
+
+    existing_rows = list(existing)
+    incoming_rows = list(incoming)
+    if any(is_library_reserved_variant(item) for item in (*existing_rows, *incoming_rows)):
+        return merge_library_variant_documents(existing_rows, incoming_rows)
+    return [_validated_document_variant(item) for item in incoming_rows]
+
+
 def _validated_document_variant(raw_item: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw_item, dict):
         raise VariantLibraryWriteError("library variant document row must be an object")
@@ -1010,8 +1027,7 @@ def _document_variant_identity(item: dict[str, Any]) -> tuple[str, bool]:
     if variant_id.startswith(LIBRARY_TOMBSTONE_PREFIX):
         target_id = _normalized_document_id(item["query"])
         expected_id = (
-            f"{LIBRARY_TOMBSTONE_PREFIX}"
-            f"{hashlib.sha256(target_id.encode('utf-8')).hexdigest()}"
+            f"{LIBRARY_TOMBSTONE_PREFIX}" f"{hashlib.sha256(target_id.encode('utf-8')).hexdigest()}"
         )
         if variant_id != expected_id or item["raw"]:
             raise VariantLibraryWriteError("library v2 tombstone is malformed")

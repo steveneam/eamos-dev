@@ -10,6 +10,7 @@ from app.repos.variant_library_repo import (
     SupabaseVariantLibraryRepo,
     make_library_tombstone,
     merge_library_variant_documents,
+    reconcile_library_variant_documents,
 )
 
 
@@ -207,6 +208,20 @@ def test_variant_library_document_merge_is_commutative_and_tombstone_safe() -> N
     assert merge_library_variant_documents([tombstone], [newer_active]) == [
         {**newer_active, "id": "rpe65:c.260a>g"}
     ]
+
+
+def test_legacy_library_document_keeps_whole_document_replace_semantics() -> None:
+    active = {
+        "id": "rpe65:c.260a>g",
+        "gene": "RPE65",
+        "variant": "c.260A>G",
+        "query": "RPE65 c.260A>G",
+        "raw": "RPE65 c.260A>G",
+        "savedAt": 100,
+        "folderId": None,
+    }
+
+    assert reconcile_library_variant_documents([active], []) == []
 
 
 def test_supabase_document_replace_retries_concurrent_write_without_resurrection() -> None:
