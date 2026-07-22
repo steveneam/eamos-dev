@@ -25,69 +25,60 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** ACTIVE @ 2026-07-22 17:06 +0000 — lead for the approved Live
-  Product Completion campaign.
-- **Lane D:** PR #21 merged as `ec075a8` after local/CI/Vercel and source-backed
-  browser/API proof. Post-merge CI run `29940643472`, including immutable-image
-  pull-back verification, passed.
-- **Contract V2:** PR #22 merged as `641c0e5` after independent review, rebase,
-  focused local verification, full CI, dependency audit, container contract,
-  and Vercel passed.
-- **Wave 1:** W/R/P are assigned to disjoint agents and B is lead-owned. All
-  four launch from frozen-contract checkpoint `origin/main@0a3c980`.
-- **Four-wave approval:** Steven approved Codex to continue through the four
-  implementation waves and orchestrate the named worktrees/agents as
-  dependencies unlock. Lead-run serialized merge review remains mandatory.
-- **Production posture:** unchanged. No source materialization, live-provider,
-  cloud, deploy, Supabase, or Phase-7 action occurred in this slice.
+- **Codex:** STOPPED @ 2026-07-22 22:22 +0000 — user-requested wrap at the
+  exact Wave 3 material-approval gate.
+- **Waves 1–2:** Wave 1 PRs #24/#25/#23/#26, contract-amendment PR #27, and
+  runtime-composition PR #28 are merged. Post-merge CI run `29961634345` is
+  fully green on `main@2dd181c`.
+- **Wave 3:** exact material approval cards are frozen in PR #29 from commit
+  `55df2ce`; CI run `29962477435` was still completing at wrap. No card was
+  executed and PR #29 remains unmerged pending green CI plus merge approval.
+- **Wave 4:** not started. Production, provider, cloud, deploy, Supabase, and
+  source-materialization state are unchanged.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 18:21 +0000 · Codex
+UNLOCKED · 2026-07-22 22:22 +0000 · Codex
 
 ## Shared File Locks
 
-- **Frozen Contract V2 seam:** released after verified PR #22 merge; no Wave 1
-  lane may edit schemas, `backend.ts`, or the contract canaries.
-- **Lane W:** held for `/root/workbench_engines`; exact `plan.md` Lane W globs.
-- **Lane R:** held for `/root/report_evidence`; exact `plan.md` Lane R globs.
-- **Lane P:** held for `/root/paper_deterministic`; exact `plan.md` Lane P globs.
-- **Lane B:** held for Codex lead in `live-batch-wes`; exact Lane B globs.
+- None. Campaign lane locks are released; watcher-owned
+  `agent_handoff/FROM-SWORDFISH.md` remains untouched.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 18:18 +0000 · Codex Live Product Engine Wave
-Read CURRENT.md, COORDINATION.md, and plans/live-product-completion/{research,spec,plan}.md first.
-Contract V2 is merged at 641c0e5; launch W/R/P agents and lead-owned Batch from origin/main@0a3c980.
-Keep schemas/backend.ts/contract canaries frozen and enforce each exact lane glob plus evidence-security invariants.
-Review and merge only green in order W then R then P then B under Steven's explicit approval.
-Continue into the approved serial runtime-composition and frontend waves as dependencies unlock.
-Before material/source/provider/cloud/deploy/Supabase action, stop on its separately named gate and present exact evidence/cost/licence cards.
+# Resume prompt · 2026-07-22 22:22 +0000 · Codex Live Product Wave 3 gate
+Read CURRENT.md, plans/live-product-completion/{research,spec,plan}.md, and docs/live-product-verification/wave3-approval-cards.md.
+Wave 1, the contract amendment, and Wave 2 are merged green through main@2dd181c; PR #29 freezes the eight exact Wave 3 approval cards.
+First verify PR #29 CI and obtain Steven's separate approval before merging it.
+Do not download, build, materialize, upload, mount, configure, or deploy any card until Steven names the approved card IDs exactly.
+After exact approval, execute only those bounded cards and retain every deferred/NO-GO item.
+Wave 4 remains pending behind Wave 3 verification and its own applicable gates.
 Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Live campaign: `plans/live-product-completion/{research,spec,plan}.md`.
-- Engine branches/worktrees: `agent/live/{workbench-engines,report-evidence,paper-deterministic,batch-wes}`
-  under `.claude/worktrees/live-*`.
-- Lane D record: merged PR #21; historical worktree
-  `.claude/worktrees/product-workbench-canvas-review` remains non-authoritative.
-- Product Workflow V1 background: `plans/product-workflow-integration/`.
-- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` remains dirty and untouched.
+- Plan: `plans/live-product-completion/{research,spec,plan}.md`.
+- Exact cards: `docs/live-product-verification/wave3-approval-cards.md`.
+- Review boundary: PR #29, branch `agent/live/material-approval-cards`, card
+  commit `55df2ce`, CI run `29962477435`.
+- Merged Wave 2 boundary: PR #28, `main@2dd181c`, post-merge run
+  `29961634345`.
+- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` remains dirty only in the
+  main checkout and was not staged or edited.
 
 ## Delta
 
-- Merged green Contract V2 PR #22 as `641c0e5`, freezing additive execution,
-  context, report, paper, panel, and WES Batch truth models plus TS parity.
-- Preserved the security residual explicitly: legacy `UploadedReport` fields
-  remain only for compatibility; new V2 outputs exclude raw uploads/handles.
-- Unlocked the approved disjoint W/R/P/B engine wave while retaining separate
-  material, source, provider, cloud, Supabase, and deployment gates.
+- Merged and post-merge-verified the four Wave 1 lanes, contract amendment,
+  and Wave 2 runtime composition.
+- Researched and froze eight individually approvable Wave 3 cards totaling
+  about 1.673 GiB, with checksums/licences/bounds and explicit rollback paths.
+- Kept unavailable, incompatible, oversized, or licence-unclear candidates in
+  the deferred/NO-GO section. Performed no gated material or cloud action.
 
 ## Next Action
 
-- Create the four engine worktrees from the recorded frozen-contract base,
-  launch W/R/P agents, and implement lead-owned Batch without crossing lane or
-  material/provider/cloud gates.
+- Wait for PR #29 checks and Steven's explicit merge approval; then wait for an
+  exact named-card approval before performing any Wave 3 material action.
