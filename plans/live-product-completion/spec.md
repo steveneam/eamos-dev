@@ -1,8 +1,8 @@
 # Live Product Completion — Release Specification
 
-Status: proposed contract for Steven review; not frozen and not launched.
+Status: approved and active; Contract V2 is frozen in PR #22 / `641c0e5`.
 
-Stamped: 2026-07-22 16:29 +0000 · Codex.
+Stamped: 2026-07-22 18:18 +0000 · Codex.
 
 ## Outcome
 
@@ -65,10 +65,12 @@ invent a value. “Unavailable” is preferred over a fake success.
 6. A local, reproducible, licence-clean implementation is preferred where it
    can meet the scientific contract.
 
-## Proposed shared execution disclosure
+## Frozen shared execution disclosure
 
-The serial contract lane will name and freeze the actual Pydantic/TypeScript
-shape. It must cover at least:
+The canonical Pydantic and TypeScript shapes now live in
+`app/backend/app/schemas/capabilities.py`, the domain schemas, and
+`app/web/lib/backend.ts`; the contract canaries are the executable source of
+truth. They cover at least:
 
 ```text
 capability_id

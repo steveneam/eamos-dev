@@ -9,9 +9,9 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Live Product Completion ACTIVE — Lane D merged and locally verified;
-Contract V2 launching; engine lanes dependency-locked._ Historical Mode-A dogfood
-completed 2026-07-03; its record remains below.
+**Status:** _Live Product Completion ACTIVE — Contract V2 merged and verified;
+the four disjoint backend engine lanes are assigned and launching._ Historical
+Mode-A dogfood completed 2026-07-03; its record remains below.
 
 ---
 
@@ -56,12 +56,14 @@ No lane owns source materialization, providers, cloud, Supabase, or deploys._
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
-| Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | review | Lane D merged + verified | 1 |
-| W workbench-engines | pending agent | `plan.md` Lane W paths | `agent/live/workbench-engines` | pending | Contract V2 merged | 2 |
-| R report-evidence | pending agent | `plan.md` Lane R paths | `agent/live/report-evidence` | pending | Contract V2 merged | 3 |
-| P paper-deterministic | pending agent | `plan.md` Lane P paths | `agent/live/paper-deterministic` | pending | Contract V2 merged | 4 |
+| Contract V2 | Codex(wt) | `plan.md` Wave 0 schema/TS/canary paths | `agent/live/product-contract-v2` | merged · PR #22 · `641c0e5` | Lane D merged + verified | 1 |
+| W workbench-engines | `/root/workbench_engines` | `plan.md` Lane W paths | `agent/live/workbench-engines` | pending | Contract V2 merged | 2 |
+| R report-evidence | `/root/report_evidence` | `plan.md` Lane R paths | `agent/live/report-evidence` | pending | Contract V2 merged | 3 |
+| P paper-deterministic | `/root/paper_deterministic` | `plan.md` Lane P paths | `agent/live/paper-deterministic` | pending | Contract V2 merged | 4 |
 | B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | pending | Contract V2 merged | 5 |
 | runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | pending | W + R + P + B merged | 6 |
+| material/artifact cards | unassigned | `plan.md` Wave 3 card-approved surfaces only | card-specific branches | blocked:exact Steven approval | runtime-composition merged + named cards approved | 7 |
+| surface-truth | Codex lead | `plan.md` Wave 4 web paths | `agent/live/surface-truth` | pending | engines + composition + approved material contracts | 8 |
 | product-ratchets-v2 | Codex lead | `plan.md` final ratchet paths | `agent/live/product-ratchets-v2` | pending | composed product verified | final |
 
 ---
@@ -189,6 +191,13 @@ own `status`. Messages are append-only; you replace only your own state.
   suites, 251 web tests, TypeScript, ESLint, and both structural boundary
   ratchets are green. W/R/P/B remain dependency-locked pending lead review,
   explicit merge approval, merge, and post-merge verification.
+- 2026-07-22 18:18 +0000 (Codex, lead/owner): **Contract V2 merged; engine
+  wave unlocked.** PR #22 was independently reviewed, rebased onto current
+  `main`, and merged as `641c0e5` after focused local contract/boundary gates,
+  full CI, dependency audit, container contract, and Vercel passed. W/R/P are
+  assigned to disjoint agents and B remains lead-owned; all four start from the
+  same frozen-contract checkpoint. No material, provider, source, cloud,
+  Supabase, or deployment mutation is authorized by this launch.
 
 ---
 

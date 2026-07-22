@@ -30,9 +30,11 @@
 - **Lane D:** PR #21 merged as `ec075a8` after local/CI/Vercel and source-backed
   browser/API proof. Post-merge CI run `29940643472`, including immutable-image
   pull-back verification, passed.
-- **Contract V2:** serial Wave 0 is active from verified `origin/main@85b236d`;
-  W/R/P/B stay dependency-locked until the contract is reviewed, green, and
-  merged.
+- **Contract V2:** PR #22 merged as `641c0e5` after independent review, rebase,
+  focused local verification, full CI, dependency audit, container contract,
+  and Vercel passed.
+- **Wave 1:** W/R/P are assigned to disjoint agents and B is lead-owned. All
+  four launch from the same frozen-contract coordination checkpoint.
 - **Four-wave approval:** Steven approved Codex to continue through the four
   implementation waves and orchestrate the named worktrees/agents as
   dependencies unlock. Lead-run serialized merge review remains mandatory.
@@ -45,19 +47,21 @@ LOCKED · 2026-07-22 18:18 +0000 · Codex — Contract V2 merge checkpoint and W
 
 ## Shared File Locks
 
-- **Contract V2 seam** · held by `/root/contract_v2` since 2026-07-22 17:09
-  +0000: `app/backend/app/schemas/{__init__,capabilities,workbench,lookup,report,paper_variants,batch,panels,workflow}.py`,
-  `app/web/lib/backend.ts`, and Wave 0's two contract canaries. Release only
-  after the lane commits, pushes, and enters lead review.
+- **Frozen Contract V2 seam:** released after verified PR #22 merge; no Wave 1
+  lane may edit schemas, `backend.ts`, or the contract canaries.
+- **Lane W:** held for `/root/workbench_engines`; exact `plan.md` Lane W globs.
+- **Lane R:** held for `/root/report_evidence`; exact `plan.md` Lane R globs.
+- **Lane P:** held for `/root/paper_deterministic`; exact `plan.md` Lane P globs.
+- **Lane B:** held for Codex lead in `live-batch-wes`; exact Lane B globs.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 17:06 +0000 · Codex Live Product Contract V2
+# Resume prompt · 2026-07-22 18:18 +0000 · Codex Live Product Engine Wave
 Read CURRENT.md, COORDINATION.md, and plans/live-product-completion/{research,spec,plan}.md first.
-Lane D is merged at ec075a8 and main CI 29940643472 is green; continue the active Contract V2 lane from 85b236d.
-Review Contract V2 against Wave 0 exact globs, compatibility/security invariants, and every exit gate; merge only green.
-After Contract V2 lands, launch W/R/P agents and lead-owned Batch from that exact main base; merge W then R then P then B.
+Contract V2 is merged at 641c0e5; launch W/R/P agents and lead-owned Batch from the recorded coordination checkpoint.
+Keep schemas/backend.ts/contract canaries frozen and enforce each exact lane glob plus evidence-security invariants.
+Review and merge only green in order W then R then P then B under Steven's explicit approval.
 Continue into the approved serial runtime-composition and frontend waves as dependencies unlock.
 Before material/source/provider/cloud/deploy/Supabase action, stop on its separately named gate and present exact evidence/cost/licence cards.
 Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
@@ -66,8 +70,8 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ## Pointer
 
 - Live campaign: `plans/live-product-completion/{research,spec,plan}.md`.
-- Contract V2: branch `agent/live/product-contract-v2`, worktree
-  `.claude/worktrees/live-product-contract-v2`.
+- Engine branches/worktrees: `agent/live/{workbench-engines,report-evidence,paper-deterministic,batch-wes}`
+  under `.claude/worktrees/live-*`.
 - Lane D record: merged PR #21; historical worktree
   `.claude/worktrees/product-workbench-canvas-review` remains non-authoritative.
 - Product Workflow V1 background: `plans/product-workflow-integration/`.
@@ -75,18 +79,15 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 
 ## Delta
 
-- Repaired Lane D's structural CSS budgets, re-ran 251 web tests plus full
-  type/lint/build and boundary gates, and proved responsive/keyboard behavior.
-- Verified source-backed ABCA4 lookup behavior, honest fixture rejection for an
-  unavailable full locus, and executed local Primer3 output with explicit
-  specificity/SNP-mask limitations.
-- Merged green PR #21 as `ec075a8`; historical Lane E is superseded by the
-  final `product-ratchets-v2` charter.
-- Activated the approved Live Product Completion board with serial Contract V2
-  first and all four engine lanes dependency-locked behind it.
+- Merged green Contract V2 PR #22 as `641c0e5`, freezing additive execution,
+  context, report, paper, panel, and WES Batch truth models plus TS parity.
+- Preserved the security residual explicitly: legacy `UploadedReport` fields
+  remain only for compatibility; new V2 outputs exclude raw uploads/handles.
+- Unlocked the approved disjoint W/R/P/B engine wave while retaining separate
+  material, source, provider, cloud, Supabase, and deployment gates.
 
 ## Next Action
 
-- Complete Contract V2 in its claimed frozen seam, return a reviewed green PR,
-  release the shared-file lock after handoff, and merge the contract before
-  unlocking Workbench, Report, Paper, and Batch.
+- Create the four engine worktrees from the recorded frozen-contract base,
+  launch W/R/P agents, and implement lead-owned Batch without crossing lane or
+  material/provider/cloud gates.

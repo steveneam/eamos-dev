@@ -1,8 +1,8 @@
 # Live Product Completion — Parallel Delivery Plan
 
-Status: proposed; planning only; no new live-product lane launched.
+Status: active; Wave 0 merged and the four Wave 1 engine lanes are launching.
 
-Stamped: 2026-07-22 16:31 +0000 · Codex.
+Stamped: 2026-07-22 18:18 +0000 · Codex.
 
 Canonical inputs:
 
@@ -583,13 +583,11 @@ probe. A green file-existence check alone cannot release it.
 
 ## Exact next-session launch commands
 
-Steven confirmed on 2026-07-22 that, next session, his `gogogo` is the fresh
-per-session approval for Codex to create and orchestrate the named Contract V2,
-Workbench, Report, Paper, and Batch worktrees/agents below as their dependencies
-unlock. He does not need to run these commands himself. Do not run them today.
-First merge/verify current Lane D; then run the contract lane. Each merge and
-all material/source/provider/cloud/deploy actions keep their separate approval
-gates.
+Steven confirmed on 2026-07-22 that his `gogogo` is the fresh per-session
+approval for Codex to create and orchestrate the named Contract V2, Workbench,
+Report, Paper, and Batch worktrees/agents as their dependencies unlock. Contract
+V2 is merged and the engine commands below are now active. Each merge and all
+material/source/provider/cloud/deploy actions keep their separate gates.
 
 ### Contract window
 

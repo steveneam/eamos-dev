@@ -1,8 +1,9 @@
 # Live Product Completion — Evidence Baseline
 
-Status: planning evidence; no new lane launched.
+Status: frozen launch baseline; implementation is active and must reverify each
+claim against current code and runtime evidence.
 
-Stamped: 2026-07-22 16:29 +0000 · Codex.
+Stamped: 2026-07-22 18:18 +0000 · Codex.
 
 ## Scope
 
