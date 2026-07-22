@@ -25,33 +25,36 @@
 ## Active Status
 
 - **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** STOPPED AT NEXT-SESSION/INFRA GATE @ 2026-07-19 13:08 +0000 —
-  Product Workflow Wave 1 lanes B/C are clean, pushed, reviewed, and unmerged.
-- **Lane B:** PR #16, `agent/product/workflow-backend@7a19b40`. All required
-  local tests/guards and Vercel are green. Actions run `29688114049` rejected
-  every job before any step because account billing/spending blocked execution.
-- **Lane C:** PR #17, `agent/product/surface-flow@389bab1`. All required local
-  tests/guards, responsive/authenticated browser evidence, and Vercel are green.
-  Actions run `29687949192` has the same zero-step account-billing failure.
-- **Merge gate:** Steven approved the minimal Workbench design-binding contract
-  re-plan at 13:08 +0000 and directed that it start next session; no re-plan
-  edits have begun. Restore Actions billing and obtain green required runs,
-  then review/rebase B and pause for Steven's explicit merge approval. Never
-  merge on red.
-- **Task F:** no remote migration has been applied. It remains a separate,
-  fresh founder-approved Supabase mutation checkpoint after B merges and before
-  C can merge. Merge order remains B → Task F → C.
-- **Phase-3c soak:** recovery window active from `2026-07-19T01:46:12Z` after
-  a 7h15 shared-edge outage. Recovery middle is due around/after 2026-07-20
-  01:46 UTC; earliest end is around/after 2026-07-21 01:46 UTC. Render remains
-  live as rollback; do not close/cancel it.
+- **Codex:** STOPPED AT PR #18 MERGE APPROVAL GATE @ 2026-07-22 14:08 +0000.
+- **Serial contract gate:** PR #18 on `agent/product/contract-binding` is fully
+  green: all GitHub Actions
+  jobs, dependency security, Vercel, full local backend/web suites, structural
+  guards, and the frontend-contract canary passed. It remains unmerged pending
+  Steven's explicit approval.
+- **Lane B:** PR #16, `agent/product/workflow-backend@682048b`. The Library
+  legacy-replace regression and both structure-budget failures are fixed. Full
+  local backend and every branch-specific CI/Vercel check pass; dependency
+  security alone is red because this pre-contract branch still carries the old
+  lockfile. Rebase only after #18 merges.
+- **Lane C:** PR #17, `agent/product/surface-flow@fd5e4f3`. CompareClient was
+  split below its structure budget without UI behavior changes. Full local web
+  verification and every branch-specific CI/Vercel check pass; dependency
+  security has the same pre-contract-only failure. It remains downstream of B
+  and Task F.
+- **Task F:** no remote migration was applied. It remains a separate, fresh
+  founder-approved Supabase mutation checkpoint after B merges and before C.
+- **Phase-3c recovery/end:** the 2026-07-22 13:33 UTC public sample is green
+  across DNS/HTTP/TLS/headers/CORS/auth/health/provider parity, deterministic
+  parse, and two production report-performance runs. Independent read-only
+  host/container evidence is requested from Swordfish and still pending.
+  Render remains live as rollback; no Phase 4 action occurred.
 - **Evidence expansion:** Phases 0-6 are complete. Source acquisition or
   materialization, live providers, new-ruleset activation, and Phase 7 remain
   held behind their existing gates.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-19 13:09 +0000 · Codex
+UNLOCKED · 2026-07-22 14:08 +0000 · Codex
 
 ## Shared File Locks
 
@@ -60,58 +63,53 @@ UNLOCKED · 2026-07-19 13:09 +0000 · Codex
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-19 13:08 +0000 · Codex Workbench contract re-plan approved
+# Resume prompt · 2026-07-22 14:08 +0000 · Codex Product Workflow serial merge gate
 Read CURRENT.md, COORDINATION.md, and plans/product-workflow-integration/{plan,spec}.md first.
-If Phase-3c recovery-middle is due around/after 2026-07-20 01:46 UTC, run it first.
-Lane B: PR #16 at 7a19b40; Lane C: PR #17 at 389bab1; both clean, pushed, and Vercel green.
-GitHub Actions did not start because account billing/spending limits rejected every job; restore billing and rerun both, never merge red.
-Steven approved the minimal Workbench design-binding contract re-plan; begin it now as the next-session task.
-Freeze the smallest schema/TS/canary amendment binding build, reference basis, edit revision, and context digest before implementation resumes.
-After green CI and the verified contract amendment, lead rebases/reviews B and pauses for Steven's explicit merge approval.
-Only after B merges, present the filled Task F migration mutation template and wait for fresh confirmation.
-C remains downstream of a successful Task F checkpoint; do not merge it early.
-No remote Supabase/cloud/deploy/provider/source/Phase-7 action is authorized.
-Preserve Render rollback and watcher-owned FROM-SWORDFISH.md.
+PR #18 is fully green and awaits Steven's explicit merge approval.
+Do not merge #18 unless Steven approves it by name; no other gate is waived.
+After approval, lead merges #18, verifies main, rebases PR #16, and watches fresh CI.
+PR #16 at 682048b passes every branch-specific check; only the pre-contract dependency lock is red.
+Once rebased CI is fully green, pause again for Steven's explicit Lane B merge approval.
+Task F remains a separate fresh Supabase mutation approval after B merges.
+PR #17 at fd5e4f3 stays downstream of successful Task F; do not merge it early.
+Check ASK-BACKS/FROM-SWORDFISH for the pending Phase-3c host/container evidence.
+No remote Supabase/cloud/deploy/provider/source/Phase-7 or Render action is authorized.
+Preserve watcher-owned FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Audit/contract/launch package: `plans/product-workflow-integration/`.
-- Lane B: PR #16, `agent/product/workflow-backend@7a19b40`, worktree
+- Contract gate: PR #18, `agent/product/contract-binding`, worktree
+  `.claude/worktrees/product-contract-binding`.
+- Lane B: PR #16, `agent/product/workflow-backend@682048b`, worktree
   `.claude/worktrees/product-workflow-backend`.
-- Lane C: PR #17, `agent/product/surface-flow@389bab1`, worktree
+- Lane C: PR #17, `agent/product/surface-flow@fd5e4f3`, worktree
   `.claude/worktrees/product-surface-flow`.
+- Product contract/plan: `plans/product-workflow-integration/`.
 - Local-only migration: `supabase/migrations/20260719113620_product_workflow_runs.sql`.
-- Approval receipt: `docs/governance/decisions.md` (2026-07-19 Workbench re-plan).
-- Task F runbook: `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`.
-- Phase-3c recovery timing, evidence, and exit contract:
-  `docs/deployment/render-to-syd2-phase3.md`.
+- Task F runbook:
+  `docs/architecture-consistency-gate/task-f-supabase-production-readiness-runbook.md`.
+- Phase-3c evidence contract: `docs/deployment/render-to-syd2-phase3.md`.
 - Never edit or stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
 
 ## Delta
 
-- Lane B delivered owner-scoped durable Batch/Paper/Workbench lifecycle,
-  paging/export/cancel/delete/expiry behavior, JWT issuer validation, Library
-  v2 tombstone merging, whole-gene fail-closed locus handling, and local-only
-  migration/schema support.
-- Lead security review added ASGI Paper cancellation finalization and bounded
-  compare-and-swap retries that preserve concurrent Library tombstones.
-- Lane C delivered authenticated Paper disclosure/extraction, Report/Paper/
-  Batch/Library handoffs and responsive product states. Lead security review
-  neutralized spreadsheet formulas in Paper TSV exports.
-- Steven approved the minimal contract re-plan that will bind Workbench design
-  requests to build/reference basis, edit revision, and context digest. He
-  directed that it start next session; no contract edits have begun.
-- Both PRs passed their complete local verification and Vercel checks. GitHub
-  Actions failures are infrastructure-only zero-step billing rejections, not
-  executed-test failures; they still block merge.
-- No cloud, deploy, provider, source, Phase-7, Supabase-link, or remote migration
-  action occurred. No merge occurred. Render remains the live rollback.
+- GitHub Actions billing is restored and jobs execute normally.
+- PR #18 froze the additive Workbench design-context envelope, canonical
+  cross-language digest semantics, Pydantic/TypeScript canaries, and supported
+  dependency overrides; its clean clone installs with zero vulnerabilities.
+- Lane B now preserves legacy whole-document Library clearing until v2 reserved
+  rows appear, while keeping the v2 tombstone merge ratchet sticky. Backend
+  hotspots were split without changing their APIs.
+- Lane C's Compare run-output panels moved into a cohesive presentation module;
+  the Impeccable product rules kept state, accessibility, and responsive
+  behavior unchanged.
+- No merge, remote Supabase mutation, cloud/deploy/provider/source action,
+  Phase 4, or Phase 7 action occurred.
 
 ## Next Action
 
-- On the next `gogogo`, run the recovery-middle sample first if due; otherwise
-  begin the approved minimal Workbench design-binding contract re-plan. Keep B/C
-  unmerged while the amendment is frozen and locally verified. Steven restores
-  Actions billing and reruns both PRs before B's serialized merge gate; Task F
-  remains a later, separate mutation approval.
+- Wait for Steven's explicit approval to merge fully-green PR #18. On approval,
+  merge it as lead, verify `main`, then rebase PR #16 onto the new contract
+  base and run the serialized CI/review gate. Also ingest Swordfish's pending
+  Phase-3c host evidence when it arrives.

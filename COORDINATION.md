@@ -9,7 +9,7 @@ Ratchet policy: `docs/parallel-agents/ratchet-philosophy.md`.
 not a discipline to an agent. Either agent (Claude or Codex) can own any lane, full-stack; the
 `owner` column records who ran it, not a role. Steven picks agents by availability + usage limits.
 
-**Status:** _Product Workflow V1 ACTIVE — Lane A integrated; B/C in progress._ Historical
+**Status:** _Product Workflow V1 ACTIVE — contract amendment and B/C in review._ Historical
 Mode-A dogfood completed 2026-07-03; its record remains below.
 
 ---
@@ -21,17 +21,23 @@ contract: `plans/product-workflow-integration/plan.md` + `spec.md`._
 
 Lane A was integrated and verified on `main` as `6d2f6c9` through Steven's
 one-time manual CI-equivalent substitute. Wave 1 launched B/C from current
-`origin/main@3f0a081`. Delivery remains `A → B → Task F apply → C → D → E`; the Task F
-mutation has its own founder gate.
+`origin/main@3f0a081`. Delivery is now
+`A → design-binding → B → Task F apply → C → D → E`; the Task F mutation has
+its own founder gate.
+
+The approved serial Workbench design-binding amendment is fully green in PR
+#18 and must merge before Lane B is rebased. It does not change the downstream
+merge authority or Task F mutation gate.
 
 | lane | owner | owns (exact source) | branch | status | depends-on | merge-order |
 |------|-------|---------------------|--------|--------|------------|-------------|
 | A contract-v1 | Codex(wt) | `plan.md` Lane A schema/TS/canary paths | `agent/product/contract-v1-manual` | integrated `6d2f6c9` · Vercel green | — | 1 |
-| B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | in_progress | A merged | 2 |
-| Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending | B merged + fresh Steven approval | 3 |
-| C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | in_progress | A merged; merge after Task F | 4 |
-| D workbench-canvas | unassigned | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | pending | B + C merged | 5 |
-| E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 6 |
+| serial design-binding | Codex lead | approved amendment paths in `plan.md` | `agent/product/contract-binding` | review · PR #18 fully green · explicit merge approval pending | A merged | 2 |
+| B workflow-backend | Codex(wt) | `plan.md` Lane B backend/migration paths | `agent/product/workflow-backend` | review · PR #16 @ `682048b` · branch checks green; rebase after #18 | design-binding merged | 3 |
+| Task F apply | Codex lead | runbook + named `eamos-dev` migration checkpoint | — | pending | B merged + fresh Steven approval | 4 |
+| C surface-flow | Codex(wt) | `plan.md` Lane C web paths | `agent/product/surface-flow` | review · PR #17 @ `fd5e4f3` · branch checks green; held behind Task F | A merged; merge after Task F | 5 |
+| D workbench-canvas | unassigned | `plan.md` Lane D web paths | `agent/product/workbench-canvas` | pending | B + C merged | 6 |
+| E workflow-ratchets | unassigned | `plan.md` Lane E scripts/docs/CI paths | `agent/product/workflow-ratchets` | pending | D merged | 7 |
 
 ---
 
@@ -129,6 +135,12 @@ own `status`. Messages are append-only; you replace only your own state.
   Vercel builds passed, the current-main contract/web/structural smokes passed,
   and superseded PR #15 was closed. B/C were not launched and every downstream
   mutation/deploy gate remains intact.
+- 2026-07-22 14:08 +0000 (Codex, lead/owner): **Actions restored; serial gate
+  ready.** PR #18 is fully green and awaits Steven's explicit merge
+  approval. Lane B (`682048b`) and Lane C (`fd5e4f3`) repaired their executed CI
+  regressions and pass every branch-specific job plus Vercel; their only red job
+  is the pre-contract dependency lock fixed by #18. No lane merged and Task F
+  remains a separate fresh mutation approval.
 
 ---
 
