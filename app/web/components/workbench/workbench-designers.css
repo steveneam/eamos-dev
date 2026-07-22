@@ -704,17 +704,6 @@
 .fl-header-gene { font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
 .fl-header-sep { color: var(--ink-4); }
 .fl-header-coord, .fl-header-build, .fl-header-stat { color: var(--ink-3); }
-.fl-transcript-select {
-  display: inline-flex; align-items: center; gap: 6px;
-  min-width: 0;
-  font: 600 10.5px var(--body); color: var(--ink-4);
-}
-.fl-transcript-select select {
-  min-width: 0; max-width: 190px; height: 30px;
-  border: 0.5px solid var(--line); border-radius: 5px;
-  background: var(--bg); color: var(--ink-2);
-  padding: 0 24px 0 8px; font: 500 11px var(--mono);
-}
 .fl-coord-toggle {
   display: inline-flex; align-items: center;
   margin-left: 4px; padding: 2px;
@@ -745,92 +734,6 @@
   color: var(--bg);
 }
 
-.fl-controls {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
-  gap: 8px 14px;
-  padding: 10px 14px 8px;
-  border-bottom: 0.5px solid var(--line);
-  background: var(--bg);
-  flex-shrink: 0;
-}
-.fl-search, .fl-coordinate-entry {
-  min-width: 0;
-  font: 600 10.5px var(--body); color: var(--ink-3);
-}
-.fl-search { display: flex; flex-direction: column; gap: 5px; }
-.fl-search > div { display: flex; gap: 5px; min-width: 0; }
-.fl-search input { flex: 1; min-width: 0; }
-.fl-coordinate-entry { display: flex; align-items: flex-end; gap: 5px; }
-.fl-coordinate-entry label {
-  display: flex; flex-direction: column; gap: 5px;
-}
-.fl-coordinate-entry input { width: 104px; }
-.fl-controls input, .fl-insert-field input {
-  height: 32px; border: 0.5px solid var(--line); border-radius: 5px;
-  background: var(--bg); color: var(--ink);
-  padding: 0 8px; font: 500 11px var(--mono);
-}
-.fl-controls button, .fl-orientation button, .fl-editbar button,
-.fl-touch-endpoint button {
-  min-height: 32px; border: 0.5px solid var(--line); border-radius: 5px;
-  background: var(--bg); color: var(--ink-2);
-  padding: 5px 9px; font: 600 10.5px var(--body); cursor: pointer;
-}
-.fl-controls button:hover, .fl-orientation button:hover, .fl-editbar button:hover,
-.fl-touch-endpoint button:hover { border-color: var(--teal); color: var(--teal); }
-.fl-controls button:focus-visible, .fl-controls input:focus-visible,
-.fl-transcript-select select:focus-visible, .fl-orientation button:focus-visible,
-.fl-editbar button:focus-visible, .fl-editbar input:focus-visible,
-.fl-touch-endpoint button:focus-visible, .fl-minimap:focus-visible,
-.fl-scroller:focus-visible {
-  outline: 2px solid var(--teal); outline-offset: 2px;
-}
-.fl-query-message {
-  grid-column: 1 / -1; margin: 0;
-  font: 500 10.5px/1.4 var(--body); color: var(--ink-3);
-}
-.fl-orientation-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 7px 14px; border-bottom: 0.5px solid var(--line);
-  background: var(--bg-soft); flex-shrink: 0;
-}
-.fl-orientation { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-.fl-orientation button.active {
-  border-color: var(--teal); background: var(--teal); color: var(--bg);
-}
-.fl-selection-summary {
-  min-width: 0; text-align: right;
-  font: 500 10.5px/1.35 var(--body); color: var(--ink-3);
-}
-.fl-basis-warning {
-  margin: 0; padding: 7px 14px; flex-shrink: 0;
-  border-bottom: 0.5px solid color-mix(in srgb, var(--warn) 28%, transparent);
-  background: color-mix(in srgb, var(--warn) 8%, var(--bg)); color: var(--ink-2);
-  font: 500 10.5px/1.4 var(--body);
-}
-.fl-minimap {
-  position: relative; display: block; width: auto; height: 34px;
-  margin: 8px 14px 0; padding: 0 6px; flex-shrink: 0;
-  border: 0.5px solid var(--line); border-radius: 6px;
-  background: var(--bg-soft); cursor: crosshair;
-}
-.fl-minimap-track {
-  position: relative; display: block; width: 100%; height: 10px;
-  border-radius: 100px; background: var(--line-2); overflow: hidden;
-}
-.fl-minimap-feature, .fl-minimap-query, .fl-minimap-viewport {
-  position: absolute; top: 0; bottom: 0;
-}
-.fl-minimap-feature { background: var(--ink-4); }
-.fl-minimap-feature--utr5, .fl-minimap-feature--utr3 { background: var(--teal); }
-.fl-minimap-query { width: 2px; z-index: 3; background: var(--warn); }
-.fl-minimap-viewport {
-  z-index: 2; min-width: 2px;
-  border: 1px solid var(--teal); border-radius: 2px;
-  background: color-mix(in srgb, var(--teal) 18%, transparent);
-}
-
 .fl-scroller {
   flex: 1; min-height: 0;
   /* Bound the locus to a real viewport so the row list virtualizes (only the
@@ -843,7 +746,6 @@
   scrollbar-gutter: stable;
   contain: layout paint style;
   scroll-behavior: smooth;
-  touch-action: pan-y;
 }
 .fl-rows { display: flex; flex-direction: column; gap: 1px; }
 
@@ -920,55 +822,6 @@
   box-shadow: 0 0 0 1px rgba(186, 117, 23, 0.45);
   font-weight: 700;
 }
-.fl-base--selected {
-  background: color-mix(in srgb, var(--teal) 24%, transparent);
-  border-bottom: 2px solid var(--teal);
-}
-.fl-base--variant.fl-base--selected {
-  background: var(--warn);
-  border-bottom-color: var(--bg);
-}
-.fl-base--edited { color: var(--base-C); font-weight: 700; }
-.fl-base--deleted { color: var(--err); text-decoration: line-through; }
-.fl-base-insert { font: 700 7px var(--body); color: var(--base-C); }
-
-.fl-touch-range {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px;
-  padding: 7px 14px; border-top: 0.5px solid var(--line);
-  background: var(--bg-soft); flex-shrink: 0;
-}
-.fl-touch-range-label, .fl-editbar-label {
-  font: 700 10px var(--body); color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.035em;
-}
-.fl-touch-endpoint { display: inline-flex; align-items: center; gap: 4px; }
-.fl-touch-endpoint > span { font: 600 10.5px var(--body); color: var(--ink-4); }
-.fl-touch-endpoint output {
-  min-width: 70px; text-align: center;
-  font: 500 10.5px var(--mono); color: var(--ink-2);
-}
-.fl-touch-endpoint button { width: 32px; padding: 0; font-size: 15px; }
-.fl-editbar {
-  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 6px;
-  padding: 8px 14px; border-top: 0.5px solid var(--line);
-  background: var(--bg); flex-shrink: 0;
-}
-.fl-base-actions { display: inline-flex; gap: 3px; }
-.fl-base-actions button { min-width: 32px; padding-inline: 7px; }
-.fl-insert-field {
-  display: flex; flex-direction: column; gap: 3px; min-width: 120px;
-  font: 600 9.5px var(--body); color: var(--ink-4);
-}
-.fl-insert-field input { width: 120px; }
-.fl-editbar button:disabled, .fl-touch-endpoint button:disabled {
-  opacity: 0.42; cursor: not-allowed; border-color: var(--line); color: var(--ink-4);
-}
-.fl-keyboard-help {
-  margin: 0; padding: 5px 14px; flex-shrink: 0;
-  background: var(--bg-soft); border-top: 0.5px solid var(--line);
-  font: 500 9.5px/1.4 var(--body); color: var(--ink-4);
-}
-
 .fl-provenance {
   border-top: 0.5px solid var(--line);
   background: var(--bg-soft);
@@ -995,46 +848,6 @@
   .fl-row-band-label {
     font-size: 8.5px;
   }
-  .fl-controls { grid-template-columns: minmax(0, 1fr); }
-  .fl-coordinate-entry { align-items: flex-end; flex-wrap: wrap; }
-  .fl-coordinate-entry label { flex: 1; min-width: 92px; }
-  .fl-coordinate-entry input { width: 100%; }
-  .fl-orientation-row { align-items: flex-start; flex-direction: column; }
-  .fl-selection-summary { text-align: left; }
-  .fl-touch-range { align-items: stretch; }
-  .fl-touch-range-label { width: 100%; }
-  .fl-touch-endpoint { flex: 1 1 220px; justify-content: space-between; }
-  .fl-touch-endpoint button { width: 44px; min-height: 44px; }
-  .fl-editbar button { min-height: 44px; }
-  .fl-scroller { max-height: calc(100vh - var(--nav-h) - var(--ctx-h) - 96px); }
-}
-@media (max-width: 480px) {
-  .fl-header, .fl-controls, .fl-orientation-row, .fl-editbar,
-  .fl-touch-range, .fl-keyboard-help, .fl-provenance { padding-inline: 8px; }
-  .fl-header-sep, .fl-header-build { display: none; }
-  .fl-header-right { align-items: stretch; }
-  .fl-transcript-select { flex: 1 1 100%; justify-content: space-between; }
-  .fl-transcript-select select { max-width: min(210px, 68vw); }
-  .fl-search > div { flex-wrap: wrap; }
-  .fl-search input { flex-basis: 100%; }
-  .fl-controls button { min-height: 44px; }
-  .fl-controls input { height: 44px; }
-  .fl-minimap { margin-inline: 8px; height: 44px; }
-  .fl-row { grid-template-columns: minmax(0, 1fr); column-gap: 0; }
-  .fl-row-coord, .fl-row-end { display: none; }
-  .fl-row-bases { justify-content: center; font-size: 11.5px; line-height: 1.7; }
-  .fl-scroller { padding-inline: 8px; scrollbar-gutter: auto; }
-  .fl-insert-field, .fl-insert-field input { width: 100%; }
-}
-@media (pointer: coarse) {
-  .fl-touch-endpoint button, .fl-editbar button {
-    min-width: 44px; min-height: 44px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .fl-scroller { scroll-behavior: auto; }
-  .fl-controls button, .fl-orientation button, .fl-editbar button,
-  .fl-touch-endpoint button { transition: none; }
 }
 .fl-provenance-warn {
   padding: 2px 6px;
@@ -1063,46 +876,3 @@
   cursor: pointer;
 }
 .fl-unsupported-btn:hover { background: var(--bg); border-color: var(--teal); color: var(--teal); }
-
-.workbench-context-binding,
-.workbench-stale {
-  margin: 8px 0;
-  padding: 8px 10px;
-  border: 0.5px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg-soft);
-  color: var(--ink-3);
-  font: 500 11px/1.45 var(--body);
-}
-
-.workbench-stale {
-  border-color: var(--warn-bdr);
-  background: var(--warn-tint);
-  color: var(--warn-text);
-}
-
-.workbench-export-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.workbench-export-row button {
-  min-height: 32px;
-  padding: 5px 10px;
-  border: 0.5px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--ink-2);
-  font: 600 11px var(--body);
-  cursor: pointer;
-}
-
-.align-add.disabled {
-  opacity: 0.58;
-}
-
-@media (pointer: coarse) {
-  .workbench-export-row button { min-height: 44px; }
-}
