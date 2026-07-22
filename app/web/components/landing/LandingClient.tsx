@@ -73,7 +73,7 @@ export function LandingClient() {
                 boxShadow: '0 0 0 3px color-mix(in oklab, var(--em) 22%, transparent)',
               }}
             />
-            Free access
+            Next-generation variant search
           </span>
 
           <h1
@@ -89,7 +89,7 @@ export function LandingClient() {
               margin: '0 0 22px',
             }}
           >
-            Trace a genetic{' '}
+            Search the evidence behind a genetic{' '}
             <span style={{ color: 'var(--em-bright)' }}>variant</span>
           </h1>
 
@@ -102,8 +102,9 @@ export function LandingClient() {
               margin: '0 0 40px',
             }}
           >
-            Identify a supported variant, inspect its source provenance, then continue into
-            Workbench or Batch. The full 11-engine predictor catalog is included free.
+            One query checks clinical sources, an 11-engine in-silico predictor catalog, and
+            version-pinned ACMG/AMP criteria. Every returned score keeps its source, release,
+            and runtime status visible.
           </p>
 
           <div style={{ width: '100%', maxWidth: 680 }}>

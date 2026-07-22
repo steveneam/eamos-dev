@@ -64,11 +64,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
   : new URL('https://eamos.com.au')
 
-const defaultTitle = 'Eamos: Free Genomic Variant Evidence'
+const defaultTitle = 'Eamos: Genetic Variant Search Engine'
 const defaultDescription =
-  'Free genomic variant evidence and predictor scores, including SpliceAI and REVEL, gathered into one cited research report. Research use only.'
+  'Search a genetic variant across clinical evidence, 11 in-silico predictors, and version-pinned ACMG/AMP criteria in one traceable research report.'
 const socialImageAlt =
-  'Eamos free genomic variant evidence: trace one variant through 11 predictor engines, Workbench, and Batch.'
+  'Eamos free genomic variant evidence search: trace one variant through 11 predictor engines, Workbench, and Batch.'
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,

@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { Reveal } from '@/components/landing/Reveal'
 
 export function Testimonials() {
@@ -13,13 +12,6 @@ export function Testimonials() {
     >
       <div className="mx-auto px-8" style={{ maxWidth: 880 }}>
         <Reveal className="flex flex-col items-center text-center">
-          <Image
-            src="/founder-steven.webp"
-            alt="Steven, founder of Eamos"
-            width={112}
-            height={112}
-            className="mb-7"
-          />
           <span aria-hidden style={{ fontFamily: 'var(--display)', fontSize: 48, lineHeight: 1, color: 'var(--em-bright)' }}>
             “
           </span>
@@ -35,10 +27,10 @@ export function Testimonials() {
               margin: 0,
             }}
           >
-            As a researcher, I&rsquo;ve felt how much attention variant review loses to moving between
-            databases. I built Eamos to bring that evidence into one traceable workspace, so researchers
-            and clinicians can spend more time interpreting what the sources actually show. The mission is
-            simple: make genomic evidence easier to inspect without hiding uncertainty.
+            As a researcher, I&rsquo;ve seen variant review turn into tab management. I built Eamos as a
+            search engine for variant evidence: one query across source-backed records, modern in-silico
+            predictors, and versioned criteria that can move as standards evolve. The goal is not to hide
+            uncertainty. It is to make every score, source, and decision easier to inspect.
           </blockquote>
           <p
             className="mt-7"
