@@ -417,7 +417,7 @@ def test_lookup_rpe65_splice_functional_prior_is_source_scoped(client) -> None:
         for card in report_payload["call_cards"]["cards"]
         if card["card_id"] == "lab_functional"
     )
-    assert lab_card["source_status"] == "fixture"
+    assert lab_card["source_status"] == "partial"
     assert {badge["text"] for badge in lab_card["support_badges"]} == {
         "PS3_Supporting",
         "1 Unique",
@@ -763,11 +763,10 @@ def test_lookup_non_rpe65_variants_degrade_without_rpe65_fixture_bleed(
     )
     assert report_payload["population_frequency_detail"]["allele_frequency"] is None
     assert (
-        report_payload["population_frequency_detail"]["unavailable_reason"]
-        == "frequency_metrics_unavailable"
+        report_payload["population_frequency_detail"]["unavailable_reason"] == "source_unavailable"
     )
     assert profile["population_frequency"]["visual_groups"] == []
-    assert profile["population_frequency"]["unavailable_reason"] == "frequency_metrics_unavailable"
+    assert profile["population_frequency"]["unavailable_reason"] == "source_unavailable"
     assert "genetic_ancestry_groups_unavailable" in profile["population_frequency"]["warnings"]
     assert profile["gene_context_snapshot"]["source_status"] == "missing"
     assert profile["gene_context_snapshot"]["gene"] == gene

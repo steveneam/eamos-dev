@@ -17,6 +17,12 @@ from app.schemas.run import (
     VariantReportCallCards,
 )
 from app.services.population_frequency_section import PANEL_ID, SECTION_ID
+from app.services.report_source_truth import (
+    combined_report_source_status,
+    normalize_report_source_status,
+    report_source_allows_payload,
+    report_source_is_weak,
+)
 
 FREQUENCY_PM2_AF_THRESHOLD = 0.0001
 FREQUENCY_BS1_AF_THRESHOLD = 0.01
@@ -61,6 +67,19 @@ def build_population_frequency_detail(
         gnomad_summary.setdefault("variant_id", source_identity.get("variant_id"))
     if source_url:
         gnomad_summary.setdefault("url", source_url)
+
+    normalized_status = normalize_report_source_status(source_status)
+    warnings = list(source_warnings or [])
+    if report_source_is_weak(normalized_status):
+        warnings.append(f"gnomad_source_status:{normalized_status}")
+        return PopulationFrequencyDetail(
+            dataset=str(source_identity.get("dataset") or ""),
+            variant_id=str(source_identity.get("variant_id") or ""),
+            unavailable_reason="source_unavailable",
+            sequencing_type="unknown",
+            warnings=_dedupe_strings(warnings),
+            source_url=source_url,
+        )
     if not gnomad_summary:
         return None
 
@@ -73,12 +92,9 @@ def build_population_frequency_detail(
 
     age_distribution = _age_distribution_from_summary(gnomad_summary.get("age_distribution"))
     age_distributions = _age_distributions_from_summary(gnomad_summary.get("age_distributions"))
-    warnings = list(source_warnings or [])
-    if source_status in {"fallback", "degraded", "error", "failed"}:
-        warnings.append(f"gnomad_source_status:{source_status}")
     unavailable_reason = _population_unavailable_reason(
         gnomad_summary,
-        source_status=source_status,
+        source_status=normalized_status,
         warnings=warnings,
     )
 
@@ -125,8 +141,12 @@ def _population_frequency_card(
     evidence_statuses: dict[str, str],
 ) -> ReportCallCard:
     detail = payload.population_frequency_detail
-    status = evidence_statuses.get("gnomad", "missing")
-    if detail is None or detail.allele_frequency is None:
+    status = normalize_report_source_status(evidence_statuses.get("gnomad", "missing"))
+    weak_source = report_source_is_weak(status)
+    if detail is None or detail.allele_frequency is None or weak_source:
+        warnings = [] if detail is None else list(detail.warnings)
+        if weak_source:
+            warnings = _dedupe_strings([*warnings, f"gnomad_source_status:{status}"])
         return ReportCallCard(
             card_id="population_frequency",
             title="Population Frequency",
@@ -135,7 +155,7 @@ def _population_frequency_card(
             ui_color_theme="neutral_slate_state",
             source_status=status,
             provenance=[_gnomad_provenance_label(status)],
-            warnings=[] if detail is None else detail.warnings,
+            warnings=warnings,
             interaction=POPULATION_FREQUENCY_INTERACTION,
         )
 
@@ -160,7 +180,7 @@ def _population_frequency_card(
         primary_label = f"Low Frequency ({_format_percent(max_af)} max AF)"
         theme = "neutral_slate_state"
 
-    support_badges = [_frequency_code_badge(detail, payload, evidence_map)]
+    support_badges = [_frequency_code_badge(detail, payload, evidence_map, evidence_statuses)]
     if detail.popmax_frequency is not None and detail.popmax_population:
         support_badges.append(
             ReportCallBadge(
@@ -325,17 +345,26 @@ def _legacy_computational_card(
     payload: ReportPayload,
     evidence_statuses: dict[str, str],
 ) -> ReportCallCard:
-
     predictions = payload.in_silico_predictions
-    if predictions is None or not predictions.cards:
+    source_names = ("computational_annotations", "spliceai", "vep")
+    source_status = _combined_status(evidence_statuses, source_names)
+    fixture_mode = any(
+        normalize_report_source_status(evidence_statuses.get(source)) == "fixture"
+        for source in source_names
+    )
+    if predictions is None or not predictions.cards or not fixture_mode:
+        warnings = []
+        if predictions is not None and predictions.cards and not fixture_mode:
+            warnings.append("legacy_computational_fixture_payload_suppressed")
         return ReportCallCard(
             card_id="computational",
             title="Computational",
             primary_label="No Computational Data",
             support_badges=[ReportCallBadge(text="None", kind="neutral")],
             ui_color_theme="neutral_slate_state",
-            source_status=_combined_status(evidence_statuses, ("spliceai",)),
+            source_status=source_status,
             provenance=["SpliceAI / predictor sources unavailable"],
+            warnings=warnings,
         )
 
     spliceai = next((card for card in predictions.cards if card.name == "SpliceAI"), None)
@@ -373,7 +402,7 @@ def _legacy_computational_card(
         primary_label=primary_label,
         support_badges=support_badges or [ReportCallBadge(text="None", kind="neutral")],
         ui_color_theme=theme,
-        source_status=_combined_status(evidence_statuses, ("spliceai", "vep")),
+        source_status=source_status,
         provenance=["SpliceAI and in-silico predictor payload"],
     )
 
@@ -383,15 +412,25 @@ def _lab_functional_card(
     evidence_statuses: dict[str, str],
 ) -> ReportCallCard:
     functional = payload.functional_evidence
-    if functional is None:
+    source_names = ("clingen", "clinvar", "pubmed", "mavedb")
+    source_status = _combined_status(evidence_statuses, source_names)
+    source_available = any(
+        report_source_allows_payload(evidence_statuses.get(source, "missing"))
+        for source in source_names
+    )
+    if functional is None or not source_available:
+        warnings = [] if functional is None else list(functional.warnings)
+        if functional is not None and not source_available:
+            warnings = _dedupe_strings([*warnings, "functional_evidence_sources_unavailable"])
         return ReportCallCard(
             card_id="lab_functional",
             title="Lab & Functional",
             primary_label="No Functional Data Available",
             support_badges=[ReportCallBadge(text="0 Unique", kind="metric")],
             ui_color_theme="neutral_slate_state",
-            source_status="missing",
-            provenance=["ClinGen / ClinVar / PubMed functional evidence"],
+            source_status=source_status,
+            provenance=["Functional evidence sources unavailable"],
+            warnings=warnings,
         )
 
     metrics = functional.display_metrics
@@ -414,8 +453,17 @@ def _lab_functional_card(
         primary_label=metrics.primary_label,
         support_badges=badges,
         ui_color_theme=metrics.ui_color_theme,
-        source_status=_combined_status(evidence_statuses, ("clingen", "clinvar", "pubmed")),
-        provenance=["ClinGen Evidence Repository", "ClinVar VCV", "PubMed"],
+        source_status=source_status,
+        provenance=[
+            label
+            for source, label in (
+                ("clingen", "ClinGen Evidence Repository"),
+                ("clinvar", "ClinVar VCV"),
+                ("pubmed", "PubMed"),
+                ("mavedb", "MaveDB"),
+            )
+            if report_source_allows_payload(evidence_statuses.get(source, "missing"))
+        ],
         warnings=functional.warnings,
     )
 
@@ -428,6 +476,20 @@ def _computational_card_from_annotations(
 ) -> ReportCallCard | None:
     if not annotations:
         return None
+    annotation_status = evidence_statuses.get("computational_annotations", "missing")
+    if report_source_is_weak(annotation_status):
+        return ReportCallCard(
+            card_id="computational",
+            title="Computational",
+            primary_label="No Computational Data",
+            support_badges=[ReportCallBadge(text="None", kind="neutral")],
+            ui_color_theme="neutral_slate_state",
+            source_status=normalize_report_source_status(annotation_status),
+            provenance=["Computational annotation source unavailable"],
+            warnings=[
+                str(item) for item in annotations.get("warnings", []) if isinstance(item, str)
+            ],
+        )
 
     rows = [
         row
@@ -494,7 +556,11 @@ def _computational_card_from_annotations(
         for row in (row for row in ranked_rows if row["score"] is not None)
     ][:2]
 
-    acmg_badge = _first_acmg_badge_from_consensus(evidence_map, ("PP3", "BP4"))
+    acmg_badge = _first_acmg_badge_from_consensus(
+        evidence_map,
+        evidence_statuses,
+        ("PP3", "BP4"),
+    )
     if acmg_badge is None:
         acmg_badge = _first_met_acmg_badge(payload, ("PP3", "BP4"))
     if acmg_badge is not None:
@@ -563,7 +629,7 @@ def _population_unavailable_reason(
         return None
     if "gnomad_variant_not_found" in warnings:
         return "variant_not_found"
-    if source_status in {"fallback", "degraded", "error", "failed"}:
+    if report_source_is_weak(source_status):
         return "source_unavailable"
     if not summary:
         return "detail_unavailable"
@@ -586,8 +652,30 @@ def _clinical_consensus_card(
     evidence_map: dict[str, dict[str, Any]],
     evidence_statuses: dict[str, str],
 ) -> ReportCallCard:
-    consensus = evidence_map.get("clinical_consensus", {})
-    clinvar = evidence_map.get("clinvar", {})
+    consensus_status = evidence_statuses.get("clinical_consensus") or evidence_statuses.get(
+        "clingen", "missing"
+    )
+    clinvar_status = evidence_statuses.get("clinvar", "missing")
+    consensus = (
+        evidence_map.get("clinical_consensus", {})
+        if report_source_allows_payload(consensus_status)
+        else {}
+    )
+    clinvar = (
+        evidence_map.get("clinvar", {}) if report_source_allows_payload(clinvar_status) else {}
+    )
+    source_status = combined_report_source_status((consensus_status, clinvar_status))
+    if not consensus and not clinvar:
+        return ReportCallCard(
+            card_id="clinical_consensus",
+            title="Clinical Consensus",
+            primary_label="Unavailable",
+            support_badges=[ReportCallBadge(text="None", kind="neutral")],
+            ui_color_theme="neutral_slate_state",
+            source_status=source_status,
+            provenance=["Clinical consensus sources unavailable"],
+            warnings=["clinical_consensus_sources_unavailable"],
+        )
     classification = str(
         consensus.get("classification") or clinvar.get("classification") or "Unavailable"
     )
@@ -620,9 +708,7 @@ def _clinical_consensus_card(
         primary_label=primary_label,
         support_badges=badges,
         ui_color_theme=_classification_theme(primary_label),
-        source_status=evidence_statuses.get("clinical_consensus")
-        or evidence_statuses.get("clingen")
-        or evidence_statuses.get("clinvar", "missing"),
+        source_status=source_status,
         provenance=provenance,
         warnings=[str(item) for item in consensus.get("warnings", [])],
     )
@@ -632,8 +718,13 @@ def _frequency_code_badge(
     detail: PopulationFrequencyDetail,
     payload: ReportPayload,
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
 ) -> ReportCallBadge:
-    consensus_badge = _first_acmg_badge_from_consensus(evidence_map, ("PM2", "BS1", "BA1"))
+    consensus_badge = _first_acmg_badge_from_consensus(
+        evidence_map,
+        evidence_statuses,
+        ("PM2", "BS1", "BA1"),
+    )
     if consensus_badge is not None:
         return consensus_badge
     existing = _first_met_acmg_badge(payload, ("PM2", "BS1", "BA1"))
@@ -644,8 +735,14 @@ def _frequency_code_badge(
 
 def _first_acmg_badge_from_consensus(
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
     codes: tuple[str, ...],
 ) -> ReportCallBadge | None:
+    status = evidence_statuses.get("clinical_consensus") or evidence_statuses.get(
+        "clingen", "missing"
+    )
+    if not report_source_allows_payload(status):
+        return None
     worksheet = evidence_map.get("clinical_consensus", {}).get("acmg_worksheet")
     if not isinstance(worksheet, dict):
         return None
@@ -745,16 +842,9 @@ def _age_histogram_from_summary(value: Any) -> PopulationAgeHistogram | None:
 
 
 def _combined_status(evidence_statuses: dict[str, str], source_names: tuple[str, ...]) -> str:
-    statuses = [evidence_statuses.get(name) for name in source_names if evidence_statuses.get(name)]
-    if not statuses:
-        return "missing"
-    if any(status == "live" for status in statuses):
-        return "live"
-    if any(status == "cache" for status in statuses):
-        return "cache"
-    if any(status == "fixture" for status in statuses):
-        return "fixture"
-    return statuses[0]
+    return combined_report_source_status(
+        evidence_statuses.get(name, "missing") for name in source_names
+    )
 
 
 def _classification_theme(label: str) -> str:

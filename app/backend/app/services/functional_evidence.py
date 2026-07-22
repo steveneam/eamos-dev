@@ -39,6 +39,7 @@ from app.services.mavedb_local import (
     mavedb_record_to_canonical_dict,
 )
 from app.services.publication_literature import VariantLiteratureTerms
+from app.services.report_source_truth import report_source_allows_payload
 from app.services.source_fact_policy import build_source_fact_policy_envelope
 
 _FUNCTIONAL_CODES = ("PS3", "BS3")
@@ -59,7 +60,6 @@ _MAVEDB_PUBLIC_FIELDS = (
     "variant_scores.uncertainty",
     "deprecation_state",
 )
-_SOURCE_FAILED_STATUSES = {"fallback", "error", "failed"}
 _FUNCTIONAL_SIGNAL_RE = re.compile(
     r"\b("
     r"functional(?:ly)?|assay|splic(?:e|ing)|mini[- ]?gene|minigene|"
@@ -475,11 +475,17 @@ class FunctionalEvidenceExtractor:
         collector = _FunctionalEvidenceCollector()
         terms = VariantLiteratureTerms.build(variant)
 
-        self._collect_pubmed_articles(collector, evidence_map, terms)
+        self._collect_pubmed_articles(
+            collector,
+            evidence_map,
+            terms,
+            source_statuses=source_statuses,
+        )
         self._collect_clingen(
             collector,
             variant,
             evidence_raw=evidence_raw,
+            source_statuses=source_statuses,
             allow_live=allow_live,
             warnings=warnings,
         )
@@ -503,7 +509,11 @@ class FunctionalEvidenceExtractor:
         collector: _FunctionalEvidenceCollector,
         evidence_map: dict[str, dict[str, Any]],
         terms: VariantLiteratureTerms,
+        *,
+        source_statuses: dict[str, str] | None,
     ) -> None:
+        if _source_failed("pubmed", source_statuses):
+            return
         articles = evidence_map.get("pubmed", {}).get("articles")
         if not isinstance(articles, list):
             return
@@ -531,11 +541,20 @@ class FunctionalEvidenceExtractor:
         variant: Any,
         *,
         evidence_raw: dict[str, Any] | None,
+        source_statuses: dict[str, str] | None,
         allow_live: bool,
         warnings: list[str],
     ) -> None:
-        records = _coerce_clingen_records((evidence_raw or {}).get("clingen"))
-        if allow_live and self.clingen_client is not None:
+        records = (
+            []
+            if _source_failed("clingen", source_statuses)
+            else _coerce_clingen_records((evidence_raw or {}).get("clingen"))
+        )
+        if (
+            allow_live
+            and self.clingen_client is not None
+            and not _source_failed("clingen", source_statuses)
+        ):
             try:
                 records.extend(self._fetch_clingen_records(variant))
             except Exception as exc:
@@ -946,9 +965,7 @@ def _citation_from_sentence(sentence: str) -> str | None:
 def _mavedb_public_snippet(record: MaveDbRecord) -> str:
     score = record.variant_score.raw_score_source or f"{record.score:g}"
     gene = f"{record.gene} " if record.gene else ""
-    return (
-        f"MaveDB CC0 score {score} for {gene}{record.variant}; " f"score set {record.score_set_id}."
-    )
+    return f"MaveDB CC0 score {score} for {gene}{record.variant}; score set {record.score_set_id}."
 
 
 def _mavedb_method_text(record: MaveDbRecord) -> str | None:
@@ -979,9 +996,9 @@ def _settings_path(settings: Settings, path):
 
 
 def _source_failed(source: str, source_statuses: dict[str, str] | None) -> bool:
-    if not source_statuses:
+    if source_statuses is None:
         return False
-    return source_statuses.get(source) in _SOURCE_FAILED_STATUSES
+    return not report_source_allows_payload(source_statuses.get(source, "missing"))
 
 
 def _unique(items: list[Any]) -> list[Any]:

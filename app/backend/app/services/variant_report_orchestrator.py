@@ -8,8 +8,6 @@ from app.schemas.run import (
     AcmgWorksheetCriterion,
     AcmgWorksheetLedger,
     ClinicalTrialQueryExecution,
-    ComputationalDeepDiveSection,
-    ComputationalPredictorRow,
     DiseaseMechanismSection,
     EvidenceIdentityMatch,
     EvidenceSourceSummary,
@@ -31,18 +29,23 @@ from app.services.omim_cross_references import (
     validated_omim_cross_references,
 )
 from app.services.clinical_consensus import sanitize_acmg_rationale
-from app.services.computational_calibration import calibration_field_values
 from app.services.computational_evidence import (
     build_computational_evidence_decision,
     selection_accounting,
 )
 from app.services.lovd_fixture_adapter import validated_lovd_basic_records
 from app.services.report_data_currency import current_report_timestamp, latest_evidence_timestamp
+from app.services.report_execution_truth import report_identity_mismatched_sources
 from app.services.report_extraction_plan import ReportExtractionPlanBuilder
 from app.services.report_provenance import (
     provenance_for_source,
     provenance_from_evidence,
     source_provenance_from_mapping,
+)
+from app.services.report_source_truth import (
+    normalize_report_source_status,
+    report_source_allows_payload,
+    report_source_is_weak,
 )
 from app.services.search_input_resolver import SearchInputResolution
 from app.services.variant_report_helpers import (
@@ -50,7 +53,6 @@ from app.services.variant_report_helpers import (
     _chromosome,
     _chromosome_from_variant_validator,
     _classification_text,
-    _clinical_consensus,
     _codon_change,
     _codon_change_from_sequence_context,
     _codon_change_from_vep,
@@ -64,7 +66,6 @@ from app.services.variant_report_helpers import (
     _first_prefixed,
     _list_of_dicts,
     _molecular_context_provenance,
-    _optional_bool,
     _optional_float,
     _optional_int,
     _optional_text,
@@ -76,7 +77,21 @@ from app.services.variant_report_helpers import (
     _strand_from_vep,
     _string_list,
 )
+from app.services.variant_report_computational import (
+    _computational_deep_dive_from_annotations as _computational_deep_dive_from_annotations,
+    build_computational_deep_dive as _build_computational_deep_dive,
+)
 from app.services.variant_report_signals import _build_section_signals
+
+
+def _usable_source_summary(
+    evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
+    source: str,
+) -> dict[str, Any]:
+    if not report_source_allows_payload(evidence_statuses.get(source, "missing")):
+        return {}
+    return _dict_or_empty(evidence_map.get(source))
 
 
 class VariantReportDataOrchestrator:
@@ -95,6 +110,31 @@ class VariantReportDataOrchestrator:
         evidence_map: dict[str, dict[str, Any]],
         evidence_statuses: dict[str, str],
     ) -> VariantReportProfile:
+        mismatched_sources = report_identity_mismatched_sources(
+            resolution=resolution,
+            evidence=evidence,
+        )
+        if mismatched_sources:
+            evidence_statuses = dict(evidence_statuses)
+            for source in mismatched_sources:
+                evidence_statuses[source] = "fallback"
+            if mismatched_sources & {"clingen", "clinvar"}:
+                evidence_statuses["clinical_consensus"] = "fallback"
+            evidence = [
+                (
+                    item.model_copy(
+                        update={
+                            "status": "fallback",
+                            "warnings": _dedupe_text(
+                                [*item.warnings, "report_source_identity_mismatch"]
+                            ),
+                        }
+                    )
+                    if item.source.strip().casefold() in mismatched_sources
+                    else item
+                )
+                for item in evidence
+            ]
         plan = self.plan_builder.build(
             resolution=resolution,
             interpretation=interpretation,
@@ -105,14 +145,18 @@ class VariantReportDataOrchestrator:
             payload=payload,
             evidence_map=evidence_map,
             evidence=evidence,
+            evidence_statuses=evidence_statuses,
         )
-        interpretation_summary = _build_summary(payload, evidence_map)
+        interpretation_summary = _build_summary(payload, evidence_map, evidence_statuses)
         disease_mechanism = _build_disease_mechanism(
             payload=payload,
             evidence_map=evidence_map,
             evidence_statuses=evidence_statuses,
         )
-        gene_context_snapshot = _build_gene_context_snapshot(evidence_map)
+        gene_context_snapshot = _build_gene_context_snapshot(
+            evidence_map,
+            evidence_statuses,
+        )
         population_frequency = build_population_frequency_section(
             payload.population_frequency_detail,
             source_status=evidence_statuses.get("gnomad", "missing"),
@@ -140,8 +184,8 @@ class VariantReportDataOrchestrator:
             computational_deep_dive = computational_deep_dive.model_copy(
                 update={"selection_accounting": selection_accounting(computational_decision)}
             )
-        acmg_worksheet = _build_acmg_worksheet(payload, evidence_map)
-        expert_panel = _build_expert_panel(evidence, evidence_map)
+        acmg_worksheet = _build_acmg_worksheet(payload, evidence_map, evidence_statuses)
+        expert_panel = _build_expert_panel(evidence, evidence_map, evidence_statuses)
         therapies_trials = _build_therapies_trials(
             payload=payload,
             evidence_map=evidence_map,
@@ -160,7 +204,11 @@ class VariantReportDataOrchestrator:
             acmg_worksheet=acmg_worksheet,
             expert_panel=expert_panel,
             therapies_trials=therapies_trials,
-            lovd_basic_records=validated_lovd_basic_records(evidence_map.get("lovd_fixture")),
+            lovd_basic_records=validated_lovd_basic_records(
+                evidence_map.get("lovd_fixture")
+                if report_source_allows_payload(evidence_statuses.get("lovd_fixture", "missing"))
+                else None
+            ),
             section_signals=_build_section_signals(
                 payload=payload,
                 interpretation_summary=interpretation_summary,
@@ -183,10 +231,15 @@ def _build_header(
     payload: ReportPayload,
     evidence_map: dict[str, dict[str, Any]],
     evidence: list[EvidenceSourceSummary],
+    evidence_statuses: dict[str, str],
 ) -> VariantReportHeader:
     row = _first_variant_row(payload)
-    consensus = _clinical_consensus(evidence_map)
-    clinvar = evidence_map.get("clinvar", {})
+    consensus = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "clinical_consensus",
+    )
+    clinvar = _usable_source_summary(evidence_map, evidence_statuses, "clinvar")
     classification = _classification_text(consensus.get("classification")) or _classification_text(
         clinvar.get("classification")
     )
@@ -203,7 +256,11 @@ def _build_header(
         ]
         if item
     )
-    source_urls = [item.source_url for item in evidence if item.source_url]
+    source_urls = [
+        item.source_url
+        for item in evidence
+        if item.source_url and report_source_allows_payload(item.status)
+    ]
     badges = []
     if resolution.resolver_transcript:
         badges.append("transcript_resolved")
@@ -211,7 +268,11 @@ def _build_header(
         badges.append("grch38_resolved")
     if classification:
         badges.append("clinical_consensus_available")
-    gene_context = _dict_or_empty(evidence_map.get("gene_context_snapshot"))
+    gene_context = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "gene_context_snapshot",
+    )
     transcript_aliases = _string_list(gene_context.get("transcript_aliases"))
     ensembl_transcript = _first_prefixed(transcript_aliases, "ENST")
     mane_select = any(alias.strip().lower() == "mane select" for alias in transcript_aliases)
@@ -241,6 +302,7 @@ def _build_header(
 def _build_summary(
     payload: ReportPayload,
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
 ) -> InterpretationSummary:
     row = _first_variant_row(payload)
     facts: list[str] = []
@@ -252,8 +314,12 @@ def _build_summary(
         facts.append(variant_label)
         refs.append("header")
 
-    clinvar = evidence_map.get("clinvar", {})
-    consensus = _clinical_consensus(evidence_map)
+    clinvar = _usable_source_summary(evidence_map, evidence_statuses, "clinvar")
+    consensus = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "clinical_consensus",
+    )
     classification = _classification_text(consensus.get("classification")) or _classification_text(
         clinvar.get("classification")
     )
@@ -262,13 +328,22 @@ def _build_summary(
         facts.append(f"{classification_source} classification: {classification}")
         refs.append("clinical_consensus")
 
-    population = payload.population_frequency_detail
+    population = (
+        payload.population_frequency_detail
+        if report_source_allows_payload(evidence_statuses.get("gnomad", "missing"))
+        else None
+    )
     if population is not None and population.allele_frequency is not None:
         facts.append(f"gnomAD allele frequency: {population.allele_frequency:g}")
         refs.append("population_frequency")
 
+    publication_source_available = any(
+        report_source_allows_payload(evidence_statuses.get(source, "missing"))
+        for source in ("pubmed", "litvar2", "clinvar", "clingen")
+    )
     if (
-        payload.publications_literature is not None
+        publication_source_available
+        and payload.publications_literature is not None
         and payload.publications_literature.total_count > 0
     ):
         facts.append(f"{payload.publications_literature.total_count} publication(s) identified")
@@ -294,7 +369,12 @@ def _build_disease_mechanism(
     evidence_map: dict[str, dict[str, Any]],
     evidence_statuses: dict[str, str],
 ) -> DiseaseMechanismSection:
-    gene_disease = evidence_map.get("gene_disease", {})
+    gene_disease_status = evidence_statuses.get("gene_disease", "missing")
+    gene_disease = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "gene_disease",
+    )
     if gene_disease:
         warnings = _string_list(gene_disease.get("warnings"))
         omim_cross_references, omim_warnings = validated_omim_cross_references(
@@ -313,21 +393,28 @@ def _build_disease_mechanism(
             mechanism=_optional_text(gene_disease.get("mechanism")),
             provenance=_gene_disease_provenance(
                 gene_disease,
-                status=evidence_statuses.get("gene_disease", "missing"),
+                status=gene_disease_status,
             ),
             warnings=warnings,
         )
 
-    condition = next(
-        (
-            item
-            for item in payload.associated_conditions
-            if _associated_condition_publicly_usable(item)
-        ),
-        None,
+    fixture_mode = normalize_report_source_status(gene_disease_status) == "fixture"
+    condition = (
+        next(
+            (
+                item
+                for item in payload.associated_conditions
+                if _associated_condition_publicly_usable(item)
+            ),
+            None,
+        )
+        if fixture_mode
+        else None
     )
     warnings: list[str] = []
     if condition is None:
+        if report_source_is_weak(gene_disease_status) and evidence_map.get("gene_disease"):
+            warnings.append("gene_disease_source_unavailable")
         warnings.append("disease_sources_not_hydrated")
         return DiseaseMechanismSection(warnings=warnings)
 
@@ -356,11 +443,27 @@ def _build_disease_mechanism(
 
 def _build_gene_context_snapshot(
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
 ) -> GeneContextSnapshot | None:
     raw_snapshot = evidence_map.get("gene_context_snapshot")
     if not raw_snapshot:
         return None
-    return GeneContextSnapshot.model_validate(raw_snapshot)
+    try:
+        snapshot = GeneContextSnapshot.model_validate(raw_snapshot)
+    except Exception:
+        return None
+    source_status = evidence_statuses.get(
+        "gene_context_snapshot",
+        snapshot.source_status,
+    )
+    if report_source_allows_payload(source_status):
+        return snapshot
+    return GeneContextSnapshot(
+        source_status=normalize_report_source_status(source_status),  # type: ignore[arg-type]
+        gene=snapshot.gene,
+        transcript=snapshot.transcript,
+        warnings=_dedupe_text([*snapshot.warnings, "gene_context_snapshot_source_unavailable"]),
+    )
 
 
 def _build_molecular_context(
@@ -371,11 +474,26 @@ def _build_molecular_context(
     provenance: list[SourceProvenance],
 ) -> MolecularContextSection:
     row = _first_variant_row(payload)
-    context = payload.locus_context
-    vep = evidence_map.get("vep", {})
-    variant_validator = evidence_map.get("variant_validator", {})
-    sequence_context = evidence_map.get("sequence_context", {})
-    molecular_context = evidence_map.get("molecular_context", {})
+    context_source_available = report_source_allows_payload(
+        evidence_statuses.get("sequence_context", "missing")
+    )
+    context = payload.locus_context if context_source_available else None
+    vep = _usable_source_summary(evidence_map, evidence_statuses, "vep")
+    variant_validator = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "variant_validator",
+    )
+    sequence_context = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "sequence_context",
+    )
+    molecular_context = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "molecular_context",
+    )
     coords = context.coords if context is not None else ""
     query_codon = (
         next(
@@ -399,7 +517,10 @@ def _build_molecular_context(
     haploinsufficiency = _optional_text(clingen_dosage.get("haploinsufficiency"))
     overlapping_cnvs = _string_list(molecular_context.get("overlapping_cnvs"))
     protein_position = _protein_position_from_vep(vep) or _protein_position(row.protein_change)
-    protein_domain_track = _protein_domain_track_from_evidence(evidence_map)
+    protein_domain_track = _protein_domain_track_from_evidence(
+        evidence_map,
+        evidence_statuses,
+    )
     protein_domain_label = _protein_domain_label_at_position(
         protein_domain_track,
         protein_position,
@@ -450,9 +571,18 @@ def _build_molecular_context(
 
 def _protein_domain_track_from_evidence(
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
 ) -> ProteinDomainTrack | None:
-    raw_track = evidence_map.get("protein_domain_track")
-    raw_snapshot = evidence_map.get("gene_context_snapshot")
+    raw_track = (
+        evidence_map.get("protein_domain_track")
+        if report_source_allows_payload(evidence_statuses.get("protein_domain_track", "missing"))
+        else None
+    )
+    raw_snapshot = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "gene_context_snapshot",
+    )
     if raw_track is None and isinstance(raw_snapshot, dict):
         raw_track = raw_snapshot.get("protein_domain_track")
     if not isinstance(raw_track, dict):
@@ -486,222 +616,30 @@ def _protein_domain_label_at_position(
     return feature.short_label or feature.label
 
 
-def _build_computational_deep_dive(
-    *,
-    payload: ReportPayload,
-    evidence_map: dict[str, dict[str, Any]],
-    evidence_statuses: dict[str, str],
-    provenance: list[SourceProvenance],
-) -> ComputationalDeepDiveSection:
-    computational = evidence_map.get("computational_annotations", {})
-    if computational:
-        section = _computational_deep_dive_from_annotations(
-            computational,
-            status=evidence_statuses.get("computational_annotations", "missing"),
-            provenance=provenance,
-        )
-        if section is not None:
-            return section
-
-    return _computational_deep_dive_from_legacy_predictions(payload, provenance)
-
-
-def _computational_deep_dive_from_legacy_predictions(
-    payload: ReportPayload,
-    provenance: list[SourceProvenance],
-) -> ComputationalDeepDiveSection:
-    predictions = payload.in_silico_predictions
-    rows: list[ComputationalPredictorRow] = []
-    spliceai_max_delta: float | None = None
-    spliceai_consequence: str | None = None
-    if predictions is not None:
-        for card in predictions.cards:
-            rows.append(
-                ComputationalPredictorRow(
-                    name=card.name,
-                    score=card.score,
-                    threshold=card.threshold,
-                    interpretation=card.verdict_label or card.verdict,
-                    source=card.name,
-                    source_url=card.source_url,
-                    **calibration_field_values(card.name, card.score),
-                )
-            )
-            if card.name == "SpliceAI":
-                spliceai_max_delta = card.score
-                spliceai_consequence = card.verdict_label or card.verdict
-
-    warnings = []
-    if not rows:
-        warnings.append("computational_predictors_unavailable")
-    return ComputationalDeepDiveSection(
-        predictors=rows,
-        spliceai_max_delta=spliceai_max_delta,
-        spliceai_consequence=spliceai_consequence,
-        conservation=[],
-        provenance=_filter_provenance(provenance, {"spliceai", "vep"}),
-        warnings=warnings,
-    )
-
-
-def _computational_deep_dive_from_annotations(
-    computational: dict[str, Any],
-    *,
-    status: str,
-    provenance: list[SourceProvenance],
-) -> ComputationalDeepDiveSection | None:
-    rows = [
-        row
-        for row in (
-            _computational_row_from_dict(item)
-            for item in _list_of_dicts(computational.get("predictors"))
-        )
-        if row is not None
-    ]
-
-    spliceai = _dict_or_empty(computational.get("spliceai"))
-    spliceai_max_delta = _optional_float(spliceai.get("max_delta"))
-    spliceai_consequence = _optional_text(spliceai.get("consequence"))
-    spliceai_row = _spliceai_row(spliceai)
-    if spliceai_row is not None and spliceai_row.name not in {row.name for row in rows}:
-        rows.append(spliceai_row)
-
-    conservation = [
-        row
-        for row in (
-            _computational_row_from_dict(item)
-            for item in _list_of_dicts(computational.get("conservation"))
-        )
-        if row is not None
-    ]
-    warnings = _dedupe_text(
-        [
-            *_string_list(computational.get("warnings")),
-        ]
-    )
-    if not rows and not conservation and spliceai_max_delta is None:
-        warnings.append("computational_predictors_unavailable")
-        if not computational.get("predictors") and not computational.get("spliceai"):
-            return None
-
-    return ComputationalDeepDiveSection(
-        predictors=rows,
-        spliceai_max_delta=spliceai_max_delta,
-        spliceai_consequence=spliceai_consequence,
-        conservation=conservation,
-        provenance=_dedupe_provenance(
-            [
-                *_filter_provenance(provenance, {"computational_annotations", "spliceai"}),
-                *_computational_annotations_provenance(computational, status=status),
-            ]
-        ),
-        warnings=_dedupe_text(warnings),
-    )
-
-
-def _computational_row_from_dict(item: dict[str, Any]) -> ComputationalPredictorRow | None:
-    name = _optional_text(item.get("name"))
-    if not name:
-        return None
-    score = _score_value(item.get("score"))
-    source = _optional_text(item.get("source")) or name
-    calibration = calibration_field_values(name, score)
-    return ComputationalPredictorRow(
-        name=name,
-        score=score,
-        threshold=_score_value(item.get("threshold")),
-        interpretation=_optional_text(item.get("interpretation")),
-        source=source,
-        source_id=_optional_text(item.get("source_id")),
-        version=_optional_text(item.get("version")),
-        **calibration,
-        source_url=_optional_text(item.get("source_url")),
-        public_serialization_allowed=_optional_bool(item.get("public_serialization_allowed")),
-        launch_gate=_optional_text(item.get("launch_gate")),
-        warnings=_string_list(item.get("warnings")),
-    )
-
-
-def _spliceai_row(spliceai: dict[str, Any]) -> ComputationalPredictorRow | None:
-    if not spliceai:
-        return None
-    max_delta = _optional_float(spliceai.get("max_delta"))
-    component_scores = _dict_or_empty(spliceai.get("component_scores"))
-    if max_delta is None and not component_scores:
-        return None
-    consequence = _optional_text(spliceai.get("consequence"))
-    component_text = _spliceai_component_text(component_scores)
-    interpretation_parts = []
-    if consequence:
-        interpretation_parts.append(f"Max delta consequence: {consequence}.")
-    if component_text:
-        interpretation_parts.append(f"Component scores: {component_text}.")
-    return ComputationalPredictorRow(
-        name="SpliceAI",
-        score=max_delta,
-        threshold=_score_value(spliceai.get("threshold")),
-        interpretation=" ".join(interpretation_parts) or None,
-        source=_optional_text(spliceai.get("source")) or "SpliceAI",
-        version=_optional_text(spliceai.get("version")),
-        **calibration_field_values("SpliceAI", max_delta),
-        source_url=_optional_text(spliceai.get("source_url")),
-        warnings=_string_list(spliceai.get("warnings")),
-    )
-
-
-def _spliceai_component_text(component_scores: dict[str, Any]) -> str:
-    components: list[str] = []
-    for key in ("DS_AL", "DS_DL", "DS_AG", "DS_DG"):
-        score = _optional_float(component_scores.get(key))
-        if score is not None:
-            components.append(f"{key}={score:g}")
-    return ", ".join(components)
-
-
-def _score_value(value: Any) -> str | float | None:
-    numeric = _optional_float(value)
-    if numeric is not None:
-        return numeric
-    return _optional_text(value)
-
-
-def _computational_annotations_provenance(
-    summary: dict[str, Any],
-    *,
-    status: str,
-) -> list[SourceProvenance]:
-    raw = summary.get("provenance")
-    provenance: list[SourceProvenance] = []
-    if isinstance(raw, list):
-        for item in raw:
-            if not isinstance(item, dict):
-                continue
-            provenance.append(source_provenance_from_mapping(item))
-    if provenance:
-        return provenance
-    gene = _optional_text(summary.get("gene"))
-    return [
-        provenance_for_source(
-            "computational_annotations",
-            status=status,
-            query={"gene": gene} if gene else {},
-            warnings=_string_list(summary.get("warnings")),
-        )
-    ]
-
-
 def _build_acmg_worksheet(
     payload: ReportPayload,
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
 ) -> AcmgWorksheetLedger:
     scaffold = payload.acmg_criteria_scaffold
-    consensus = _clinical_consensus(evidence_map)
+    consensus = _usable_source_summary(
+        evidence_map,
+        evidence_statuses,
+        "clinical_consensus",
+    )
     consensus_worksheet = consensus.get("acmg_worksheet")
     if isinstance(consensus_worksheet, dict):
-        return AcmgWorksheetLedger.model_validate(consensus_worksheet)
-    clinvar = evidence_map.get("clinvar", {})
+        try:
+            return AcmgWorksheetLedger.model_validate(consensus_worksheet)
+        except Exception:
+            pass
+    clinvar = _usable_source_summary(evidence_map, evidence_statuses, "clinvar")
     classification = _classification_text(clinvar.get("classification"))
-    if scaffold is None:
+    fixture_mode = any(
+        normalize_report_source_status(evidence_statuses.get(source)) == "fixture"
+        for source in ("clinical_consensus", "clinvar", "clingen")
+    )
+    if scaffold is None or not fixture_mode:
         return AcmgWorksheetLedger(
             classification=classification,
             classification_source="ClinVar" if classification else None,
@@ -732,7 +670,11 @@ def _build_acmg_worksheet(
 def _build_expert_panel(
     evidence: list[EvidenceSourceSummary],
     evidence_map: dict[str, dict[str, Any]],
+    evidence_statuses: dict[str, str],
 ) -> ExpertPanelSection | None:
+    clingen_status = evidence_statuses.get("clingen", "missing")
+    if not report_source_allows_payload(clingen_status):
+        return None
     clingen = _dict_or_empty(evidence_map.get("clingen"))
     raw_panel = clingen.get("expert_panel")
     if not isinstance(raw_panel, dict):
@@ -782,7 +724,7 @@ def _expert_panel_freshness(
         return "stale", "stale_on_failure"
     if evidence.cache_status == "cache_hit":
         return "fresh", "cache_hit"
-    if evidence.status in {"live", "local", "fixture", "cache"}:
+    if evidence.status in {"live", "local", "cache"}:
         return "fresh", None
     return "unknown", "tile_only"
 
@@ -817,6 +759,17 @@ def _build_therapies_trials(
     source_status = evidence_statuses.get("clinical_trials", status)
     clinical_trials = _dict_or_empty(evidence_map.get("clinical_trials"))
     warnings = _string_list(clinical_trials.get("warnings"))
+    if report_source_is_weak(source_status):
+        return TherapiesTrialsSection(
+            warnings=_dedupe_text([*warnings, "clinical_trials_source_unavailable"]),
+            provenance=[
+                provenance_for_source(
+                    "ClinicalTrials.gov",
+                    status=source_status,
+                    warnings=_dedupe_text([*warnings, "clinical_trials_source_unavailable"]),
+                )
+            ],
+        )
     source_fetched_at = _optional_text(clinical_trials.get("fetched_at"))
     trial_rows: list[TrialMatch] = []
     for item in _list_of_dicts(clinical_trials.get("trial_rows")):

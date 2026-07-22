@@ -84,7 +84,11 @@ def test_mavedb_only_measurements_keep_lab_call_card_neutral() -> None:
         ),
     )
 
-    card = _call_card(payload, "lab_functional")
+    card = _call_card(
+        payload,
+        "lab_functional",
+        evidence_statuses={"mavedb": "fixture"},
+    )
 
     assert card["ui_color_theme"] == "neutral_slate_state"
     assert {badge["text"] for badge in card["support_badges"]} == {
@@ -201,7 +205,12 @@ def test_population_card_prefers_source_asserted_frequency_badge() -> None:
         }
     }
 
-    card = _population_card(payload, evidence_map)
+    card = _call_card(
+        payload,
+        "population_frequency",
+        evidence_map,
+        {"gnomad": "fixture", "clinical_consensus": "fixture"},
+    )
 
     assert {badge["text"] for badge in card["support_badges"]} >= {"PM2", "AC 0"}
 
@@ -423,7 +432,11 @@ def test_computational_card_theme_ignores_extreme_alternate_scores() -> None:
         report_profile=VariantReportProfile(computational_decision=decision),
     )
 
-    card = _call_card(payload, "computational")
+    card = _call_card(
+        payload,
+        "computational",
+        evidence_statuses={"computational_annotations": "fixture"},
+    )
 
     assert card["primary_label"] == "REVEL · Indeterminate"
     assert card["ui_color_theme"] == "neutral_slate_state"
@@ -441,4 +454,74 @@ def test_lab_functional_card_status_includes_clingen_backed_evidence() -> None:
         evidence_statuses={"clingen": "fixture", "clinvar": "missing", "pubmed": "missing"},
     )
 
-    assert card["source_status"] == "fixture"
+    assert card["source_status"] == "partial"
+
+
+def test_cached_functional_payload_is_suppressed_when_all_sources_are_weak() -> None:
+    payload = ReportPayload(
+        patient_id="lookup_test",
+        functional_evidence=FunctionalEvidenceSummary(
+            total_count=2,
+            display_metrics=FunctionalEvidenceDisplayMetrics(
+                state="uncurated",
+                primary_label="Fixture functional finding",
+                acmg_badge_text="No code asserted",
+                verdict_source="uncurated",
+                study_count_badge_text="2 Unique",
+                ui_color_theme="neutral_slate_state",
+            ),
+        ),
+    )
+
+    card = _call_card(
+        payload,
+        "lab_functional",
+        evidence_statuses={"clingen": "fallback", "clinvar": "failed", "pubmed": "missing"},
+    )
+
+    assert card["primary_label"] == "No Functional Data Available"
+    assert {badge["text"] for badge in card["support_badges"]} == {"0 Unique"}
+    assert "functional_evidence_sources_unavailable" in card["warnings"]
+
+
+def test_legacy_predictor_payload_is_suppressed_without_explicit_fixture_status() -> None:
+    payload = ReportPayload(
+        patient_id="lookup_test",
+        in_silico_predictions=InSilicoPredictions(
+            consensus_note="Fixture values",
+            cards=[
+                PredictorCard(
+                    name="REVEL",
+                    score=0.99,
+                    threshold=0.75,
+                    verdict="damaging",
+                )
+            ],
+        ),
+    )
+
+    card = _call_card(
+        payload,
+        "computational",
+        evidence_statuses={"spliceai": "fallback", "vep": "missing"},
+    )
+
+    assert card["primary_label"] == "No Computational Data"
+    assert "legacy_computational_fixture_payload_suppressed" in card["warnings"]
+
+
+def test_clinical_consensus_card_does_not_claim_unavailable_sources() -> None:
+    payload = ReportPayload(patient_id="lookup_test")
+
+    card = _call_card(
+        payload,
+        "clinical_consensus",
+        evidence_map={
+            "clinical_consensus": {"classification": "Pathogenic"},
+            "clinvar": {"classification": "Pathogenic"},
+        },
+        evidence_statuses={"clinical_consensus": "fallback", "clinvar": "failed"},
+    )
+
+    assert card["primary_label"] == "Unavailable"
+    assert card["provenance"] == ["Clinical consensus sources unavailable"]

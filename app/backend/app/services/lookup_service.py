@@ -87,6 +87,8 @@ from app.services.lookup_service_source_cache import (
 )
 from app.services.lookup_timing import LookupTimingCollector
 from app.services.publication_literature import EamosProprietaryVariantLiteratureExtractor
+from app.services.report_execution_truth import build_report_execution_state_v2
+from app.services.report_source_truth import report_source_allows_payload
 from app.services.sequence_context import SequenceContextService
 from app.services.search_input_interpreter import SearchInputInterpreter
 from app.services.search_input_resolver import EamosSearchInputResolver
@@ -901,10 +903,15 @@ class LookupService:
                 warnings=warnings,
             )
 
+        clinvar_summary = (
+            evidence_map.get("clinvar", {})
+            if report_source_allows_payload(evidence_statuses.get("clinvar", "missing"))
+            else {}
+        )
         report_payload.acmg_classification = _acmg_classification_snapshot(
             variant.gene,
             input_resolution.hgvs,
-            evidence_map.get("clinvar", {}),
+            clinvar_summary,
         )
         try:
             clinical_consensus = self.clinical_consensus.build_for_lookup(
@@ -1080,6 +1087,26 @@ class LookupService:
             base_profile = report_payload.report_profile or VariantReportProfile()
             report_payload.report_profile = base_profile.model_copy(update=profile_updates)
 
+        execution_sections = [
+            section_id
+            for lookup_section in include
+            for section_id in {
+                "publications": ("publications",),
+                "therapies_trials": ("therapies_trials",),
+                "computational_deep_dive": ("computational_deep_dive",),
+                "clingen_vcep": ("acmg_worksheet", "expert_panel"),
+            }[lookup_section]
+        ]
+        execution_result = build_report_execution_state_v2(
+            resolution=input_resolution,
+            payload=report_payload,
+            evidence=evidence,
+            evidence_map=evidence_map,
+            evidence_statuses=evidence_statuses,
+            section_ids=execution_sections,  # type: ignore[arg-type]
+        )
+        warnings.extend(execution_result.warnings)
+
         response = build_lookup_section_fetch_response(
             LookupResponse(
                 query=cache_key,
@@ -1087,6 +1114,7 @@ class LookupService:
                 report_payload=report_payload,
                 evidence=evidence,
                 warnings=warnings,
+                execution_state_v2=execution_result.state,
             ),
             include,
         )
@@ -1574,6 +1602,15 @@ class LookupService:
             record_phase=record_phase,
         )
 
+        execution_result = build_report_execution_state_v2(
+            resolution=input_resolution,
+            payload=base_payload,
+            evidence=evidence,
+            evidence_map=evidence_map,
+            evidence_statuses=evidence_statuses,
+        )
+        warnings.extend(execution_result.warnings)
+
         response = LookupResponse(
             query=f"{gene}:{cdna}",
             species=request.species,
@@ -1581,6 +1618,7 @@ class LookupService:
             evidence=evidence,
             warnings=[*warnings, *decision.warnings],
             search_interpretation=search_interpretation,
+            execution_state_v2=execution_result.state,
         )
         try:
             self._store_report_shell_cache(cache_key, response)

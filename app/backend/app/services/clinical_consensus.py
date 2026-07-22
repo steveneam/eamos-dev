@@ -15,11 +15,11 @@ from app.services.clinvar_vcv import (
     DEFAULT_CLINVAR_VCV_MAX_XML_BYTES,
     EutilsClinVarVcvClient,
 )
+from app.services.report_source_truth import report_source_allows_payload
 
 _CLINGEN_SOURCE = "ClinGen Evidence Repository"
 _CLINVAR_SOURCE = "ClinVar VCV"
 _EAMOS_SOURCE = "Eamos worksheet scaffold"
-_SOURCE_FAILED_STATUSES = {"fallback", "error", "failed"}
 _UNAVAILABLE_CLASSIFICATIONS = {"", "unavailable", "not found", "none"}
 _ACMG_CODE_RE = re.compile(
     r"\b(PVS1|PS[1-4]|PM[1-6]|PP[1-5]|BA1|BS[1-4]|BP[1-7])" r"(?:_([A-Za-z][A-Za-z0-9]*))?\b",
@@ -91,9 +91,11 @@ class ClinicalConsensusBuilder:
         warnings: list[str] = []
         raw = evidence_raw if evidence_raw is not None else {}
         statuses = source_statuses or {}
-        clinvar_raw = raw.get("clinvar")
-        clingen_records = _coerce_clingen_records(raw.get("clingen"))
-        clinvar_summary = evidence_map.get("clinvar", {})
+        clingen_allowed = _source_allowed("clingen", source_statuses)
+        clinvar_allowed = _source_allowed("clinvar", source_statuses)
+        clinvar_raw = raw.get("clinvar") if clinvar_allowed else None
+        clingen_records = _coerce_clingen_records(raw.get("clingen")) if clingen_allowed else []
+        clinvar_summary = evidence_map.get("clinvar", {}) if clinvar_allowed else {}
 
         clingen_consensus = _clingen_consensus(clingen_records)
         clinvar_consensus = _clinvar_consensus(clinvar_summary)
@@ -145,10 +147,17 @@ class ClinicalConsensusBuilder:
         else:
             warnings.append("clinical_consensus_unavailable")
 
+        fixture_mode = source_statuses is None or any(
+            str(statuses.get(source) or "").strip().lower() == "fixture"
+            for source in ("clingen", "clinvar")
+        )
+        scaffold_rows = _eamos_scaffold_rows(payload.acmg_criteria_scaffold)
+        if not fixture_mode:
+            scaffold_rows = [row for row in scaffold_rows if row.assertion_level == "not_assessed"]
         criteria = _merge_criteria_rows(
             [
                 *source_rows,
-                *_eamos_scaffold_rows(payload.acmg_criteria_scaffold),
+                *scaffold_rows,
             ]
         )
         ledger = AcmgWorksheetLedger(
@@ -422,7 +431,16 @@ def _clinvar_source_url(summary: dict[str, Any]) -> str | None:
 
 
 def _source_failed(source: str, source_statuses: dict[str, str]) -> bool:
-    return source_statuses.get(source) in _SOURCE_FAILED_STATUSES
+    return not report_source_allows_payload(source_statuses.get(source, "missing"))
+
+
+def _source_allowed(
+    source: str,
+    source_statuses: dict[str, str] | None,
+) -> bool:
+    if source_statuses is None:
+        return True
+    return report_source_allows_payload(source_statuses.get(source, "missing"))
 
 
 def _usable_classification(value: str | None) -> bool:
