@@ -28,10 +28,11 @@
 - **Codex:** ACTIVE @ 2026-07-22 17:06 +0000 — lead for the approved Live
   Product Completion campaign.
 - **Lane D:** PR #21 merged as `ec075a8` after local/CI/Vercel and source-backed
-  browser/API proof. Post-merge CI run `29940643472` is finishing its immutable
-  backend-image publication gate.
-- **Contract V2:** serial Wave 0 is launching from verified `origin/main`; W/R/P/B
-  stay dependency-locked until the contract is reviewed, green, and merged.
+  browser/API proof. Post-merge CI run `29940643472`, including immutable-image
+  pull-back verification, passed.
+- **Contract V2:** serial Wave 0 is active from verified `origin/main@85b236d`;
+  W/R/P/B stay dependency-locked until the contract is reviewed, green, and
+  merged.
 - **Four-wave approval:** Steven approved Codex to continue through the four
   implementation waves and orchestrate the named worktrees/agents as
   dependencies unlock. Lead-run serialized merge review remains mandatory.
@@ -40,18 +41,21 @@
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 17:06 +0000 · Codex
+UNLOCKED · 2026-07-22 17:09 +0000 · Codex
 
 ## Shared File Locks
 
-- None.
+- **Contract V2 seam** · held by `/root/contract_v2` since 2026-07-22 17:09
+  +0000: `app/backend/app/schemas/{__init__,capabilities,workbench,lookup,report,paper_variants,batch,panels,workflow}.py`,
+  `app/web/lib/backend.ts`, and Wave 0's two contract canaries. Release only
+  after the lane commits, pushes, and enters lead review.
 
 ## Resume Prompt
 
 ```text
 # Resume prompt · 2026-07-22 17:06 +0000 · Codex Live Product Contract V2
 Read CURRENT.md, COORDINATION.md, and plans/live-product-completion/{research,spec,plan}.md first.
-Lane D is merged at ec075a8. Confirm main CI run 29940643472 is green, then continue the active Contract V2 lane.
+Lane D is merged at ec075a8 and main CI 29940643472 is green; continue the active Contract V2 lane from 85b236d.
 Review Contract V2 against Wave 0 exact globs, compatibility/security invariants, and every exit gate; merge only green.
 After Contract V2 lands, launch W/R/P agents and lead-owned Batch from that exact main base; merge W then R then P then B.
 Continue into the approved serial runtime-composition and frontend waves as dependencies unlock.
@@ -83,6 +87,6 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 
 ## Next Action
 
-- Finish the post-merge main gate, create Contract V2 from exact `origin/main`,
-  execute Wave 0 in its frozen paths, and return a reviewed green PR before
+- Complete Contract V2 in its claimed frozen seam, return a reviewed green PR,
+  release the shared-file lock after handoff, and merge the contract before
   unlocking Workbench, Report, Paper, and Batch.
