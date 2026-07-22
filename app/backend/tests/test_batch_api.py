@@ -178,6 +178,21 @@ def test_batch_upload_rejects_oversized_file(auth_client) -> None:
     assert upload.status_code == 413
 
 
+def test_batch_upload_rejects_multiple_files_with_sanitized_error(auth_client) -> None:
+    marker = "PRIVATE_SECOND_VCF_FILENAME"
+    upload = auth_client.post(
+        "/api/v1/batch/uploads",
+        files=[
+            ("file", ("first.vcf", _valid_vcf(), "text/vcf")),
+            ("vcf", (f"{marker}.vcf", _valid_vcf(), "text/vcf")),
+        ],
+    )
+
+    assert upload.status_code == 400
+    assert upload.json()["detail"] == "Malformed multipart upload."
+    assert marker not in upload.text
+
+
 def test_batch_upload_rejects_hg19_vcf_with_clear_422(auth_client) -> None:
     hg19_vcf = (
         "##fileformat=VCFv4.2\n"
@@ -231,7 +246,7 @@ def test_batch_upload_vcf_cleans_rows_and_filters_before_lookup(auth_client) -> 
     assert job["n_after_filters"] == 1
     assert job["results"][0]["variant_key"] == "17-43092673-C-A"
     assert job["results"][0]["hgvs_c"] == "c.2858G>T"
-    assert job["results"][0]["hgvs_p"] == "p.Cys953Phe"
+    assert job["results"][0]["hgvs_p"] is None
     assert "whitespace_delimited_vcf_row_recovered" in job["results"][0]["warnings"]
 
 
@@ -315,7 +330,7 @@ def test_batch_service_runs_lookup_in_background_and_maps_summary(tmp_path: Path
     assert len(lookup.calls) == 2
 
 
-def test_batch_lookup_cache_preserves_richer_variant_metadata(tmp_path: Path) -> None:
+def test_batch_lookup_cache_refuses_uploaded_info_as_engine_evidence(tmp_path: Path) -> None:
     lookup = _CoordinateOnlyLookupService()
     service = BatchService(
         upload_dir=tmp_path,
@@ -349,7 +364,8 @@ def test_batch_lookup_cache_preserves_richer_variant_metadata(tmp_path: Path) ->
                 ParsedVariant(
                     raw=(
                         "1\t94014568\t.\tA\tT\t.\tPASS\t"
-                        "GENE=ABCA4;HGVS_C=c.5435T>A;HGVS_P=p.Leu1812Ter;AF=0.00042"
+                        "GENE=ABCA4;HGVS_C=c.5435T>A;HGVS_P=p.Leu1812Ter;"
+                        "CLNSIG=Pathogenic;AF=0.00042"
                     ),
                     query="1-94014568-A-T",
                     gene="ABCA4",
@@ -367,13 +383,47 @@ def test_batch_lookup_cache_preserves_richer_variant_metadata(tmp_path: Path) ->
     second_job = _wait_for_service_job(service, with_vcf_metadata.job_id)
 
     assert len(lookup.calls) == 1
-    assert second_job.results[0].gene == "ABCA4"
-    assert second_job.results[0].hgvs_c == "c.5435T>A"
-    assert second_job.results[0].hgvs_p == "p.Leu1812Ter"
-    assert second_job.results[0].gnomad_af == 0.00042
-    assert second_job.results[0].report_href == (
-        "/report?gene=ABCA4&cdna=c.5435T%3EA&from=batch"
+    assert second_job.results[0].gene is None
+    assert second_job.results[0].hgvs_c is None
+    assert second_job.results[0].hgvs_p is None
+    assert second_job.results[0].clinvar_verdict is None
+    assert second_job.results[0].gnomad_af is None
+    assert second_job.results[0].report_href is None
+
+
+def test_batch_without_direct_lookup_fails_closed_and_drops_info_evidence(
+    tmp_path: Path,
+) -> None:
+    service = BatchService(upload_dir=tmp_path, panel_service=PanelService())
+    created = service.create_job(
+        BatchCreateRequest(
+            variants=[
+                ParsedVariant(
+                    raw=(
+                        "1\t94014568\t.\tA\tT\t.\tPASS\t"
+                        "HGVS_P=p.Leu1812Ter;CLNSIG=Pathogenic;AF=0.00042"
+                    ),
+                    query="1-94014568-A-T",
+                    gene="ABCA4",
+                    variant="c.5435T>A",
+                    chrom="1",
+                    pos=94014568,
+                    ref="A",
+                    alt="T",
+                    filter="PASS",
+                    info_af=0.00042,
+                )
+            ]
+        )
     )
+    job = service.get_job(created.job_id, limit=100)
+
+    assert job is not None and job.status == "failed"
+    assert job.done == 1
+    assert job.results[0].hgvs_p is None
+    assert job.results[0].clinvar_verdict is None
+    assert job.results[0].gnomad_af is None
+    assert "batch_direct_report_lookup_unavailable" in job.results[0].warnings
 
 
 def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -> None:
@@ -381,6 +431,8 @@ def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -
         upload_dir=tmp_path,
         panel_service=PanelService(),
         panel_interval_index=CompactCoordinateIndex(COMPACT_INDEX_FIXTURE),
+        lookup_service=_CoordinateOnlyLookupService(),
+        max_lookup_workers=1,
     )
 
     created = service.create_job(
@@ -406,7 +458,7 @@ def test_batch_panel_filter_uses_interval_for_no_info_gene_vcf(tmp_path: Path) -
             filters={"panel_slug": "inherited-retinal-disease"},
         )
     )
-    job = service.get_job(created.job_id, limit=100)
+    job = _wait_for_service_job(service, created.job_id)
 
     assert job is not None
     assert job.status == "completed"

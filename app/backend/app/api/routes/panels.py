@@ -32,6 +32,8 @@ def get_panel(slug: str, request: Request) -> Panel:
 def _service(request: Request) -> PanelService:
     service = getattr(request.app.state, "panel_service", None)
     if service is None:
-        service = PanelService()
-        request.app.state.panel_service = service
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Panel service is unavailable.",
+        )
     return service

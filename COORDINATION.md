@@ -60,7 +60,7 @@ No lane owns source materialization, providers, cloud, Supabase, or deploys._
 | W workbench-engines | `/root/workbench_engines` | `plan.md` Lane W paths | `agent/live/workbench-engines` | review | Contract V2 merged | 2 |
 | R report-evidence | `/root/report_evidence` | `plan.md` Lane R paths | `agent/live/report-evidence` | review | Contract V2 merged | 3 |
 | P paper-deterministic | `/root/paper_deterministic` | `plan.md` Lane P paths | `agent/live/paper-deterministic` | review | Contract V2 merged | 4 |
-| B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | pending | Contract V2 merged | 5 |
+| B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | review | Contract V2 merged | 5 |
 | runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | pending | W + R + P + B merged | 6 |
 | material/artifact cards | unassigned | `plan.md` Wave 3 card-approved surfaces only | card-specific branches | blocked:exact Steven approval | runtime-composition merged + named cards approved | 7 |
 | surface-truth | Codex lead | `plan.md` Wave 4 web paths | `agent/live/surface-truth` | pending | engines + composition + approved material contracts | 8 |

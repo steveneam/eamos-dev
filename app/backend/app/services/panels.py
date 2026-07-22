@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import UTC, datetime
 from hashlib import sha1
 
+from app.schemas.capabilities import CapabilityExecutionDisclosureV2
 from app.schemas.panels import (
     Panel,
     PanelGene,
     PanelListResponse,
     PanelResolveRequest,
+    PanelSourceSnapshotV2,
     PanelSummary,
 )
 
@@ -15,11 +18,23 @@ LOCAL_PANEL_VERSION = "2026-06-04-local-launch-v1"
 LOCAL_PANEL_WARNING = (
     "local launch catalog; external PanelApp/ClinGen/GenCC materialized source pending"
 )
+LOCAL_PANEL_REQUIREMENTS = (
+    "materialize version-pinned HGNC, MANE, GenCC, and Mondo artifacts",
+    "build and verify the immutable panel/interval manifest",
+    "pass the panel resolution and interval functional probes",
+)
+PANELAPP_GEL_LAUNCH_GATE = (
+    "PanelApp GEL remains disabled pending explicit downstream-use rights approval."
+)
+_LOCAL_RELEASE_DATE = datetime(2026, 6, 4, tzinfo=UTC)
 
 
 class PanelService:
-    def __init__(self) -> None:
-        self._panels = _launch_panels()
+    def __init__(self, *, source_panels: list[Panel] | None = None) -> None:
+        self._panels = [
+            panel.model_copy(deep=True)
+            for panel in (source_panels if source_panels is not None else _launch_panels())
+        ]
         self._gene_index = _gene_index(self._panels)
 
     def list_panels(self) -> PanelListResponse:
@@ -65,6 +80,10 @@ class PanelService:
             provenance_url=None,
             genes=genes,
             intervals_ref="hg38",
+            source_snapshot_v2=_unavailable_custom_snapshot(
+                snapshot_key=slug,
+                claim="HGNC-normalized custom symbol panel",
+            ),
             warnings=[
                 "resolved from submitted symbols",
                 "HGNC alias normalization is pending materialized HGNC data",
@@ -87,6 +106,10 @@ class PanelService:
             version=LOCAL_PANEL_VERSION,
             genes=[],
             intervals_ref="hg38",
+            source_snapshot_v2=_unavailable_custom_snapshot(
+                snapshot_key=slug,
+                claim="Mondo and GenCC disease-to-gene panel resolution",
+            ),
             warnings=[
                 "disease_mondo_resolution_pending_materialized_mondo_gencc_sources",
             ],
@@ -102,6 +125,10 @@ class PanelService:
             version=LOCAL_PANEL_VERSION,
             genes=[],
             intervals_ref="hg38",
+            source_snapshot_v2=_unavailable_custom_snapshot(
+                snapshot_key=slug,
+                claim="Owner-scoped uploaded gene panel resolution",
+            ),
             warnings=["upload_ref_panel_resolution_pending_batch_upload_store"],
         )
 
@@ -191,7 +218,7 @@ def _panel(
     genes: list[PanelGene],
     warnings: list[str] | None = None,
 ) -> Panel:
-    return Panel(
+    panel = Panel(
         id=f"local-{slug}",
         name=name,
         slug=slug,
@@ -200,8 +227,13 @@ def _panel(
         provenance_url=None,
         genes=deepcopy(genes),
         intervals_ref="hg38",
+        source_snapshot_v2=_unavailable_custom_snapshot(
+            snapshot_key=slug,
+            claim=f"Source-backed {name} panel catalog",
+        ),
         warnings=warnings or [LOCAL_PANEL_WARNING],
     )
+    return panel
 
 
 def _gene(
@@ -229,6 +261,7 @@ def _summary(panel: Panel) -> PanelSummary:
         source=panel.source,
         version=panel.version,
         provenance_url=panel.provenance_url,
+        source_snapshot_v2=panel.source_snapshot_v2,
         gene_count=len(panel.genes),
         intervals_ref=panel.intervals_ref,
         warnings=list(panel.warnings),
@@ -250,3 +283,34 @@ def _stable_panel_hash(values: list[str]) -> str:
 
 def _slug(value: str) -> str:
     return value.strip().lower()
+
+
+def _unavailable_custom_snapshot(*, snapshot_key: str, claim: str) -> PanelSourceSnapshotV2:
+    snapshot_id = f"panel-custom-{_stable_panel_hash([snapshot_key])}"
+    disclosure = CapabilityExecutionDisclosureV2(
+        capability_id=f"panel.catalog.{_stable_panel_hash([snapshot_key, claim])}",
+        claim=claim,
+        execution="unavailable",
+        input_scope="grch38_gene_panel",
+        source_status="unavailable",
+        source_release=LOCAL_PANEL_VERSION,
+        applicability="applicable",
+        validation_status="unvalidated",
+        retention="none",
+        consent_required=False,
+        warnings=[LOCAL_PANEL_WARNING, PANELAPP_GEL_LAUNCH_GATE],
+        requirements=list(LOCAL_PANEL_REQUIREMENTS),
+    )
+    return PanelSourceSnapshotV2(
+        snapshot_id=snapshot_id,
+        source="custom",
+        version=LOCAL_PANEL_VERSION,
+        release=LOCAL_PANEL_VERSION,
+        retrieved_at=_LOCAL_RELEASE_DATE,
+        launch_posture="unavailable",
+        licence_id="Eamos-internal-custom-seed",
+        provenance_url=None,
+        artifact_manifest_id=None,
+        artifact_sha256=None,
+        execution_disclosure=disclosure,
+    )
