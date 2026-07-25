@@ -27,23 +27,21 @@
 - **Claude:** ACTIVE @ 2026-07-25 06:20 +0000 — took over from Codex; wrapping.
 - **Codex:** STOPPED @ 2026-07-22 22:22 +0000 — usage exhausted at the Wave 3
   approval gate. All lane worktrees clean, nothing unpushed.
-- **Merged:** Waves 0–2 (#22–#28), repo correctness #30, cards #29, Wave 4
-  slice 1 #31, asset correction + licence review #32, wiring plan #33 →
-  `main@9efe7e4`. #30 patched four pypdf CVEs plus the npm advisories they had
-  masked, and made the bcftools licence a property of the built binary.
-- **Wave 3:** cards frozen, none executed; blocked only on Steven naming exact
-  card IDs. 6 of 8 builders unwritten — ungated code work.
+- **Merged:** Waves 0–2 (#22–#28), then #29–#34 → `main@532f3b1`. #30 patched
+  four pypdf CVEs plus the npm advisories they had masked, and made the bcftools
+  licence a property of the built binary.
+- **Wave 3:** cards frozen, none executed; blocked only on exact card IDs. 6 of 8
+  builders unwritten — ungated code work.
 - **Wave 4:** #31 merged; `/compare` panel paths fail closed. Owed: browser
-  evidence for its loading/unavailable states.
+  evidence for its states — must run on the lead checkout, not a lane.
 - **Licence determination (2026-07-25):** research/free/non-profit cleared ten
   registry records + two Wave 3 NO-GOs (UCSC isPcr, REVEL, ESM-1b,
   PrimateAI-3D, SpliceAI, CADD). OMIM and PanelApp still need their own
   agreements. **Binding constraint is now syd2 disk** (34 G free vs ~65 GB
   permitted) → bounded MANE slices by default. No `license_status` flipped yet;
   production, provider, cloud, Supabase, and materialization state unchanged.
-- **Render:** cancelled by the founder 2026-07-25 ~04:55 UTC (Phase 4 closed).
-  syd2 has been the sole serving path since the 07-17 cutover; the rollback path
-  is gone by design.
+- **Render:** cancelled by the founder 2026-07-25 (Phase 4 closed). syd2 is the
+  sole serving path since the 07-17 cutover; no rollback path, by design.
 - **Image builds WORK** — Steven cleared the GitHub billing block 2026-07-25;
   swordfish's block report is superseded. Proven: `publish backend image` passed
   on `main@9efe7e4` (run `30147035559`) incl. immutable pull-back. GHCR now has
@@ -109,11 +107,14 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
   determination per registry record, split the isPcr NO-GO row, and apply for
   OMIM academic access. Then Phase 2 (primer engine, zero code). Capture the
   browser evidence still owed by PR #31.
-- Steven's two answers unblock the parallel window: **approve the partition**
-  (serial Phase 1, then lanes B-REF/B-MANE/B-HGNC/B-PAPER) and **approve or
-  decline worktree cleanup** (15 stale worktrees, 10 GB).
-- Open with thalon/selom via live-comm: whether thalon's `send-keys` launcher is
-  compatible with swordfish's no-raw-send-keys rule, plus syd4's real concurrent
-  lane ceiling. Do not write `eamos-launch-lane.sh` until that lands.
+- **Partition + cleanup APPROVED** (Steven, 2026-07-25). Cleanup done: 14 stale
+  worktrees removed, `.claude/worktrees` 10 GB → 4 KB, disk 93 G → 102 G, all 21
+  `agent/*` branches intact and pushed. Lane prep proven via new
+  `scripts/eamos-worktree-setup.mjs` (links deps; verifies lane-not-main
+  resolution + the eslint `.bin` canary).
+- Still to do before launch: merge the Phase 1 spine, write
+  `scripts/eamos-launch-lane.sh` (send-keys distinction confirmed by thalon),
+  a `KICKOFF-<lane>.md` per lane, re-check `OOMPolicy=continue`. Launch 4
+  concurrently, tests capped `-n 2`. One founder approval per lane at launch.
 - Swordfish's 65-vs-55 env item is answered in `ASK-BACKS-FOR-SWORDFISH.md`; its
   other two items are founder calls.
