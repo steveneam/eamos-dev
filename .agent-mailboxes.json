@@ -31,6 +31,48 @@
         "headingLevels": [1, 2]
       },
       "allowDirtyInbound": true
+    },
+    {
+      "id": "thalon",
+      "peer": {
+        "id": "thalon",
+        "label": "thalon"
+      },
+      "owners": {
+        "outbound": "eamos",
+        "inbound": "thalon"
+      },
+      "outbound": {
+        "path": "agent_handoff/ASK-BACKS-FOR-THALON.md",
+        "headingLevel": 2,
+        "appendMarker": "_New outbound notes append below this line._"
+      },
+      "inbound": {
+        "path": "agent_handoff/FROM-THALON-lane-mechanics.md",
+        "headingLevels": [1, 2]
+      },
+      "allowDirtyInbound": true
+    },
+    {
+      "id": "selom",
+      "peer": {
+        "id": "selom",
+        "label": "selom"
+      },
+      "owners": {
+        "outbound": "eamos",
+        "inbound": "selom"
+      },
+      "outbound": {
+        "path": "agent_handoff/ASK-BACKS-FOR-SELOM.md",
+        "headingLevel": 2,
+        "appendMarker": "_New outbound notes append below this line._"
+      },
+      "inbound": {
+        "path": "agent_handoff/FROM-SELOM.md",
+        "headingLevels": [1, 2]
+      },
+      "allowDirtyInbound": true
     }
   ]
 }
