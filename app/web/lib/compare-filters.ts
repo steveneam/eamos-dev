@@ -1,4 +1,4 @@
-// Active-filter model for the /compare scope bar (P3, mock-first).
+// Active-filter model for the /compare scope bar.
 //
 // Filters are added as removable chips. Only PANEL filters compute client-side
 // today (gene-symbol membership over the browser-parsed rows); Quality(PASS),
@@ -9,7 +9,6 @@
 // contract in lib/backend.ts.
 import type { ParsedVariant } from './variant-file'
 import type { Panel } from './backend'
-import { getMockPanel } from './panels.mock'
 
 export type FilterKind = 'panel' | 'pass' | 'region' | 'af'
 
@@ -23,20 +22,21 @@ export interface ActiveFilter {
 }
 
 /** Resolves a panel-filter chip to its full Panel (with genes). Preset chips
- *  resolve through `resolve` (default = live cache → mock); custom chips carry
- *  their genes inline. */
+ *  resolve through `resolve` (default = live cache only); custom chips carry
+ *  their genes inline. Returns null when the panel's genes are not known. */
 export type PanelResolver = (slug: string) => Panel | null
 
 // Live per-slug cache of fully-resolved panels (from GET /panels/{slug}).
-// CompareClient fills it as panel chips are added; the default resolver checks
-// it before the bundled mocks, so once a real panel's genes load every
-// applyFilters/chip render picks them up.
+// CompareClient fills it as panel chips are added. There is deliberately no
+// bundled-fixture fallback: a panel decides which variants a run reports on, so
+// an unresolved slug must read as unresolved rather than filter on stand-in
+// genes.
 const RESOLVED_PANELS = new Map<string, Panel>()
 export function cacheResolvedPanel(panel: Panel): void {
   RESOLVED_PANELS.set(panel.slug, panel)
 }
 function defaultResolve(slug: string): Panel | null {
-  return RESOLVED_PANELS.get(slug) ?? getMockPanel(slug)
+  return RESOLVED_PANELS.get(slug) ?? null
 }
 
 export function resolveFilterPanel(f: ActiveFilter, resolve: PanelResolver = defaultResolve): Panel | null {
