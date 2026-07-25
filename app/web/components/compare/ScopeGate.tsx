@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { WorkRailSection } from '@/components/layout/WorkRail'
 import { IconDropInto, IconFilter, IconRemove, IconScope } from '@/components/icons/Icon'
-import { MOCK_PANELS, PANEL_SOURCE_LABEL } from '@/lib/panels.mock'
+import { PANEL_SOURCE_LABEL } from '@/lib/panels.mock'
 import { getPanels } from '@/lib/panels'
 import type { ParsedVariant } from '@/lib/variant-file'
 import type { Panel, PanelSummary } from '@/lib/backend'
@@ -45,17 +45,27 @@ function move<T>(arr: T[], from: number, to: number): T[] {
   return copy
 }
 
+type PanelCatalogState =
+  | { kind: 'loading' }
+  | { kind: 'unavailable' }
+  | { kind: 'ready'; panels: PanelSummary[] }
+
 export function ScopeGate({ variants, filters, onChange }: ScopeGateProps) {
   const [tab, setTab] = useState<RailTab>('panels')
   const [dragOver, setDragOver] = useState(false)
-  // Panel catalog for the preset list — mock-first, replaced by the live
-  // GET /panels catalogue once it loads (falls back to mocks when offline).
-  const [catalog, setCatalog] = useState<PanelSummary[]>(MOCK_PANELS)
+  // Panel catalog for the preset list. Sourced only from GET /panels — an
+  // unreachable catalogue reads as unavailable, because picking a stand-in
+  // panel would silently change which variants a run reports on.
+  const [catalog, setCatalog] = useState<PanelCatalogState>({ kind: 'loading' })
   useEffect(() => {
     let stale = false
-    getPanels().then((p) => {
-      if (!stale) setCatalog(p)
-    })
+    getPanels()
+      .then((panels) => {
+        if (!stale) setCatalog({ kind: 'ready', panels })
+      })
+      .catch(() => {
+        if (!stale) setCatalog({ kind: 'unavailable' })
+      })
     return () => {
       stale = true
     }
@@ -256,16 +266,21 @@ function PresetList({
   onAdd,
 }: {
   filters: ActiveFilter[]
-  catalog: PanelSummary[]
+  catalog: PanelCatalogState
   onAdd: (kind: FilterKind, init?: Partial<ActiveFilter>) => void
 }) {
   const activePanelSlugs = new Set(filters.filter((f) => f.kind === 'panel').map((f) => f.panelSlug))
   const hasPass = filters.some((f) => f.kind === 'pass')
   const hasAf = filters.some((f) => f.kind === 'af')
+  const panels = catalog.kind === 'ready' ? catalog.panels : []
   return (
     <div>
       <MenuLabel>Gene panel</MenuLabel>
-      {catalog.map((p) => {
+      {catalog.kind !== 'ready' && <PanelCatalogNotice state={catalog} />}
+      {catalog.kind === 'ready' && panels.length === 0 && (
+        <MenuNote>No gene panels are published.</MenuNote>
+      )}
+      {panels.map((p) => {
         const taken = activePanelSlugs.has(p.slug)
         const statusLabel = panelStatusLabel(p.warnings)
         return (
@@ -506,6 +521,24 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     >
       {children}
     </button>
+  )
+}
+
+function MenuNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ padding: '4px 8px 8px', fontSize: 11.5, lineHeight: 1.45, color: 'var(--ink-4)' }}>
+      {children}
+    </div>
+  )
+}
+
+function PanelCatalogNotice({ state }: { state: PanelCatalogState }) {
+  if (state.kind === 'loading') return <MenuNote>Loading gene panels…</MenuNote>
+  return (
+    <MenuNote>
+      Gene panels are unavailable. Reconnect and reopen this menu — no stand-in panel is
+      substituted, so nothing is filtered on unverified genes.
+    </MenuNote>
   )
 }
 
