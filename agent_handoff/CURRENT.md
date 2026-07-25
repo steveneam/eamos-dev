@@ -46,9 +46,15 @@
   47,943,536,945-byte frozen tree in
   `app/backend/app/runtime-tree-manifest-syd2.json`. Reconciliation of the cards
   against that tree is in the cards doc.
-- **Wave 4:** open on `agent/live/surface-truth`; PR #31 (panel fixture
-  fallback) is green and awaiting merge approval. Production, provider, cloud,
-  deploy, Supabase, and source-materialization state are unchanged.
+- **Wave 4:** PR #31 merged (`7605ffff`) — `/compare` panel paths now fail
+  closed. Remaining slices listed in the wiring plan Phase 6.
+- **Licence determination (2026-07-25):** Eamos is research/free/non-profit.
+  Cleared ten registry records + two Wave 3 NO-GOs, incl. UCSC isPcr, REVEL,
+  ESM-1b, PrimateAI-3D, SpliceAI, CADD. OMIM and PanelApp still need their own
+  registration/agreement. **New binding constraint is syd2 disk** (34 G free vs
+  ~65 GB newly permitted), so bounded MANE slices are the default.
+  Production, provider, cloud, deploy, Supabase, and source-materialization
+  state are unchanged; no `license_status` has been flipped yet.
 - **Render:** cancelled by the founder 2026-07-25 ~04:55 UTC (Phase 4 closed).
   syd2 has been the sole serving path since the 07-17 cutover; the rollback path
   is gone by design.
@@ -65,20 +71,22 @@ UNLOCKED · 2026-07-25 05:27 +0000 · Claude
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-25 05:52 +0000 · Claude primer engine + Wave 4
-Read CURRENT.md, plans/primer-specificity-engine/plan.md, plans/live-product-completion/{research,spec,plan}.md, and docs/live-product-verification/wave3-approval-cards.md.
-Steven named the primer specificity engine as the next product need; its plan is the first file above and Phase 1 there is ungated, so start it without asking.
-Key finding to trust: the primer engine is already built (Primer3, template specificity, SNP masking, the whole-genome provider seam, scope disclosure, preflight) and dbSNP plus hg38.2bit are already mounted on syd2. Only the isPcr binary is missing, and that is a commercial-licence question, not engineering.
-Phase 0 is a founder gate: get a real UCSC quote, then put Route A (licence isPcr) against Route B (add a public-domain blastn provider, recommended) and let Steven pick.
-Owed from the prior session: browser evidence for the panel loading/unavailable states in PR #31; the Wave 4 lane cannot close without it.
-Wave 4 continues on agent/live/surface-truth after that: useReportClient fixture labelling, CompareClient sample-vcf, workbench sample modules.
-Do not download, build, materialize, upload, mount, configure, or deploy any Wave 3 card until Steven names the approved card IDs exactly.
+# Resume prompt · 2026-07-25 06:05 +0000 · Claude research-unblock wiring
+Read CURRENT.md, plans/research-unblock-and-wiring/plan.md, plans/primer-specificity-engine/plan.md, and docs/live-product-verification/free-access-licence-review.md.
+Eamos is for research, free, and non-profit (Steven, 2026-07-25). That answered the entity AND diagnostic-use questions and cleared ten registry records plus two Wave 3 NO-GOs. Start Phase 1 of the wiring plan without asking; it is bookkeeping and needs no gate.
+The constraint has MOVED: licences no longer bind, syd2 disk does. 34 G free against ~65 GB of newly-permitted predictors, so bounded MANE-scoped slices are the default and CADD/SpliceAI must be sliced. Reuse eamos_compact_index_build / eamos_esm1b_mane_context_build; whole-genome would need a founder-gated disk resize.
+Primer engine is already built and Route A is now expected: accept UCSC research terms, drop the isPcr binary at bio_assets/bin/isPcr, flip primer_specificity_provider. hg38.2bit is already mounted at exactly the configured path. Zero application code.
+Apply for OMIM academic access early; it has lead time and gates InterVar.
+Owed from the prior session: browser evidence for PR #31's panel loading/unavailable states; the Wave 4 lane cannot close without it.
+The determination clears licences, NOT the action gates. Do not download, build, materialize, upload, mount, configure, or deploy until Steven names exact card IDs.
 Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
+- Next-session master plan: `plans/research-unblock-and-wiring/plan.md`.
 - Primer engine plan: `plans/primer-specificity-engine/plan.md`.
+- Licence determination: `docs/live-product-verification/free-access-licence-review.md`.
 - Campaign plan: `plans/live-product-completion/{research,spec,plan}.md`.
 - Exact cards + reconciliation:
   `docs/live-product-verification/wave3-approval-cards.md`.
@@ -103,6 +111,7 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 
 ## Next Action
 
-- Start `plans/primer-specificity-engine/plan.md` Phase 1 (ungated), and get
-  the UCSC quote so Phase 0's route choice can go to Steven with a real number.
-  Capture the browser evidence still owed by PR #31.
+- Start `plans/research-unblock-and-wiring/plan.md` Phase 1: record the research
+  determination per registry record, split the isPcr NO-GO row, and apply for
+  OMIM academic access. Then Phase 2 (primer engine, zero code). Capture the
+  browser evidence still owed by PR #31.
