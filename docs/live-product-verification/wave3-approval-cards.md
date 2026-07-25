@@ -164,6 +164,37 @@ GSL-linked GPL build, and the gated pre-mount state with tests.
 - Existing tracked GenCC and Mondo files remain the rollback source until the
   new snapshot cards pass. They must not be relabelled as the new releases.
 
+## Reconciliation against the live syd2 runtime tree (added 2026-07-25)
+
+The cards above were written without checking them against what is already
+materialized in production. The authority is the tracked frozen manifest
+`app/backend/app/runtime-tree-manifest-syd2.json` — 23 items,
+47,943,536,945 bytes, bucket `eamos-source-assets`, manifest
+`syd2-runtime-tree-precutover-2026-07-17` — mounted read-only on syd2 at
+`/srv/project1/assets/runtime` and visible in the container at both
+`/app/data/bio_assets` and `/var/data/eamos/bio_assets`. Every item in it is
+`approval_status: approved`. Checking the cards against it changes three:
+
+| Card | Reconciled status |
+| --- | --- |
+| W3-AM-01 | **Already materialized. No download required.** `predictors/alphamissense/AlphaMissense_hg38.tsv.gz` is present at exactly the card's 642,961,469 B with the card's MD5 `9fd167735f16a1b87da6eb3e4c25fcb5` (tree sha256 `0516cfd7…`), its `.tbi` (690,194 B) is built, and `license_status` is `commercial_allowed` with no launch gate. This card reduces to verify-and-wire; approving it as an acquisition would re-download 613 MiB that is already served. |
+| W3-MANE-01 | **Primary file already materialized.** `transcripts/MANE.GRCh38.v1.5.refseq_genomic.gff.gz` is present at exactly the card's 8,271,212 B (sha256 `040f0d40…`). Only `MANE.GRCh38.v1.5.summary.txt.gz` (1,115,288 B) is genuinely absent, plus the interval/transcript builder. Scope the card to the summary file and the builder. |
+| W3-REF-01 | **Still genuinely absent, with a caveat.** The tree carries the GRCh38.p14 *annotation* GFF (`transcripts/GCF_000001405.40_GRCh38.p14_genomic.gff.gz`, 56,923,273 B), not the FASTA the card wants, so the ~928 MiB acquisition stands. But `genomes/hg38.2bit` (835,393,456 B) is already mounted, so a second full reference representation now exists alongside it; confirm both are wanted before building. |
+
+Unchanged by this reconciliation: W3-BCF-01, W3-HGNC-01, W3-GENCC-01,
+W3-MONDO-01, and W3-PAPER-01 are all genuinely absent from the tree.
+
+**Revised acquisition total.** Dropping W3-AM-01 and reducing W3-MANE-01 to its
+summary file takes the packet from 1,796,448,335 B (1.673 GiB) to
+1,145,215,654 B (1.066 GiB) — a 36% reduction.
+
+**One NO-GO is inconsistent with production and should be re-decided.** The
+table below marks "UCSC isPcr + `hg38.2bit`" NO-GO on a commercial-licence
+exception, but `hg38.2bit` is *already* in the approved frozen tree with
+`license_status: public_allowed_after_terms_review`. The unresolved item is the
+**isPcr binary**, not the 2bit reference. Split that row before anyone treats
+the mounted reference as unlicensed.
+
 ## Deferred / NO-GO in this packet
 
 | Item | Decision and unblock condition |

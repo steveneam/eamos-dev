@@ -36,12 +36,22 @@
   postcss 8.5.10 and brace-expansion 5.0.7 were also vulnerable. All three
   patched. `590ca85` additionally made the bcftools licence a recorded property
   of the built binary, which was W3-BCF-01's blocking precondition.
-- **Wave 3:** cards frozen, none executed. Blocked on two things, not one:
-  Steven has not named exact card IDs, and no runtime asset mount
-  (`/var/data/eamos/bio_assets`) exists on this host. 6 of 8 named builders are
-  unwritten, so most of Wave 3 is ungated code work.
-- **Wave 4:** next implementation lane, not yet started. Production, provider,
-  cloud, deploy, Supabase, and source-materialization state are unchanged.
+- **Wave 3:** cards frozen, none executed. Blocked only on Steven naming exact
+  card IDs. 6 of 8 named builders are unwritten, so most of Wave 3 is ungated
+  code work. **Correction:** an earlier version of this file claimed no runtime
+  asset destination existed. That was wrong — it read the absence of
+  `/var/data/eamos/bio_assets` on this workspace box as the absence of a mount
+  anywhere. The live destination is syd2's `/srv/project1/assets/runtime`,
+  mounted read-only into the container, holding the 23-item /
+  47,943,536,945-byte frozen tree in
+  `app/backend/app/runtime-tree-manifest-syd2.json`. Reconciliation of the cards
+  against that tree is in the cards doc.
+- **Wave 4:** open on `agent/live/surface-truth`; PR #31 (panel fixture
+  fallback) is green and awaiting merge approval. Production, provider, cloud,
+  deploy, Supabase, and source-materialization state are unchanged.
+- **Render:** cancelled by the founder 2026-07-25 ~04:55 UTC (Phase 4 closed).
+  syd2 has been the sole serving path since the 07-17 cutover; the rollback path
+  is gone by design.
 
 ## Log Edit-Lock
 
