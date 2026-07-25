@@ -36,12 +36,22 @@
   postcss 8.5.10 and brace-expansion 5.0.7 were also vulnerable. All three
   patched. `590ca85` additionally made the bcftools licence a recorded property
   of the built binary, which was W3-BCF-01's blocking precondition.
-- **Wave 3:** cards frozen, none executed. Blocked on two things, not one:
-  Steven has not named exact card IDs, and no runtime asset mount
-  (`/var/data/eamos/bio_assets`) exists on this host. 6 of 8 named builders are
-  unwritten, so most of Wave 3 is ungated code work.
-- **Wave 4:** next implementation lane, not yet started. Production, provider,
-  cloud, deploy, Supabase, and source-materialization state are unchanged.
+- **Wave 3:** cards frozen, none executed. Blocked only on Steven naming exact
+  card IDs. 6 of 8 named builders are unwritten, so most of Wave 3 is ungated
+  code work. **Correction:** an earlier version of this file claimed no runtime
+  asset destination existed. That was wrong — it read the absence of
+  `/var/data/eamos/bio_assets` on this workspace box as the absence of a mount
+  anywhere. The live destination is syd2's `/srv/project1/assets/runtime`,
+  mounted read-only into the container, holding the 23-item /
+  47,943,536,945-byte frozen tree in
+  `app/backend/app/runtime-tree-manifest-syd2.json`. Reconciliation of the cards
+  against that tree is in the cards doc.
+- **Wave 4:** open on `agent/live/surface-truth`; PR #31 (panel fixture
+  fallback) is green and awaiting merge approval. Production, provider, cloud,
+  deploy, Supabase, and source-materialization state are unchanged.
+- **Render:** cancelled by the founder 2026-07-25 ~04:55 UTC (Phase 4 closed).
+  syd2 has been the sole serving path since the 07-17 cutover; the rollback path
+  is gone by design.
 
 ## Log Edit-Lock
 
@@ -55,39 +65,44 @@ UNLOCKED · 2026-07-25 05:27 +0000 · Claude
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-25 05:27 +0000 · Claude Live Product Wave 4 lane
-Read CURRENT.md, plans/live-product-completion/{research,spec,plan}.md, and docs/live-product-verification/wave3-approval-cards.md.
-Waves 0-2 plus repo correctness are merged green through main@5861056; the eight Wave 3 cards are frozen and none is executed.
-Wave 4 (agent/live/surface-truth) is the active lane: remove ordinary scientific mock/sample fallbacks and render execution/source truth across workbench, report, paper, and compare.
-Start with app/web/lib/panels.ts, which returns MOCK_PANELS on any fetch failure in ordinary mode; match the thrown typed-unavailable idiom in lib/batch.ts and lib/paperVariants.ts.
-Wave 3 needs BOTH exact named card IDs from Steven AND a runtime asset mount that does not exist on this host; its 6 unwritten builders are ungated code work that can proceed first.
-Do not download, build, materialize, upload, mount, configure, or deploy any card until Steven names the approved card IDs exactly.
+# Resume prompt · 2026-07-25 05:52 +0000 · Claude primer engine + Wave 4
+Read CURRENT.md, plans/primer-specificity-engine/plan.md, plans/live-product-completion/{research,spec,plan}.md, and docs/live-product-verification/wave3-approval-cards.md.
+Steven named the primer specificity engine as the next product need; its plan is the first file above and Phase 1 there is ungated, so start it without asking.
+Key finding to trust: the primer engine is already built (Primer3, template specificity, SNP masking, the whole-genome provider seam, scope disclosure, preflight) and dbSNP plus hg38.2bit are already mounted on syd2. Only the isPcr binary is missing, and that is a commercial-licence question, not engineering.
+Phase 0 is a founder gate: get a real UCSC quote, then put Route A (licence isPcr) against Route B (add a public-domain blastn provider, recommended) and let Steven pick.
+Owed from the prior session: browser evidence for the panel loading/unavailable states in PR #31; the Wave 4 lane cannot close without it.
+Wave 4 continues on agent/live/surface-truth after that: useReportClient fixture labelling, CompareClient sample-vcf, workbench sample modules.
+Do not download, build, materialize, upload, mount, configure, or deploy any Wave 3 card until Steven names the approved card IDs exactly.
 Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Plan: `plans/live-product-completion/{research,spec,plan}.md`.
-- Exact cards: `docs/live-product-verification/wave3-approval-cards.md`.
-- Review boundary: PR #29, branch `agent/live/material-approval-cards`, card
-  commit `55df2ce`, brought up to `main@5861056`.
-- Merged boundaries: Wave 2 PR #28 `main@2dd181c` (run `29961634345`); repo
-  correctness PR #30 `main@5861056`.
+- Primer engine plan: `plans/primer-specificity-engine/plan.md`.
+- Campaign plan: `plans/live-product-completion/{research,spec,plan}.md`.
+- Exact cards + reconciliation:
+  `docs/live-product-verification/wave3-approval-cards.md`.
+- Mounted-asset authority: `app/backend/app/runtime-tree-manifest-syd2.json`.
 - Wave 4 lane: branch `agent/live/surface-truth`, `plan.md` Wave 4 web paths.
 - Watcher-owned `agent_handoff/FROM-SWORDFISH.md` remains dirty only in the
   main checkout and was not staged or edited.
 
 ## Delta
 
-- Froze eight individually approvable Wave 3 cards totaling about 1.673 GiB,
-  with checksums/licences/bounds and explicit rollback paths; kept unavailable,
-  incompatible, oversized, or licence-unclear candidates as deferred/NO-GO.
 - Cleared a repo-wide CI block: three vulnerable dependencies across both audit
-  halves, plus the false bcftools GPL claim that gated W3-BCF-01.
-- Corrected this board's stale rows; #27 and #28 were shown unmerged.
+  halves (pypdf's failure had been masking the npm half), plus the false
+  bcftools GPL claim that gated W3-BCF-01.
+- Opened Wave 4 and removed four fixture fallbacks from the `/compare` panel
+  paths, including one unhandled rejection that pinned a chip permanently.
+- Checked the Wave 3 cards against the live syd2 tree for the first time: two
+  are already materialized in whole or part, and one NO-GO contradicts an
+  approved mounted asset. Corrected my own earlier wrong claim that no runtime
+  asset destination existed.
+- Planned the primer specificity engine: already built, blocked only on an
+  isPcr licence, with a public-domain route that avoids the spend.
 
 ## Next Action
 
-- Merge PR #29 on green, then open Wave 4 on `agent/live/surface-truth`
-  starting with the `panels.ts` fixture fallback. Wave 3 material execution
-  still needs exact card IDs and a runtime asset destination.
+- Start `plans/primer-specificity-engine/plan.md` Phase 1 (ungated), and get
+  the UCSC quote so Phase 0's route choice can go to Steven with a real number.
+  Capture the browser evidence still owed by PR #31.

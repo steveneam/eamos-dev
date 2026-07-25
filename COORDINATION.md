@@ -64,7 +64,7 @@ No lane owns source materialization, providers, cloud, Supabase, or deploys._
 | B batch-wes | Codex lead | `plan.md` Lane B paths | `agent/live/batch-wes` | merged · PR #26 · `b8982a3` | Contract V2 merged | 5 |
 | truth amendment | Codex lead | Workbench contract/service/canary + deterministic Paper disclosure | `agent/live/contract-truth-amendment` | merged · PR #27 · `82a97d4` | W + P merged | 6 |
 | runtime-composition | Codex lead | `plan.md` Wave 2 paths | `agent/live/runtime-composition` | merged · PR #28 · `2dd181c` | truth amendment merged | 7 |
-| material/artifact cards | unassigned | `plan.md` Wave 3 card-approved surfaces only | card-specific branches | blocked:exact card IDs + no runtime asset mount on this host; 6 of 8 builders unwritten | runtime-composition merged + named cards approved | 8 |
+| material/artifact cards | unassigned | `plan.md` Wave 3 card-approved surfaces only | card-specific branches | blocked:exact card IDs; 6 of 8 builders unwritten; 3 cards partly already materialized on syd2 | runtime-composition merged + named cards approved | 8 |
 | surface-truth | Codex lead | `plan.md` Wave 4 web paths | `agent/live/surface-truth` | pending | engines + composition + approved material contracts | 9 |
 | product-ratchets-v2 | Codex lead | `plan.md` final ratchet paths | `agent/live/product-ratchets-v2` | pending | composed product verified | final |
 
