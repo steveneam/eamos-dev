@@ -174,6 +174,24 @@ Wave 5 (`agent/live/product-ratchets-v2`) and the approved deployment gate are
 unchanged from the campaign plan. Deployment stays its own founder gate with the
 exact environment/provider/material diff, rollback, and smoke matrix.
 
+**Image builds work — the billing block is cleared.** Swordfish reported a
+GitHub Actions billing block on 2026-07-25; Steven unlocked the bill the same
+day and the block is confirmed gone by evidence, not assertion: `publish backend
+image` **ran and succeeded** on the `main@9efe7e4` merge (run `30147035559`, job
+`89651078071`, 1m28s), including its immutable pull-back verification.
+
+So new pinned binaries such as `isPcr` or `bcftools` and new Python dependencies
+can be built into an image as the phases above need them.
+
+**There is now image drift, and it is expected.** GHCR carries
+`ghcr.io/steveneam/eamos-backend@sha256:f4b3d44c401ee919944b4ca2fd2cf8963182ebeac387433c4b9a7c593e963406`
+for `main@9efe7e4`, while syd2 still runs the older
+`@sha256:910dc159…`. That is by design — Dokploy `autoDeploy` is false and
+push→deploy is deliberately unwired — so a published image is not a deployed
+one. Closing the drift is the founder deployment gate plus a swordfish-side
+Dokploy action, and it stays a separate step at the end rather than the end of a
+phase.
+
 ## Guardrails that still apply
 
 - No download, build, materialization, upload, mount, provider flip,
@@ -185,3 +203,17 @@ exact environment/provider/material diff, rollback, and smoke matrix.
 - A determination is not an acceptance record, and file presence is not
   readiness. Both need executed evidence.
 - Never stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
+
+Box conventions confirmed by swordfish 2026-07-25 that this plan must respect:
+
+- **Steven cannot copy text out of any agent terminal.** Never hand him a resume
+  prompt or a multi-line command. Founder-typed input is **one short line**
+  (`gogogo`); pre-stage everything else so his steps are paste/tap/click/spend
+  only.
+- **syd4 box actions:** run `~/work/swordfish/provisioning/checks/who-is-live.sh
+  --gate` first, and kill processes **by PID from `pgrep -af`, never
+  `pkill -f`** — other agents' dev servers share this box. syd4 takes a weekly
+  unattended reboot at 18:30 UTC; after any reboot verify public routes from a
+  different box.
+- **syd2 is the only serving path** and Render is cancelled, so there is no
+  rollback. Production asset writes and any disk resize are separately gated.
