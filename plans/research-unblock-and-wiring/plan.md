@@ -174,6 +174,17 @@ Wave 5 (`agent/live/product-ratchets-v2`) and the approved deployment gate are
 unchanged from the campaign plan. Deployment stays its own founder gate with the
 exact environment/provider/material diff, rollback, and smoke matrix.
 
+**Deployment is independently blocked right now, and not by us.** Swordfish
+reported on 2026-07-25 that GitHub Actions is under a billing block until the
+monthly refresh: no new image builds, therefore **no new Eamos deploys**. The
+live image stays digest-frozen at `@sha256:910dc159…`. Anything in the phases
+above that would need a fresh backend image — new pinned binaries such as
+`isPcr` or `bcftools`, new Python dependencies — lands in the repo and the asset
+store but **cannot reach production until that clears.** Plan the work to be
+merge-ready and asset-ready, and treat the deploy as a separate later step
+rather than the end of a phase. Runtime-tree assets that need no image change
+are unaffected.
+
 ## Guardrails that still apply
 
 - No download, build, materialization, upload, mount, provider flip,
@@ -185,3 +196,17 @@ exact environment/provider/material diff, rollback, and smoke matrix.
 - A determination is not an acceptance record, and file presence is not
   readiness. Both need executed evidence.
 - Never stage watcher-owned `agent_handoff/FROM-SWORDFISH.md`.
+
+Box conventions confirmed by swordfish 2026-07-25 that this plan must respect:
+
+- **Steven cannot copy text out of any agent terminal.** Never hand him a resume
+  prompt or a multi-line command. Founder-typed input is **one short line**
+  (`gogogo`); pre-stage everything else so his steps are paste/tap/click/spend
+  only.
+- **syd4 box actions:** run `~/work/swordfish/provisioning/checks/who-is-live.sh
+  --gate` first, and kill processes **by PID from `pgrep -af`, never
+  `pkill -f`** — other agents' dev servers share this box. syd4 takes a weekly
+  unattended reboot at 18:30 UTC; after any reboot verify public routes from a
+  different box.
+- **syd2 is the only serving path** and Render is cancelled, so there is no
+  rollback. Production asset writes and any disk resize are separately gated.
