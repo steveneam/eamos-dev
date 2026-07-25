@@ -1,71 +1,66 @@
 import type { Panel, PanelResolveRequest, PanelSummary } from './backend'
-import { MOCK_PANELS, buildCustomPanel, getMockPanel } from './panels.mock'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? ''
-const OFFLINE_PANEL_WARNING = 'offline fixture panel catalog; backend panel service unavailable'
-const OFFLINE_RESOLVE_WARNING = 'offline fixture panel resolver; backend panel service unavailable'
 
-async function parseResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(body || `Request failed with status ${response.status}`)
+export type PanelRequestErrorCode = 'not_found' | 'validation' | 'unavailable' | 'request_failed'
+
+/**
+ * Safe, presentation-ready failure from the panel API boundary. Response bodies
+ * are deliberately not copied into this error: a gene panel drives which
+ * variants a run reports on, so a failure must surface as an explicit
+ * unavailable state rather than as text that could read like panel content.
+ */
+export class PanelRequestError extends Error {
+  readonly code: PanelRequestErrorCode
+  readonly status?: number
+
+  constructor(message: string, options: { code: PanelRequestErrorCode; status?: number }) {
+    super(message)
+    this.name = 'PanelRequestError'
+    this.code = options.code
+    this.status = options.status
+    Object.setPrototypeOf(this, PanelRequestError.prototype)
   }
+}
+
+function panelErrorForStatus(status: number): PanelRequestError {
+  if (status === 404) return new PanelRequestError('That gene panel was not found.', { code: 'not_found', status })
+  if (status === 422) {
+    return new PanelRequestError('That panel request was not valid.', { code: 'validation', status })
+  }
+  if (status === 503) {
+    return new PanelRequestError('The panel service is unavailable.', { code: 'unavailable', status })
+  }
+  return new PanelRequestError('The panel request failed.', { code: 'request_failed', status })
+}
+
+/** Wraps transport failures so a dropped connection cannot be mistaken for an
+ *  empty or successful catalogue. */
+async function requestPanels<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, init)
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    throw new PanelRequestError('The panel service could not be reached.', { code: 'unavailable' })
+  }
+  if (!response.ok) throw panelErrorForStatus(response.status)
   return (await response.json()) as T
 }
 
 export async function getPanels(): Promise<PanelSummary[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/panels`)
-    const data = await parseResponse<{ panels: PanelSummary[] }>(response)
-    return data.panels
-  } catch {
-    // Offline or route-missing development mode uses bundled fixture panels.
-    return MOCK_PANELS.map((panel) => withPanelWarning(panel, OFFLINE_PANEL_WARNING))
-  }
+  const data = await requestPanels<{ panels: PanelSummary[] }>('/api/v1/panels')
+  return data.panels
 }
 
-export async function getPanel(slug: string): Promise<Panel | null> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/panels/${encodeURIComponent(slug)}`)
-    return await parseResponse<Panel>(response)
-  } catch {
-    const panel = getMockPanel(slug)
-    return panel ? withPanelWarning(panel, OFFLINE_PANEL_WARNING) : null
-  }
+export async function getPanel(slug: string): Promise<Panel> {
+  return requestPanels<Panel>(`/api/v1/panels/${encodeURIComponent(slug)}`)
 }
 
 export async function resolvePanel(input: PanelResolveRequest): Promise<Panel> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/panels/resolve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    })
-    return await parseResponse<Panel>(response)
-  } catch {
-    const query =
-      input.disease_mondo ??
-      (input.symbols ? input.symbols.join(' ') : null) ??
-      input.upload_ref ??
-      ''
-    const draft = buildCustomPanel(query)
-    if (draft) return withPanelWarning(draft.panel, OFFLINE_RESOLVE_WARNING)
-    return {
-      id: 'custom-fallback',
-      slug: 'custom-fallback',
-      name: query || 'Custom panel',
-      source: 'custom',
-      version: 'draft',
-      intervals_ref: 'hg38',
-      genes: [],
-      warnings: [OFFLINE_RESOLVE_WARNING, 'offline mock; no genes resolved'],
-    }
-  }
-}
-
-function withPanelWarning<T extends { warnings: string[] }>(panel: T, warning: string): T {
-  return {
-    ...panel,
-    warnings: Array.from(new Set([...(panel.warnings ?? []), warning])),
-  }
+  return requestPanels<Panel>('/api/v1/panels/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
 }

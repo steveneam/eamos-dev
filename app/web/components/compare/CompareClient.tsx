@@ -197,18 +197,24 @@ export function CompareClient() {
   const res = applyFilters(variants, filters)
 
   // Resolve full panels (genes) for active preset chips → the shared cache, so
-  // client-side membership uses real panel genes (mock fallback when offline).
+  // client-side membership uses real panel genes. A panel that will not resolve
+  // stays unresolved: filtering on invented genes would silently change which
+  // variants a run reports on.
   useEffect(() => {
     for (const f of filters) {
       if (f.kind === 'panel' && f.panelSlug && !loadedSlugs.current.has(f.panelSlug)) {
         const slug = f.panelSlug
         loadedSlugs.current.add(slug)
-        getPanel(slug).then((p) => {
-          if (p) {
+        getPanel(slug)
+          .then((p) => {
             cacheResolvedPanel(p)
             bumpCache((v) => v + 1)
-          }
-        })
+          })
+          .catch(() => {
+            // Allow a later attempt rather than pinning the chip to a failure.
+            loadedSlugs.current.delete(slug)
+            bumpCache((v) => v + 1)
+          })
       }
     }
   }, [filters])
