@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.capabilities.batch_normalizer import build_batch_normalizer
 from app.capabilities.build_inventory import build_inventory
+from app.capabilities.composition import _batch_normalizer_components
 from app.capabilities.errors import RuntimeCompositionError
 from app.core.config import Settings
 from app.main import create_app
@@ -83,6 +84,14 @@ def test_runtime_composition_injects_direct_lookup_before_serving(tmp_path: Path
     assert components["service.direct_lookup"]["status"] == "ready"
     assert components["service.batch_cursor_signing"]["status"] == "ready"
     assert components["binary.bcftools"]["status"] == "unavailable"
+    # A gated capability still states the terms of the build W3-BCF-01 approves:
+    # the GSL-disabled MIT/Expat one, never a blanket GPL claim.
+    assert components["binary.bcftools"]["license_spdx"] == "MIT"
+    assert components["binary.bcftools"]["license_posture"] == "permissive"
+    assert components["binary.bcftools"]["notice_ids"] == [
+        "bcftools-mit",
+        "htslib-mit-bsd",
+    ]
     assert components["material.grch38_batch_reference"]["status"] == "unavailable"
     assert components["python.primer3"]["pinned_version"] == "2.3.0"
     assert components["python.biopython"]["pinned_version"] == "1.87"
@@ -149,7 +158,7 @@ def test_approved_immutable_normalizer_manifest_constructs_adapter(tmp_path: Pat
             "path": executable.name,
             "version": "1.20",
             "sha256": _digest(executable),
-            "license_spdx": "GPL-3.0-or-later",
+            "license_spdx": "MIT",
         },
         "reference": {
             "path": reference.name,
@@ -179,8 +188,66 @@ def test_approved_immutable_normalizer_manifest_constructs_adapter(tmp_path: Pat
     assert isinstance(runtime.normalizer, BcftoolsBatchNormalizer)
     assert runtime.manifest_id == "grch38-bcftools-test-v1"
     assert runtime.binary_version == "1.20"
+    assert runtime.binary_license_spdx == "MIT"
     assert runtime.reference_release == "GRCh38.test"
     assert runtime.normalizer.disclosure().validation_status == "validated"
+
+    components = {item.component_id: item for item in _batch_normalizer_components(runtime)}
+    bcftools = components["binary.bcftools"]
+    assert bcftools.license_spdx == "MIT"
+    assert bcftools.license_posture == "permissive"
+    assert bcftools.notice_ids == ["bcftools-mit", "htslib-mit-bsd"]
+
+
+def test_gsl_linked_normalizer_build_reports_copyleft_review(tmp_path: Path) -> None:
+    """A GPL-3.0 build must still disclose copyleft, not inherit the MIT default."""
+    executable = tmp_path / "bcftools"
+    executable.write_text("#!/bin/sh\nprintf 'bcftools 1.20\\n'\n", encoding="utf-8")
+    executable.chmod(0o700)
+    reference = tmp_path / "GRCh38.fa"
+    reference.write_text(">1\nACGTACGT\n", encoding="ascii")
+    reference_index = tmp_path / "GRCh38.fa.fai"
+    reference_index.write_text("1\t8\t3\t8\t9\n", encoding="ascii")
+    manifest = {
+        "schema_version": "batch_normalizer_manifest.v1",
+        "approval_status": "approved",
+        "manifest_id": "grch38-bcftools-gsl-v1",
+        "bcftools": {
+            "path": executable.name,
+            "version": "1.20",
+            "sha256": _digest(executable),
+            "license_spdx": "GPL-3.0-or-later",
+        },
+        "reference": {
+            "path": reference.name,
+            "fai_path": reference_index.name,
+            "release": "GRCh38.test",
+            "sha256": _digest(reference),
+            "fai_sha256": _digest(reference_index),
+            "source_id": "grch38-test",
+        },
+        "validation_matrix_id": "batch-normalizer-test-v1",
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(manifest, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+    runtime = build_batch_normalizer(
+        _settings(
+            tmp_path / "runtime",
+            batch_normalizer_manifest_path=manifest_path,
+            batch_normalizer_manifest_sha256=_digest(manifest_path),
+        )
+    )
+
+    assert runtime.binary_license_spdx == "GPL-3.0-or-later"
+    components = {item.component_id: item for item in _batch_normalizer_components(runtime)}
+    bcftools = components["binary.bcftools"]
+    assert bcftools.license_spdx == "GPL-3.0-or-later"
+    assert bcftools.license_posture == "copyleft_review_required"
+    assert bcftools.notice_ids == ["bcftools-gpl3"]
 
 
 def test_container_contract_pins_base_binary_and_build_inventory() -> None:

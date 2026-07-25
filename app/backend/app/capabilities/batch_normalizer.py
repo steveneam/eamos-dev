@@ -18,6 +18,10 @@ from app.services.batch_engine import (
     UnavailableBatchNormalizer,
 )
 
+# The licence the approved W3-BCF-01 build target carries. Reported while no
+# manifest is mounted so a gated capability still states its real terms.
+APPROVED_BCFTOOLS_LICENSE_SPDX = "MIT"
+
 
 class _ManifestModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -27,7 +31,11 @@ class BcftoolsBinaryManifestV1(_ManifestModel):
     path: str = Field(min_length=1, max_length=512)
     version: str = Field(min_length=1, max_length=128)
     sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
-    license_spdx: Literal["GPL-3.0-or-later"] = "GPL-3.0-or-later"
+    # bcftools is dual-licensed: MIT/Expat, or GPL-3.0-or-later once GSL is
+    # linked for `polysomy`. The licence is therefore a property of the build,
+    # not of the project, so the manifest records which one this binary carries.
+    # W3-BCF-01 approves the GSL-disabled MIT/Expat build.
+    license_spdx: Literal["MIT", "GPL-3.0-or-later"] = "MIT"
 
 
 class Grch38ReferenceManifestV1(_ManifestModel):
@@ -68,6 +76,7 @@ class BatchNormalizerRuntime:
     manifest_sha256: str | None
     binary_version: str | None
     binary_sha256: str | None
+    binary_license_spdx: str
     reference_release: str
     reference_sha256: str | None
     validation_matrix_id: str | None
@@ -86,6 +95,7 @@ def build_batch_normalizer(settings: Settings) -> BatchNormalizerRuntime:
             manifest_sha256=None,
             binary_version=None,
             binary_sha256=None,
+            binary_license_spdx=APPROVED_BCFTOOLS_LICENSE_SPDX,
             reference_release=normalizer.reference_release,
             reference_sha256=None,
             validation_matrix_id=None,
@@ -135,6 +145,7 @@ def build_batch_normalizer(settings: Settings) -> BatchNormalizerRuntime:
         manifest_sha256=actual_manifest_digest,
         binary_version=manifest.bcftools.version,
         binary_sha256=manifest.bcftools.sha256.lower(),
+        binary_license_spdx=manifest.bcftools.license_spdx,
         reference_release=manifest.reference.release,
         reference_sha256=manifest.reference.sha256.lower(),
         validation_matrix_id=manifest.validation_matrix_id,

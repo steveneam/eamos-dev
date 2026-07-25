@@ -292,9 +292,29 @@ def _package_capability(name: str, preflight: PackagePreflight):
     )
 
 
+_BCFTOOLS_LICENSE_DISCLOSURE = {
+    # The GSL-disabled build W3-BCF-01 approves; htslib is MIT/Expat with its
+    # bundled CRAM code under modified BSD, so both notices ship.
+    "MIT": ("permissive", ["bcftools-mit", "htslib-mit-bsd"]),
+    # A GSL-linked build falls under GPL-3.0-or-later and needs review before
+    # it may be distributed.
+    "GPL-3.0-or-later": ("copyleft_review_required", ["bcftools-gpl3"]),
+}
+
+
+def _bcftools_license_disclosure(license_spdx: str) -> tuple[str, list[str]]:
+    try:
+        posture, notice_ids = _BCFTOOLS_LICENSE_DISCLOSURE[license_spdx]
+    except KeyError as exc:
+        raise RuntimeCompositionError("batch_normalizer_license_unrecognized") from exc
+    return posture, list(notice_ids)
+
+
 def _batch_normalizer_components(
     runtime: BatchNormalizerRuntime,
 ) -> list[RuntimeComponentV1]:
+    license_spdx = runtime.binary_license_spdx
+    license_posture, notice_ids = _bcftools_license_disclosure(license_spdx)
     if runtime.status == "ready":
         probe = RuntimeProbeV1(
             probe_id="bcftools.version_and_manifest.v1",
@@ -313,10 +333,10 @@ def _batch_normalizer_components(
                 launch_posture="enabled",
                 installed_version=runtime.binary_version,
                 pinned_version=runtime.binary_version,
-                license_spdx="GPL-3.0-or-later",
-                license_posture="copyleft_review_required",
+                license_spdx=license_spdx,
+                license_posture=license_posture,
                 sbom_ref=f"pkg:generic/bcftools@{runtime.binary_version}",
-                notice_ids=["bcftools-gpl3"],
+                notice_ids=notice_ids,
                 capability_ids=["batch.variant_normalization"],
                 artifact_manifest_id=runtime.manifest_id,
                 artifact_sha256=runtime.binary_sha256,
@@ -356,10 +376,10 @@ def _batch_normalizer_components(
             required_at_startup=False,
             launch_posture="gated",
             pinned_version=None,
-            license_spdx="GPL-3.0-or-later",
-            license_posture="copyleft_review_required",
+            license_spdx=license_spdx,
+            license_posture=license_posture,
             sbom_ref="pkg:generic/bcftools",
-            notice_ids=["bcftools-gpl3"],
+            notice_ids=notice_ids,
             capability_ids=["batch.variant_normalization"],
             probe=probe,
             requirements=requirements,
