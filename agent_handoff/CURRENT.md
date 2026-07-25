@@ -106,3 +106,8 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
   determination per registry record, split the isPcr NO-GO row, and apply for
   OMIM academic access. Then Phase 2 (primer engine, zero code). Capture the
   browser evidence still owed by PR #31.
+- Owed to swordfish, one consolidated reply: its 65-vs-55 env item is **answered
+  — both `PROTEIN_ANNOTATION_HMM*` paths are intended**, set absolute in
+  `Dockerfile:18-19` to override the bare-name config defaults precisely because
+  host `PATH` autodiscovery is forbidden. Its edge rate-limit confirm-intent and
+  shared-Dokploy posture items are founder calls, not mine.
