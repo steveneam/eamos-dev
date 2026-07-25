@@ -73,7 +73,7 @@ PACKAGE_CONTRACTS = {
     "pypdf": {
         "component_id": "python.pypdf",
         "display_name": "pypdf fallback runtime",
-        "pinned_version": "6.13.3",
+        "pinned_version": "6.14.2",
         "license_spdx": "BSD-3-Clause",
         "license_posture": "permissive",
         "capability_id": "paper.pypdf_fallback",

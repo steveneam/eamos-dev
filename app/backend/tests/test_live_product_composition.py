@@ -88,7 +88,7 @@ def test_runtime_composition_injects_direct_lookup_before_serving(tmp_path: Path
     assert components["python.biopython"]["pinned_version"] == "1.87"
     assert components["python.pysam"]["pinned_version"] == "0.24.0"
     assert components["python.pypdfium2"]["pinned_version"] == "5.12.1"
-    assert components["python.pypdf"]["pinned_version"] == "6.13.3"
+    assert components["python.pypdf"]["pinned_version"] == "6.14.2"
     assert components["isolation.paper_pdf_worker"]["status"] == "ready"
     assert components["isolation.paper_pdf_worker"]["probe"]["status"] == "passed"
     serialized = response.text
@@ -199,7 +199,7 @@ def test_container_contract_pins_base_binary_and_build_inventory() -> None:
         "biopython==1.87",
         "pysam==0.24.0",
         "pypdfium2==5.12.1",
-        "pypdf==6.13.3",
+        "pypdf==6.14.2",
     ):
         assert requirement in requirements
 
