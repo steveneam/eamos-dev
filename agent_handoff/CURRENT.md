@@ -24,70 +24,70 @@
 
 ## Active Status
 
-- **Claude:** STOPPED @ 2026-07-15 10:55 UTC — no active lane.
-- **Codex:** ACTIVE @ 2026-07-22 17:06 +0000 — lead for the approved Live
-  Product Completion campaign.
-- **Lane D:** PR #21 merged as `ec075a8` after local/CI/Vercel and source-backed
-  browser/API proof. Post-merge CI run `29940643472`, including immutable-image
-  pull-back verification, passed.
-- **Contract V2:** PR #22 merged as `641c0e5` after independent review, rebase,
-  focused local verification, full CI, dependency audit, container contract,
-  and Vercel passed.
-- **Wave 1:** W/R/P are assigned to disjoint agents and B is lead-owned. All
-  four launch from frozen-contract checkpoint `origin/main@0a3c980`.
-- **Four-wave approval:** Steven approved Codex to continue through the four
-  implementation waves and orchestrate the named worktrees/agents as
-  dependencies unlock. Lead-run serialized merge review remains mandatory.
-- **Production posture:** unchanged. No source materialization, live-provider,
-  cloud, deploy, Supabase, or Phase-7 action occurred in this slice.
+- **Claude:** ACTIVE @ 2026-07-25 05:27 +0000 — took over the campaign after
+  Codex exhausted usage; holds this Wave 3 docs branch.
+- **Codex:** STOPPED @ 2026-07-22 22:22 +0000 — usage exhausted at the exact
+  Wave 3 material-approval gate. All lane worktrees clean, nothing unpushed.
+- **Waves 0–2:** merged and green. Wave 1 PRs #24/#25/#23/#26, contract
+  amendment #27, runtime composition #28, then repo-correctness #30 merged as
+  `main@5861056`.
+- **Repo correctness (#30):** pypdf 6.13.3 carried four CVEs published after
+  the Wave 2 merge, and its failure had masked the npm half of the same job —
+  postcss 8.5.10 and brace-expansion 5.0.7 were also vulnerable. All three
+  patched. `590ca85` additionally made the bcftools licence a recorded property
+  of the built binary, which was W3-BCF-01's blocking precondition.
+- **Wave 3:** cards frozen, none executed. Blocked on two things, not one:
+  Steven has not named exact card IDs, and no runtime asset mount
+  (`/var/data/eamos/bio_assets`) exists on this host. 6 of 8 named builders are
+  unwritten, so most of Wave 3 is ungated code work.
+- **Wave 4:** next implementation lane, not yet started. Production, provider,
+  cloud, deploy, Supabase, and source-materialization state are unchanged.
 
 ## Log Edit-Lock
 
-UNLOCKED · 2026-07-22 18:21 +0000 · Codex
+UNLOCKED · 2026-07-25 05:27 +0000 · Claude
 
 ## Shared File Locks
 
-- **Frozen Contract V2 seam:** released after verified PR #22 merge; no Wave 1
-  lane may edit schemas, `backend.ts`, or the contract canaries.
-- **Lane W:** held for `/root/workbench_engines`; exact `plan.md` Lane W globs.
-- **Lane R:** held for `/root/report_evidence`; exact `plan.md` Lane R globs.
-- **Lane P:** held for `/root/paper_deterministic`; exact `plan.md` Lane P globs.
-- **Lane B:** held for Codex lead in `live-batch-wes`; exact Lane B globs.
+- None. Campaign lane locks are released; watcher-owned
+  `agent_handoff/FROM-SWORDFISH.md` remains untouched.
 
 ## Resume Prompt
 
 ```text
-# Resume prompt · 2026-07-22 18:18 +0000 · Codex Live Product Engine Wave
-Read CURRENT.md, COORDINATION.md, and plans/live-product-completion/{research,spec,plan}.md first.
-Contract V2 is merged at 641c0e5; launch W/R/P agents and lead-owned Batch from origin/main@0a3c980.
-Keep schemas/backend.ts/contract canaries frozen and enforce each exact lane glob plus evidence-security invariants.
-Review and merge only green in order W then R then P then B under Steven's explicit approval.
-Continue into the approved serial runtime-composition and frontend waves as dependencies unlock.
-Before material/source/provider/cloud/deploy/Supabase action, stop on its separately named gate and present exact evidence/cost/licence cards.
+# Resume prompt · 2026-07-25 05:27 +0000 · Claude Live Product Wave 4 lane
+Read CURRENT.md, plans/live-product-completion/{research,spec,plan}.md, and docs/live-product-verification/wave3-approval-cards.md.
+Waves 0-2 plus repo correctness are merged green through main@5861056; the eight Wave 3 cards are frozen and none is executed.
+Wave 4 (agent/live/surface-truth) is the active lane: remove ordinary scientific mock/sample fallbacks and render execution/source truth across workbench, report, paper, and compare.
+Start with app/web/lib/panels.ts, which returns MOCK_PANELS on any fetch failure in ordinary mode; match the thrown typed-unavailable idiom in lib/batch.ts and lib/paperVariants.ts.
+Wave 3 needs BOTH exact named card IDs from Steven AND a runtime asset mount that does not exist on this host; its 6 unwritten builders are ungated code work that can proceed first.
+Do not download, build, materialize, upload, mount, configure, or deploy any card until Steven names the approved card IDs exactly.
 Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ```
 
 ## Pointer
 
-- Live campaign: `plans/live-product-completion/{research,spec,plan}.md`.
-- Engine branches/worktrees: `agent/live/{workbench-engines,report-evidence,paper-deterministic,batch-wes}`
-  under `.claude/worktrees/live-*`.
-- Lane D record: merged PR #21; historical worktree
-  `.claude/worktrees/product-workbench-canvas-review` remains non-authoritative.
-- Product Workflow V1 background: `plans/product-workflow-integration/`.
-- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` remains dirty and untouched.
+- Plan: `plans/live-product-completion/{research,spec,plan}.md`.
+- Exact cards: `docs/live-product-verification/wave3-approval-cards.md`.
+- Review boundary: PR #29, branch `agent/live/material-approval-cards`, card
+  commit `55df2ce`, brought up to `main@5861056`.
+- Merged boundaries: Wave 2 PR #28 `main@2dd181c` (run `29961634345`); repo
+  correctness PR #30 `main@5861056`.
+- Wave 4 lane: branch `agent/live/surface-truth`, `plan.md` Wave 4 web paths.
+- Watcher-owned `agent_handoff/FROM-SWORDFISH.md` remains dirty only in the
+  main checkout and was not staged or edited.
 
 ## Delta
 
-- Merged green Contract V2 PR #22 as `641c0e5`, freezing additive execution,
-  context, report, paper, panel, and WES Batch truth models plus TS parity.
-- Preserved the security residual explicitly: legacy `UploadedReport` fields
-  remain only for compatibility; new V2 outputs exclude raw uploads/handles.
-- Unlocked the approved disjoint W/R/P/B engine wave while retaining separate
-  material, source, provider, cloud, Supabase, and deployment gates.
+- Froze eight individually approvable Wave 3 cards totaling about 1.673 GiB,
+  with checksums/licences/bounds and explicit rollback paths; kept unavailable,
+  incompatible, oversized, or licence-unclear candidates as deferred/NO-GO.
+- Cleared a repo-wide CI block: three vulnerable dependencies across both audit
+  halves, plus the false bcftools GPL claim that gated W3-BCF-01.
+- Corrected this board's stale rows; #27 and #28 were shown unmerged.
 
 ## Next Action
 
-- Create the four engine worktrees from the recorded frozen-contract base,
-  launch W/R/P agents, and implement lead-owned Batch without crossing lane or
-  material/provider/cloud gates.
+- Merge PR #29 on green, then open Wave 4 on `agent/live/surface-truth`
+  starting with the `panels.ts` fixture fallback. Wave 3 material execution
+  still needs exact card IDs and a runtime asset destination.
