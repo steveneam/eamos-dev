@@ -44,11 +44,12 @@
 - **Render:** cancelled by the founder 2026-07-25 ~04:55 UTC (Phase 4 closed).
   syd2 has been the sole serving path since the 07-17 cutover; the rollback path
   is gone by design.
-- **Deploys BLOCKED (not by us):** swordfish reports GitHub Actions under a
-  billing block until the monthly refresh — no new image builds, so no new Eamos
-  deploys. Live image is digest-frozen at `@sha256:910dc159…`. Work merge-ready;
-  anything needing a fresh image waits. Runtime-tree assets are unaffected.
-  Full box brief: `FROM-SWORDFISH.md` 2026-07-25 06:15 UTC section.
+- **Image builds WORK** — Steven cleared the GitHub billing block 2026-07-25;
+  swordfish's block report is superseded. Proven: `publish backend image` passed
+  on `main@9efe7e4` (run `30147035559`) incl. immutable pull-back. GHCR now has
+  `@sha256:f4b3d44c…` while syd2 still runs `@sha256:910dc159…` — expected drift
+  (`autoDeploy` false, push→deploy unwired); closing it is the founder deploy
+  gate + a swordfish Dokploy action. Box brief: `FROM-SWORDFISH.md` 06:15 UTC.
 
 ## Log Edit-Lock
 

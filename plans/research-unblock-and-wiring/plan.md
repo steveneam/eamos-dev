@@ -174,16 +174,23 @@ Wave 5 (`agent/live/product-ratchets-v2`) and the approved deployment gate are
 unchanged from the campaign plan. Deployment stays its own founder gate with the
 exact environment/provider/material diff, rollback, and smoke matrix.
 
-**Deployment is independently blocked right now, and not by us.** Swordfish
-reported on 2026-07-25 that GitHub Actions is under a billing block until the
-monthly refresh: no new image builds, therefore **no new Eamos deploys**. The
-live image stays digest-frozen at `@sha256:910dc159…`. Anything in the phases
-above that would need a fresh backend image — new pinned binaries such as
-`isPcr` or `bcftools`, new Python dependencies — lands in the repo and the asset
-store but **cannot reach production until that clears.** Plan the work to be
-merge-ready and asset-ready, and treat the deploy as a separate later step
-rather than the end of a phase. Runtime-tree assets that need no image change
-are unaffected.
+**Image builds work — the billing block is cleared.** Swordfish reported a
+GitHub Actions billing block on 2026-07-25; Steven unlocked the bill the same
+day and the block is confirmed gone by evidence, not assertion: `publish backend
+image` **ran and succeeded** on the `main@9efe7e4` merge (run `30147035559`, job
+`89651078071`, 1m28s), including its immutable pull-back verification.
+
+So new pinned binaries such as `isPcr` or `bcftools` and new Python dependencies
+can be built into an image as the phases above need them.
+
+**There is now image drift, and it is expected.** GHCR carries
+`ghcr.io/steveneam/eamos-backend@sha256:f4b3d44c401ee919944b4ca2fd2cf8963182ebeac387433c4b9a7c593e963406`
+for `main@9efe7e4`, while syd2 still runs the older
+`@sha256:910dc159…`. That is by design — Dokploy `autoDeploy` is false and
+push→deploy is deliberately unwired — so a published image is not a deployed
+one. Closing the drift is the founder deployment gate plus a swordfish-side
+Dokploy action, and it stays a separate step at the end rather than the end of a
+phase.
 
 ## Guardrails that still apply
 
