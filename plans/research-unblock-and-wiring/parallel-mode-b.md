@@ -4,9 +4,11 @@ Status: proposed; needs Steven's partition approval, then per-lane launch approv
 
 Stamped: 2026-07-25 06:2x +0000 · Claude.
 
-Sourced from thalon's proven practice on this box: `~/work/thalon/COORDINATION.md`
-and `~/work/thalon/scripts/launch-lane.sh`. Eamos protocol:
-`COORDINATION.md` §"How we run a sprint" and `AGENTS.md`.
+Sourced from thalon's proven practice on this box
+(`~/work/thalon/COORDINATION.md`, `~/work/thalon/scripts/launch-lane.sh`) plus its
+and selom's direct answers to the asks I sent over live-comm — see
+`agent_handoff/FROM-THALON-lane-mechanics.md` and `agent_handoff/FROM-SELOM.md`.
+Eamos protocol: `COORDINATION.md` §"How we run a sprint" and `AGENTS.md`.
 
 ## The mechanic that changes everything: the lead drives tmux, Steven only approves
 
@@ -29,13 +31,24 @@ and the lead monitors with `tmux capture-pane`.
 launch. One short line each. No pasting, ever.** That is the single most valuable
 thing to copy, and Eamos's Mode B description should be amended to match.
 
-**One open question, asked and not yet answered.** Swordfish's brief says *never*
-raw `tmux send-keys`. Thalon's launcher uses it. I read those as different
-things — swordfish means cross-agent *signalling* (use `agent-comm`), while
-thalon is a lead driving its own subordinate windows — but I asked thalon to
-confirm and its composer was live, so the send refused twice and I did not spam
-it. **Resolve that before shipping `scripts/eamos-launch-lane.sh`**; if the
-distinction does not hold, the fallback is `agent-comm` plus a founder tap.
+**The send-keys question is resolved — thalon confirmed it** (2026-07-25,
+`agent_handoff/FROM-THALON-lane-mechanics.md`):
+
+> your own windows → drive them directly; any pane you didn't create →
+> agent-comm, no exceptions.
+
+Swordfish's prohibition is the **cross-agent** rule: injecting into another
+agent's composer risks splicing into a parked draft, forging provenance, or
+submitting multi-line bodies as extra turns. A lead driving windows it created
+itself is an operator driving its own terminals. Grey zone thalon flags: a lane
+that has been running long enough to hold its own in-flight state deserves the
+same courtesy as a peer — peek before typing. So
+`scripts/eamos-launch-lane.sh` is unblocked.
+
+**And the kickoff keeps one deliberate human step.** Thalon: send-keys reliably
+*types* into a freshly-booted composer but the submit is racy, so they park the
+kickoff and press Enter once by hand after eyeballing it. Keep that — it is a
+cheap checkpoint, and pressing Enter is exactly the kind of tap Steven can do.
 
 ## What actually parallelizes — the honest read
 
@@ -75,34 +88,92 @@ partition was wrong → re-plan, never an ad-hoc edit.
 parser both *modify existing* parsers rather than adding new files, so they
 carry conflict risk the four above do not. Lead-serial or wave two.
 
+## Sizing: launch concurrently, bound the test peaks
+
+**My earlier stagger-the-launches bullet was wrong, and thalon corrected it.**
+The stagger rule died with the 2026-07-19 syd4 resize (16 GiB / 6 vCPU). Thalon's
+measurement: ~2.26 GiB peak per lane worker, so **4 concurrent lanes plus the
+lead fit with headroom**, and the 6 GB swap is backstop rather than working set.
+
+**The binding constraint is vCPU during test runs, not RAM or launch timing.**
+Selom independently measured the box the same day and reached the same root
+cause from the other direction:
+
+```
+6 vCPU · 15.99 GB · 9.10 GB available · 5 agent sessions live
+5 claude sessions   ≈ 1.9 GB TOTAL
+one Next dev server ≈ 1.4 GB   (≈ three claude sessions)
+a browser           ≈ 1.5 GB
+```
+
+So the agents are not what eats this box. Concretely:
+
+1. **Cap per-lane test parallelism at `-n 2`, never `-n auto`.** Eamos uses
+   pytest-xdist; four lanes each fanning out to 6 workers is 24 processes on
+   6 vCPU and ~8-9.6 GB of transient peak — straight into the ceiling. Stagger
+   the heavy *suite runs*, not the launches.
+2. **No lane runs a dev server or a headless browser.** Thalon never solved lane
+   ports because it never needed to — Turbopack fatals on out-of-root symlinks
+   ("points out of the filesystem root"), so **visual checks happen on the
+   lead's checkout after rebase.** That also settles where this session's owed
+   PR #31 browser evidence goes: the lead's checkout, not a lane. If a lane ever
+   genuinely needs a server, budget ~1.5 GB, drop a lane, and use swordfish's
+   derived-lane-port convention rather than a bare port.
+3. **Verify `OOMPolicy=continue` on `agent-tmux.service` before forking.** With
+   `stop`, one fat lane OOM takes down every session on the box. Checked today
+   and it passes — one command, and the failure mode is the whole fleet.
+
+Selom suggested keeping staggered launches; thalon retired them from lived
+post-resize experience while selom has not yet run lanes. Following thalon on
+launch timing and selom on the `-n 2` cap satisfies both, because both are really
+about the same thing: bound the peaks.
+
 ## Mechanics to copy, with the lessons already paid for
 
-Thalon learned these the expensive way; adopt them rather than re-learning:
+1. **Prep worktrees with absolute paths from the repo root.** Thalon logged two
+   mishaps from `cwd` persisting across shell calls — a nested worktree and a
+   lane branch briefly kicked to `main`. I hit the same class twice today (a
+   broken Stop hook, a failed `git add`). Use `git -C` and `npm --prefix`, never
+   `cd`.
+2. **Assert what a fresh worktree does not have.** `.venv`, `.env`, and
+   `node_modules` are all gitignored, so a new lane starts without them.
+   `.worktreeinclude` copies `app/backend/.env`, `app/web/.env.local`, and
+   `.context/`; everything else is asserted at setup, never discovered at merge.
+3. **Backend-only lanes skip the web install entirely.** All four proposed lanes
+   are backend CLIs, so each needs only
+   `python3 -m venv app/backend/.venv` then
+   `app/backend/.venv/bin/pip install -r app/backend/requirements.txt`.
+4. **Never `npm install` inside a worktree** — npm v7+ replaces a linked
+   `node_modules` with a real per-lane tree and forks the dependency graph.
+   Eamos already ratchets this with `scripts/guard-worktree-install.mjs`
+   (preinstall). **Gap worth knowing:** that guard points at
+   `scripts/eamos-worktree-setup.ps1`, a Windows-era PowerShell script with no
+   Linux equivalent, and current worktrees carry no `node_modules` at all. Moot
+   for backend-only lanes; blocking for any future web lane.
+5. **Worktree deps half-work silently on Linux.** Node resolution walks up to the
+   main checkout, so tests can pass while eslint (workspace-nested deps) fails.
+   Verify the `.bin`-through-link path at setup.
+6. **Keep lane tests env-free by design.** A lane whose tests want real env or
+   secrets is a smell — restructure the test.
+7. **Kill by PID from `pgrep -af`, never `pkill -f`.** Selom hit this today —
+   `pkill -f` matched *its own command line*, killed its script and left the
+   server alive. It explains the stray exit-144 I saw doing the same thing, and
+   with N lanes it kills other lanes' processes.
+8. **Git hooks are shared** across worktrees via the common `.git`, so the
+   box-level pre-commit invariants run in every lane for free.
+9. **Expect lane death and salvage it.** Thalon had a lane author everything then
+   die on usage credits pre-verify; the lead inspected, found the red test's
+   *real* bug, fixed, verified, merged. A dead lane is salvaged, not restarted.
+10. **Lead is sole merger** — serialized, rebased, green only. Lanes mark their
+    own coordination row `review` and never merge. A conflict outside a lane's
+    own row is a partition leak → re-plan.
+11. **Fresh founder approval per launch.** The partition approval is not a
+    blanket grant.
 
-1. **Stagger every launch.** Thalon's record: syd4's 16 GB resize was *refused*
-   by BinaryLane on host capacity, swap was raised to 6 GB, and *"STAGGER
-   standing for all future lane launches"* was made a rule. syd4 also hosts five
-   other agent sessions. Launch one lane, confirm it is working, then the next.
-2. **Prep worktrees with absolute paths from the repo root.** Thalon logged two
-   worktree mishaps from `cwd` persisting across shell calls — a nested worktree
-   and a lane branch briefly kicked to `main`. I hit the same class of bug twice
-   in this session (a broken Stop hook and a failed `git add`). Use `git -C` and
-   `npm --prefix`, never `cd`.
-3. **Backend-only lanes skip the web install.** All four lanes here are backend
-   CLIs, so each needs only
-   `python3 -m venv app/backend/.venv && app/backend/.venv/bin/pip install -r app/backend/requirements.txt`
-   — not `npm --prefix app/web ci`. That is a large saving per worktree.
-   `.worktreeinclude` already copies `app/backend/.env`, `app/web/.env.local`,
-   and `.context/` automatically.
-4. **Expect lane death and plan the salvage.** Thalon had a lane author
-   everything then die on usage credits pre-verify; the lead inspected, found the
-   red test's *real* bug, fixed, verified, merged. Budget for that: a dead lane
-   is salvaged by the lead, not restarted from scratch.
-5. **Lead is the sole merger**, serialized, rebased, on green only. Lanes mark
-   their own coordination row `review` and never merge. A conflict outside a
-   lane's own row is a partition leak → re-plan.
-6. **Fresh founder approval per launch**, per named run — the partition approval
-   is not a blanket grant.
+Credit: `agent_handoff/FROM-THALON-lane-mechanics.md` (thalon s68, lived lane
+experience) and `agent_handoff/FROM-SELOM.md` (selom, measured box data). Thalon's
+fuller brain-dump — merge-train and tripwire sections apply verbatim — is at
+`~/work/thalon/.context/peer-notes/lane-mechanics-braindump.md`.
 
 ## Housekeeping worth Steven's call first
 
