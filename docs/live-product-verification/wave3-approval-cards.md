@@ -57,8 +57,11 @@ predictors.
 | Rollback | remove/restore the normalizer manifest; never search the host `PATH` |
 | Probe | `bcftools --version`; deterministic split/left-normalize/REF-mismatch matrix against W3-REF-01 |
 
-The Wave 2 manifest's GPL-only enum/notice must be amended to the selected
-MIT/Expat build truth before this card can report ready.
+This card's licence precondition is now satisfied. The Wave 2 manifest accepted
+only `GPL-3.0-or-later`, so the selected MIT/Expat build could not be expressed
+at all; `590ca85` made the licence a recorded property of the built binary,
+derived the registry posture and notices from it, and covers the MIT build, a
+GSL-linked GPL build, and the gated pre-mount state with tests.
 
 ## W3-MANE-01 — MANE v1.5 intervals and transcript identity
 
