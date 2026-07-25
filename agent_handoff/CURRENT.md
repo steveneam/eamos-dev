@@ -75,8 +75,9 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 ## Pointer
 
 - Next-session master plan: `plans/research-unblock-and-wiring/plan.md`, run as
-  a parallel window per `.../parallel-mode-b.md` (4 builder lanes after a serial
-  Phase 1 spine; lead drives tmux, Steven only approves).
+  a parallel window per `plans/research-unblock-and-wiring/parallel-mode-b.md`
+  (4 builder lanes after a serial Phase 1 spine; lead drives tmux via a launcher
+  it must write first, Steven only approves).
 - Primer engine plan: `plans/primer-specificity-engine/plan.md`.
 - Licence determination: `docs/live-product-verification/free-access-licence-review.md`.
 - Campaign plan: `plans/live-product-completion/{research,spec,plan}.md`.
@@ -116,5 +117,4 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
   `scripts/eamos-launch-lane.sh` (send-keys distinction confirmed by thalon),
   a `KICKOFF-<lane>.md` per lane, re-check `OOMPolicy=continue`. Launch 4
   concurrently, tests capped `-n 2`. One founder approval per lane at launch.
-- Swordfish's 65-vs-55 env item is answered in `ASK-BACKS-FOR-SWORDFISH.md`; its
-  other two items are founder calls.
+- Swordfish's three ledger items: answered in `ASK-BACKS-FOR-SWORDFISH.md`.
