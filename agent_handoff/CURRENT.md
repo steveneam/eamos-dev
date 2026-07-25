@@ -76,7 +76,9 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
 
 ## Pointer
 
-- Next-session master plan: `plans/research-unblock-and-wiring/plan.md`.
+- Next-session master plan: `plans/research-unblock-and-wiring/plan.md`, run as
+  a parallel window per `.../parallel-mode-b.md` (4 builder lanes after a serial
+  Phase 1 spine; lead drives tmux, Steven only approves).
 - Primer engine plan: `plans/primer-specificity-engine/plan.md`.
 - Licence determination: `docs/live-product-verification/free-access-licence-review.md`.
 - Campaign plan: `plans/live-product-completion/{research,spec,plan}.md`.
@@ -107,8 +109,11 @@ Never stage watcher-owned agent_handoff/FROM-SWORDFISH.md.
   determination per registry record, split the isPcr NO-GO row, and apply for
   OMIM academic access. Then Phase 2 (primer engine, zero code). Capture the
   browser evidence still owed by PR #31.
-- Owed to swordfish, one consolidated reply: its 65-vs-55 env item is **answered
-  — both `PROTEIN_ANNOTATION_HMM*` paths are intended**, set absolute in
-  `Dockerfile:18-19` to override the bare-name config defaults precisely because
-  host `PATH` autodiscovery is forbidden. Its edge rate-limit confirm-intent and
-  shared-Dokploy posture items are founder calls, not mine.
+- Steven's two answers unblock the parallel window: **approve the partition**
+  (serial Phase 1, then lanes B-REF/B-MANE/B-HGNC/B-PAPER) and **approve or
+  decline worktree cleanup** (15 stale worktrees, 10 GB).
+- Open with thalon/selom via live-comm: whether thalon's `send-keys` launcher is
+  compatible with swordfish's no-raw-send-keys rule, plus syd4's real concurrent
+  lane ceiling. Do not write `eamos-launch-lane.sh` until that lands.
+- Swordfish's 65-vs-55 env item is answered in `ASK-BACKS-FOR-SWORDFISH.md`; its
+  other two items are founder calls.
