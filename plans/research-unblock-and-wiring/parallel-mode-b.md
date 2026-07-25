@@ -139,20 +139,27 @@ about the same thing: bound the peaks.
    `node_modules` are all gitignored, so a new lane starts without them.
    `.worktreeinclude` copies `app/backend/.env`, `app/web/.env.local`, and
    `.context/`; everything else is asserted at setup, never discovered at merge.
-3. **Backend-only lanes skip the web install entirely.** All four proposed lanes
-   are backend CLIs, so each needs only
-   `python3 -m venv app/backend/.venv` then
-   `app/backend/.venv/bin/pip install -r app/backend/requirements.txt`.
-4. **Never `npm install` inside a worktree** — npm v7+ replaces a linked
+3. **Lane prep is one command:** `node scripts/eamos-worktree-setup.mjs <lane>`.
+   Written and proven 2026-07-25 to close a real gap — `guard-worktree-install.mjs`
+   pointed at `eamos-worktree-setup.ps1`, a Windows-era PowerShell script with no
+   POSIX equivalent, so a fresh worktree had no deps and no documented way to get
+   them. The new script creates the worktree, links deps, and verifies them.
+4. **Deps are linked, not installed — measured, not assumed.** Installs live in
+   the main checkout; lanes symlink `app/backend/.venv` and
+   `app/web/node_modules`. Verified in a probe worktree, all through the links:
+   `pytest -n 2` (resolving the **lane's** package, not main's), eslint, vitest
+   (37 files / 258 tests), and the web boundary guard all pass. Cost is ~0 bytes
+   and no install time per lane, against ~1.6 GB and several minutes each if
+   installed fresh.
+5. **Never `npm install` inside a worktree** — npm v7+ replaces a linked
    `node_modules` with a real per-lane tree and forks the dependency graph.
-   Eamos already ratchets this with `scripts/guard-worktree-install.mjs`
-   (preinstall). **Gap worth knowing:** that guard points at
-   `scripts/eamos-worktree-setup.ps1`, a Windows-era PowerShell script with no
-   Linux equivalent, and current worktrees carry no `node_modules` at all. Moot
-   for backend-only lanes; blocking for any future web lane.
-5. **Worktree deps half-work silently on Linux.** Node resolution walks up to the
-   main checkout, so tests can pass while eslint (workspace-nested deps) fails.
-   Verify the `.bin`-through-link path at setup.
+   `guard-worktree-install.mjs` blocks it at preinstall.
+6. **Worktree deps half-work silently on Linux.** Node resolution walks up to the
+   main checkout, so vitest can pass while eslint (workspace-nested deps) fails.
+   The setup script asserts the `.bin`-through-link path *and* that backend
+   imports resolve to the lane rather than to main — a link that silently
+   resolved upward would make a lane green against the wrong code, which is the
+   worst failure mode available here.
 6. **Keep lane tests env-free by design.** A lane whose tests want real env or
    secrets is a smell — restructure the test.
 7. **Kill by PID from `pgrep -af`, never `pkill -f`.** Selom hit this today —
@@ -175,22 +182,30 @@ experience) and `agent_handoff/FROM-SELOM.md` (selom, measured box data). Thalon
 fuller brain-dump — merge-train and tripwire sections apply verbatim — is at
 `~/work/thalon/.context/peer-notes/lane-mechanics-braindump.md`.
 
-## Housekeeping worth Steven's call first
+## Status: approved and prepped (2026-07-25)
 
-`.claude/worktrees/` currently holds **15 worktrees at 10 GB**, all from merged
-campaign lanes. Adding four more is fine on space (93 G free), but the stale ones
-are clutter that makes `git worktree list` hard to read. Removing them is a
-deletion, so it needs explicit approval under the no-delete rule — worth asking
-at the same time as the partition, not assumed.
+Steven approved the partition and the worktree cleanup.
 
-## What Steven is asked for
+**Cleanup done.** All 14 stale worktrees removed — `.claude/worktrees/` went from
+**10 GB to 4 KB**, and free disk from 93 G to 102 G. Every branch was verified
+pushed and identical to origin first, and `git worktree remove` does not delete
+branches, so nothing was lost: all 21 `agent/*` branches remain, including
+`agent/product/workbench-canvas`, whose tip is not an ancestor of `main` and
+which therefore keeps its own record.
 
-Two short answers, nothing to paste:
+**Prep proven.** `scripts/eamos-worktree-setup.mjs` exists and was exercised
+end-to-end on a throwaway lane, then removed.
 
-1. **Approve the partition** — the serial Phase 1 spine, then the four lanes
-   B-REF / B-MANE / B-HGNC / B-PAPER.
-2. **Approve worktree cleanup**, or decline and leave the 15 in place.
+## Remaining before launch
 
-Then, per lane, one approval at launch time. The lead does the rest: prep the
-worktree, write `agent_handoff/KICKOFF-<lane>.md`, launch detached, monitor by
-`capture-pane`, review, rebase, merge.
+1. Merge the serial Phase 1 spine to `main` — it is the frozen seam.
+2. Write `scripts/eamos-launch-lane.sh`, adapted from thalon's, now that the
+   send-keys distinction is confirmed. Keep the parked-kickoff-plus-one-Enter
+   checkpoint.
+3. Write `agent_handoff/KICKOFF-<lane>.md` per lane.
+4. Verify `OOMPolicy=continue` still holds, then launch — concurrently, four
+   lanes, tests capped at `-n 2`.
+
+Steven's only remaining input is **one approval per lane at launch time**; the
+partition approval is not a blanket grant. The lead does everything else: prep,
+kickoff, launch detached, monitor by `capture-pane`, review, rebase, merge.
